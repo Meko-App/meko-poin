@@ -25,45 +25,102 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          // Sidebar dengan animasi
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            child: Container(
-              width: _showSidebar ? 280 : 0,
-              child: Visibility(
-                visible: _showSidebar,
-                maintainState: true,
-                maintainAnimation: true,
-                maintainSize: true,
-                child: Sidebar(
-                  onMenuSelected: (menu) {
-                    setState(() {
-                      _selectedMenu = menu;
-                    });
-                  },
+        body: Stack(
+      children: [
+        Row(
+          children: [
+            // Sidebar dengan animasi
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: SizedBox(
+                width: _showSidebar ? 280 : 30,
+                child: Visibility(
+                  visible: _showSidebar,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: Sidebar(
+                    onMenuSelected: (menu) {
+                      setState(() {
+                        _selectedMenu = menu;
+                      });
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                DashboardHeader(
-                  showSidebar: _showSidebar,
-                  onMenuPressed: _toggleSidebar,
-                ),
-                Expanded(
-                  child: DashboardContent(menu: _selectedMenu),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                children: [
+                  DashboardHeader(
+                    showSidebar: _showSidebar,
+                    onMenuPressed: _toggleSidebar,
+                  ),
+                  Expanded(
+                    child: DashboardContent(menu: _selectedMenu),
+                  ),
+                ],
+              ),
             ),
+          ],
+        ),
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          top: 20,
+          left: _showSidebar ? 260 : 10,
+          child: AnimatedCrossFade(
+            duration: const Duration(milliseconds: 300),
+            firstChild: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationY(3.1416),
+              child: IconButton(
+                icon: const Icon(Icons.keyboard_tab),
+                onPressed: _toggleSidebar,
+                color: Colors.grey.shade500,
+                iconSize: 18,
+                style: ButtonStyle(
+                    backgroundColor:
+                        WidgetStateProperty.all(const Color(0xFFFFFFFF)),
+                    shape: WidgetStateProperty.all(
+                      RoundedRectangleBorder(
+                        side: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1.0,
+                          style: BorderStyle.solid,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    )),
+              ),
+            ),
+            secondChild: IconButton(
+              icon: const Icon(Icons.keyboard_tab),
+              onPressed: _toggleSidebar,
+              iconSize: 18,
+              color: Colors.grey.shade500,
+              style: ButtonStyle(
+                  backgroundColor:
+                      WidgetStateProperty.all(const Color(0xFFFFFFFF)),
+                  shape: WidgetStateProperty.all(
+                    RoundedRectangleBorder(
+                      side: BorderSide(
+                        color: Colors.grey.shade200,
+                        width: 1.0,
+                        style: BorderStyle.solid,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  )),
+            ),
+            crossFadeState: _showSidebar
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
           ),
-        ],
-      ),
-    );
+        )
+      ],
+    ));
   }
 }
 
@@ -80,41 +137,31 @@ class DashboardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
-      padding: const EdgeInsets.only(left: 12, right: 24),
+      padding: const EdgeInsets.only(left: 40, right: 40, top: 20, bottom: 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey, width: 0.25)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 300),
-            firstChild: IconButton(
-              icon: const Icon(Icons.close_fullscreen),
-              onPressed: onMenuPressed,
-            ),
-            secondChild: IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: onMenuPressed,
-            ),
-            crossFadeState: showSidebar
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
+          Row(
+            spacing: 5,
+            children: [
+              const Text(
+                'Dashboards',
+                style: TextStyle(color: Color(0xFF4b5675), fontSize: 14),
+              ),
+              const Icon(Icons.chevron_right,
+                  size: 12, color: Color(0xFFA4ABBF)),
+              const Text(
+                'Ringkasan',
+                style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: Color(0xFF111B37)),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          const Text(
-            'Dashboards',
-            style: TextStyle(color: Colors.blueGrey, fontSize: 14),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-          const SizedBox(width: 6),
-          const Text(
-            'Ringkasan',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const Spacer(),
           const CircleAvatar(
             radius: 18,
             backgroundImage: AssetImage('assets/user.png'),
@@ -134,7 +181,7 @@ class DashboardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.only(left: 40, right: 40, top: 20, bottom: 20),
       width: double.infinity,
       child: _buildContentForMenu(),
     );
@@ -165,11 +212,17 @@ class DashboardContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Dashboard",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text("Dashboard",
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade900)),
         const SizedBox(height: 4),
-        const Text("Data ringkasan berdasarkan hari ini",
-            style: TextStyle(fontSize: 14, color: Colors.grey)),
+        Text("Data ringkasan berdasarkan hari ini",
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: Colors.grey.shade700)),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -248,7 +301,7 @@ class _SidebarState extends State<Sidebar> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(color: Colors.grey, width: 0.25),
+          right: BorderSide(color: Colors.grey.shade200, width: 1.0),
         ),
       ),
       child: Column(
@@ -314,10 +367,10 @@ class _SidebarState extends State<Sidebar> {
             const SizedBox(width: 10),
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+              style: TextStyle(
+                color: Colors.grey.shade800,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
               ),
             ),
           ],
@@ -370,44 +423,74 @@ class SidebarMenuItem extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
       decoration: BoxDecoration(
-        color: active ? const Color(0xFFEFF6FF) : Colors.transparent,
+        color: active
+            ? const Color(0xFFF9F9F9)
+            : const Color.fromARGB(0, 255, 255, 255),
         borderRadius: BorderRadius.circular(8),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Stack(
             children: [
-              if (active)
-                Container(
-                  width: 6,
-                  height: 6,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: const BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                  ),
-                )
-              else
-                const SizedBox(width: 18),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: active ? FontWeight.bold : FontWeight.normal,
-                    color: active ? Colors.blue : Colors.black,
-                  ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9.5, vertical: 0),
+                child: Row(
+                  spacing: 17,
+                  children: [
+                    Column(
+                      children: [
+                        Container(
+                          width: 1.5,
+                          height: 16,
+                          color: Colors.grey.shade200,
+                        ),
+                        Container(
+                          width: 1.5,
+                          height: 16,
+                          color: Colors.grey.shade200,
+                        ),
+                        Container(
+                          width: 1.5,
+                          height: 16,
+                          color: Colors.grey.shade200,
+                        )
+                      ],
+                    ),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color:
+                              active ? Color(0xFF1379F0) : Colors.grey.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              AnimatedPositioned(
+                  top: 20,
+                  left: 7.5,
+                  duration: const Duration(milliseconds: 250),
+                  child: AnimatedOpacity(
+                      opacity: active ? 1 : 0,
+                      duration: const Duration(milliseconds: 250),
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF1379F0),
+                          shape: BoxShape.circle,
+                        ),
+                      )))
             ],
-          ),
-        ),
-      ),
+          )),
     );
   }
 }
