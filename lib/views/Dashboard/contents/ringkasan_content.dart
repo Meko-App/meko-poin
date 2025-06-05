@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_gudang.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_pelanggan.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_penjualan.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_produk.dart';
 
 class RingkasanContent extends StatelessWidget {
   const RingkasanContent({super.key});
@@ -21,44 +25,21 @@ class RingkasanContent extends StatelessWidget {
                 color: Colors.grey.shade700)),
         const SizedBox(height: 24),
         Row(
-          children: [
-            Expanded(child: _buildCard("Pelanggan")),
-            const SizedBox(width: 24),
-            Expanded(child: _buildCard("Penjualan Hari Ini")),
+          children: const [
+            Expanded(child: CardPelanggan()),
+            SizedBox(width: 24),
+            Expanded(child: CardPenjualan()),
           ],
         ),
         const SizedBox(height: 24),
         Row(
-          children: [
-            Expanded(child: _buildCard("Gudang")),
-            const SizedBox(width: 24),
-            Expanded(child: _buildCard("Produk Terfavorit")),
+          children: const [
+            Expanded(child: CardGudang()),
+            SizedBox(width: 24),
+            Expanded(child: CardProduk()),
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildCard(String title) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      height: 220,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
     );
   }
 }
