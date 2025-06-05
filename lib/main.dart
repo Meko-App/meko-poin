@@ -26,6 +26,7 @@ void main() async {
 
   // Initialize FFI
   sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
 
   runApp(const MyApp());
 }
