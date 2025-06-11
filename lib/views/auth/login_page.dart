@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
 import '../Dashboard/dashboard_page.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -87,7 +86,8 @@ class _LoginPageState extends State<LoginPage> {
                   Center(
                     child: Text(
                       'Sign in',
-                      style: GoogleFonts.inter(
+                      style: TextStyle(
+                        fontFamily: 'Inter',
                         fontSize: 30,
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
@@ -97,7 +97,8 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 32.0),
                   Text(
                     'Email',
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
+                      fontFamily: 'Inter',
                       fontSize: 18,
                       fontWeight: FontWeight.w400,
                       color: Colors.black,
@@ -106,14 +107,16 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _emailController,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
+                      fontFamily: 'Inter',
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
                       color: Colors.black,
                     ),
                     decoration: InputDecoration(
                       hintText: 'email@email.com',
-                      hintStyle: GoogleFonts.inter(
+                      hintStyle: TextStyle(
+                        fontFamily: 'Inter',
                         color: Colors.grey,
                         fontSize: 16,
                         fontWeight: FontWeight.normal,
@@ -144,7 +147,8 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20.0),
                   Text(
                     'Password',
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
+                      fontFamily: 'Inter',
                       fontSize: 18,
                       color: Colors.black,
                     ),
@@ -153,14 +157,16 @@ class _LoginPageState extends State<LoginPage> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscureText,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
+                      fontFamily: 'Inter',
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
                       color: Colors.black,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Enter Password',
-                      hintStyle: GoogleFonts.inter(
+                      hintStyle: TextStyle(
+                        fontFamily: 'Inter',
                         color: Colors.grey,
                         fontSize: 16,
                         fontWeight: FontWeight.normal,
@@ -216,7 +222,8 @@ class _LoginPageState extends State<LoginPage> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
                               'Sign In',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 18,
                                 color: Colors.white,
                               ),

@@ -15,20 +15,24 @@ void main() async {
     title: "POS Photorism App",
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.normal, // penting agar title bar tetap tampil
+    titleBarStyle: TitleBarStyle.normal,
   );
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
+  await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    await windowManager.maximize(); // hanya maximize, bukan fullscreen
   });
 
-  // Initialize FFI
+  // Init SQLite FFI
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
   runApp(const MyApp());
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    await windowManager.maximize();
+  });
 }
 
 class MyApp extends StatelessWidget {
