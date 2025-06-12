@@ -9,7 +9,7 @@ class CardPelanggan extends StatefulWidget {
 
 class _CardPelangganState extends State<CardPelanggan> {
   int currentPage = 1;
-  final int itemsPerPage = 5;
+  final int itemsPerPage = 4;
 
   List<Map<String, dynamic>> data = [
     {
@@ -187,7 +187,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onTap: () => onSort('name'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 16),
+                            horizontal: 18, vertical: 10),
                         decoration: BoxDecoration(
                           border: Border(
                             right: BorderSide(color: Colors.grey.shade300),
@@ -217,7 +217,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onTap: () => onSort('transaction'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 16),
+                            horizontal: 18, vertical: 10),
                         decoration: BoxDecoration(
                           border: Border(
                             right: BorderSide(color: Colors.grey.shade300),
@@ -247,7 +247,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onTap: () => onSort('time'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 16),
+                            horizontal: 18, vertical: 10),
                         child: Center(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -283,7 +283,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 18.0, vertical: 8.0),
+                              horizontal: 18.0, vertical: 6.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -310,7 +310,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 18.0, vertical: 8.0),
+                              horizontal: 18.0, vertical: 6.0),
                           child: Text(
                             'Rp ${_formatCurrency(row['transaction'])}',
                             style: TextStyle(fontSize: 16, fontFamily: 'Inter'),
@@ -322,7 +322,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 18.0, vertical: 8.0),
+                              horizontal: 18.0, vertical: 6.0),
                           child: Text(
                             row['time'],
                             style: TextStyle(fontSize: 16, fontFamily: 'Inter'),
