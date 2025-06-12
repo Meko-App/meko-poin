@@ -1,28 +1,368 @@
 import 'package:flutter/material.dart';
 
-class CardGudang extends StatelessWidget {
+class CardGudang extends StatefulWidget {
   const CardGudang({super.key});
 
   @override
+  State<CardGudang> createState() => _CardGudangState();
+}
+
+class _CardGudangState extends State<CardGudang> {
+  int currentPage = 1;
+  final int itemsPerPage = 4;
+
+  List<Map<String, dynamic>> data = [
+    {
+      'item': '4R MATTE',
+      'description': 'Penambahan Stok Sebesar 2',
+      'change': 2,
+      'type': 'increase'
+    },
+    {
+      'item': 'KEYCHAIN KOTAK',
+      'description': 'Pengurangan Stok Sebesar 7',
+      'change': 7,
+      'type': 'decrease'
+    },
+    {
+      'item': 'KEYCHAIN PERSECI',
+      'description':
+          'Transaksi pada 5 Juni 2025, 05.00 dengan pengurangan sebesar 8',
+      'change': 8,
+      'type': 'decrease'
+    },
+    {
+      'item': 'STRIPE GLOSSY',
+      'description':
+          'Transaksi pada 5 Juni 2025, 05.00 dengan pengurangan sebesar 2',
+      'change': 2,
+      'type': 'decrease'
+    },
+    {
+      'item': 'STRIPE GLOSSY',
+      'description':
+          'Transaksi pada 5 Juni 2025, 05.00 dengan pengurangan sebesar 2',
+      'change': 2,
+      'type': 'decrease'
+    },
+    {
+      'item': '4R GLOSSY',
+      'description': 'Penambahan Stok Sebesar 5',
+      'change': 5,
+      'type': 'increase'
+    },
+    {
+      'item': 'KEYCHAIN BULAT',
+      'description': 'Pengurangan Stok Sebesar 3',
+      'change': 3,
+      'type': 'decrease'
+    },
+  ];
+
+  String sortBy = 'item'; // default sort
+  bool isAscending = true;
+
+  List<Map<String, dynamic>> get sortedData {
+    List<Map<String, dynamic>> sorted = List.from(data);
+    sorted.sort((a, b) {
+      dynamic valueA = a[sortBy];
+      dynamic valueB = b[sortBy];
+
+      int result = valueA.toString().compareTo(valueB.toString());
+      return isAscending ? result : -result;
+    });
+    return sorted;
+  }
+
+  List<Map<String, dynamic>> get currentPageData {
+    int start = (currentPage - 1) * itemsPerPage;
+    int end = start + itemsPerPage;
+    return sortedData.sublist(
+        start, end > sortedData.length ? sortedData.length : end);
+  }
+
+  void onSort(String column) {
+    setState(() {
+      if (sortBy == column) {
+        isAscending = !isAscending;
+      } else {
+        sortBy = column;
+        isAscending = true;
+      }
+    });
+  }
+
+  Icon _sortIcon(String column) {
+    if (sortBy != column) return const Icon(Icons.unfold_more, size: 14);
+    return Icon(
+      isAscending ? Icons.arrow_upward : Icons.arrow_downward,
+      size: 14,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final totalPages = (data.length / itemsPerPage).ceil();
+    final startItem = (currentPage - 1) * itemsPerPage + 1;
+    final endItem = (currentPage * itemsPerPage > data.length)
+        ? data.length
+        : currentPage * itemsPerPage;
+
     return Container(
-      padding: const EdgeInsets.all(16),
-      height: 220,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        "Gudang",
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          const Text(
+            'Gudang',
+            style: TextStyle(
+                fontWeight: FontWeight.w600, fontSize: 20, fontFamily: 'Inter'),
+          ),
+          const SizedBox(height: 16),
+
+          // Table Header
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade300),
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  // Kolom Item
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => onSort('item'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                              right: BorderSide(color: Colors.grey.shade300)),
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              const Text('Item',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 18,
+                                      fontFamily: 'Inter')),
+                              const SizedBox(width: 4),
+                              _sortIcon('item'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Kolom Deskripsi
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => onSort('description'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                              right: BorderSide(color: Colors.grey.shade300)),
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              const Text('Deskripsi',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 18,
+                                      fontFamily: 'Inter')),
+                              const SizedBox(width: 4),
+                              _sortIcon('description'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Kolom Perubahan
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => onSort('change'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              const Text('Perubahan',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 18,
+                                      fontFamily: 'Inter')),
+                              const SizedBox(width: 4),
+                              _sortIcon('change'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Table Rows
+          ...currentPageData.map((row) => Container(
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      // Kolom Item
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18.0, vertical: 6.0),
+                          child: Text(
+                            row['item'],
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Inter'),
+                          ),
+                        ),
+                      ),
+                      VerticalDivider(
+                          thickness: 1, width: 1, color: Colors.grey[300]),
+
+                      // Kolom Deskripsi
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18.0, vertical: 6.0),
+                          child: Text(
+                            row['description'],
+                            style: const TextStyle(
+                                fontSize: 16, fontFamily: 'Inter'),
+                          ),
+                        ),
+                      ),
+                      VerticalDivider(
+                          thickness: 1, width: 1, color: Colors.grey[300]),
+
+                      // Kolom Perubahan
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18.0, vertical: 6.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                row['type'] == 'increase'
+                                    ? Icons.arrow_upward
+                                    : Icons.arrow_downward,
+                                color: row['type'] == 'increase'
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                row['change'].toString(),
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontFamily: 'Inter',
+                                    color: row['type'] == 'increase'
+                                        ? Colors.green
+                                        : Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+
+          // Pagination
+          Container(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  '$startItem-$endItem of ${data.length}',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w400),
+                ),
+                const SizedBox(width: 20),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: currentPage > 1
+                          ? () => setState(() => currentPage--)
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                      color:
+                          currentPage > 1 ? Colors.black : Colors.grey.shade400,
+                    ),
+                    ...List.generate(totalPages, (index) {
+                      final page = index + 1;
+                      final isActive = currentPage == page;
+                      return GestureDetector(
+                        onTap: () => setState(() => currentPage = page),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? Colors.grey.shade300
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '$page',
+                            style: TextStyle(
+                                fontWeight: isActive
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                fontSize: 14,
+                                fontFamily: 'Inter'),
+                          ),
+                        ),
+                      );
+                    }),
+                    IconButton(
+                      onPressed: currentPage < totalPages
+                          ? () => setState(() => currentPage++)
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                      color: currentPage < totalPages
+                          ? Colors.black
+                          : Colors.grey.shade400,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
