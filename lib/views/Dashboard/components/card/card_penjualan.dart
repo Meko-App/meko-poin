@@ -21,7 +21,7 @@ class CardPenjualan extends StatelessWidget {
       SalesData("03.00", 18000, 0),
       SalesData("04.00", 25000, 0),
       SalesData("05.00", 20000, 0),
-      SalesData("06.00", 50000, 24), // Contoh dengan tooltip spesial
+      SalesData("06.00", 50000, 24),
       SalesData("07.00", 45000, 0),
       SalesData("08.00", 23000, 0),
       SalesData("09.00", 17000, 0),
@@ -31,7 +31,7 @@ class CardPenjualan extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      height: 400,
+      height: 395,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -52,7 +52,7 @@ class CardPenjualan extends StatelessWidget {
               'Penjualan Hari Ini',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: 17,
+                fontSize: 20,
                 fontFamily: 'Inter',
               ),
             ),
