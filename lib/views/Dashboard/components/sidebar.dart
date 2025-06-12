@@ -28,6 +28,7 @@ class _SidebarState extends State<Sidebar> {
   Widget build(BuildContext context) {
     return Container(
       width: 280,
+      height: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 25),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -35,40 +36,42 @@ class _SidebarState extends State<Sidebar> {
           right: BorderSide(color: Colors.grey.shade200, width: 1.0),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // LOGO
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25),
-            child: Row(
-              children: [
-                Image.asset(
-                  'assets/logo.png',
-                  width: 31,
-                  height: 22,
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  "MEKO POIN",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 19,
-                    color: Color(0xFF1E293B),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // LOGO
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
+                children: [
+                  Image.asset(
+                    'assets/logo.png',
+                    width: 31,
+                    height: 22,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  const Text(
+                    "MEKO POIN",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 19,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          _buildAccordionMenu("Dashboards", Icons.dashboard_outlined,
-              ["Ringkasan", "Pelanggan"]),
-          _buildAccordionMenu("Managements", Icons.layers_outlined,
-              ["Master Data", "Inventori", "Transaksi", "Pengguna"]),
-          _buildAccordionMenu(
-              "Settings", Icons.settings_outlined, ["Database", "Logout"]),
-        ],
+            _buildAccordionMenu("Dashboards", Icons.dashboard_outlined,
+                ["Ringkasan", "Pelanggan"]),
+            _buildAccordionMenu("Managements", Icons.layers_outlined,
+                ["Master Data", "Inventori", "Transaksi", "Pengguna"]),
+            _buildAccordionMenu(
+                "Settings", Icons.settings_outlined, ["Database", "Logout"]),
+          ],
+        ),
       ),
     );
   }
