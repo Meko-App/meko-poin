@@ -16,7 +16,7 @@ class CardProduk extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      height: 410,
+      height: 370,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -35,8 +35,10 @@ class CardProduk extends StatelessWidget {
             child: Text(
               'Produk Terfavorit',
               style: TextStyle(
+                fontSize: 16,
+                height: 1.0,
                 fontWeight: FontWeight.w600,
-                fontSize: 20,
+                color: Color(0xFF111B37),
                 fontFamily: 'Inter',
               ),
             ),

@@ -131,7 +131,13 @@ class _CardPelangganState extends State<CardPelanggan> {
   }
 
   Icon _sortIcon(String column) {
-    if (sortBy != column) return const Icon(Icons.unfold_more, size: 14);
+    if (sortBy != column) {
+      return const Icon(
+        Icons.unfold_more,
+        size: 14,
+        color: Color(0xFF4B5675),
+      );
+    }
     return Icon(
       isAscending ? Icons.arrow_upward : Icons.arrow_downward,
       size: 14,
@@ -164,7 +170,12 @@ class _CardPelangganState extends State<CardPelanggan> {
           const Text(
             'Pelanggan',
             style: TextStyle(
-                fontWeight: FontWeight.w600, fontSize: 20, fontFamily: 'Inter'),
+              fontSize: 16,
+              height: 1.0,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF111B37),
+              fontFamily: 'Inter',
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -187,7 +198,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onTap: () => onSort('name'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 10),
+                            horizontal: 18, vertical: 12),
                         decoration: BoxDecoration(
                           border: Border(
                             right: BorderSide(color: Colors.grey.shade300),
@@ -197,11 +208,16 @@ class _CardPelangganState extends State<CardPelanggan> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              const Text('Nama',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w400,
-                                      fontSize: 18,
-                                      fontFamily: 'Inter')),
+                              const Text(
+                                'Nama',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF4B5675),
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
                               const SizedBox(width: 4),
                               _sortIcon('name'),
                             ],
@@ -217,7 +233,7 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onTap: () => onSort('transaction'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 10),
+                            horizontal: 18, vertical: 12),
                         decoration: BoxDecoration(
                           border: Border(
                             right: BorderSide(color: Colors.grey.shade300),
@@ -227,11 +243,16 @@ class _CardPelangganState extends State<CardPelanggan> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              const Text('Transaksi',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w400,
-                                      fontSize: 18,
-                                      fontFamily: 'Inter')),
+                              const Text(
+                                'Transaksi',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF4B5675),
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
                               const SizedBox(width: 4),
                               _sortIcon('transaction'),
                             ],
@@ -247,16 +268,21 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onTap: () => onSort('time'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 10),
+                            horizontal: 18, vertical: 12),
                         child: Center(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              const Text('Jam',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w400,
-                                      fontSize: 18,
-                                      fontFamily: 'Inter')),
+                              const Text(
+                                'Jam',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF4B5675),
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
                               const SizedBox(width: 4),
                               _sortIcon('time'),
                             ],
@@ -283,23 +309,29 @@ class _CardPelangganState extends State<CardPelanggan> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 18.0, vertical: 6.0),
+                              horizontal: 18.0, vertical: 10.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 row['name'],
                                 style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    fontFamily: 'Inter'),
+                                  fontSize: 14,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF111B37),
+                                  fontFamily: 'Inter',
+                                ),
                               ),
                               Text(
                                 row['phone'],
                                 style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
-                                    fontFamily: 'Inter'),
+                                  fontSize: 12,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF4B5675),
+                                  fontFamily: 'Inter',
+                                ),
                               ),
                             ],
                           ),
@@ -313,7 +345,13 @@ class _CardPelangganState extends State<CardPelanggan> {
                               horizontal: 18.0, vertical: 6.0),
                           child: Text(
                             'Rp ${_formatCurrency(row['transaction'])}',
-                            style: TextStyle(fontSize: 16, fontFamily: 'Inter'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.0,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF27314B),
+                              fontFamily: 'Inter',
+                            ),
                           ),
                         ),
                       ),
@@ -325,7 +363,13 @@ class _CardPelangganState extends State<CardPelanggan> {
                               horizontal: 18.0, vertical: 6.0),
                           child: Text(
                             row['time'],
-                            style: TextStyle(fontSize: 16, fontFamily: 'Inter'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.0,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF27314B),
+                              fontFamily: 'Inter',
+                            ),
                           ),
                         ),
                       ),
@@ -343,7 +387,9 @@ class _CardPelangganState extends State<CardPelanggan> {
                 Text(
                   '$startItem-$endItem of ${data.length}',
                   style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
+                      height: 14 / 13,
+                      color: Color(0xFF4B5675),
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w400),
                 ),
@@ -354,33 +400,42 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onPressed: currentPage > 1
                           ? () => setState(() => currentPage--)
                           : null,
-                      icon: const Icon(Icons.chevron_left),
+                      icon: Transform.rotate(
+                        angle: 3.1416,
+                        child: const Icon(
+                          Icons.arrow_right_alt,
+                          size: 18,
+                        ),
+                      ),
                       color:
                           currentPage > 1 ? Colors.black : Colors.grey.shade400,
                     ),
                     ...List.generate(totalPages, (index) {
                       final page = index + 1;
                       final isActive = currentPage == page;
-                      return GestureDetector(
-                        onTap: () => setState(() => currentPage = page),
-                        child: Container(
-                          // margin: const EdgeInsets.symmetric(horizontal: 4),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.grey.shade300
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '$page',
-                            style: TextStyle(
+                      return MouseRegion(
+                        cursor: SystemMouseCursors.click, // pointer saat hover
+                        child: GestureDetector(
+                          onTap: () => setState(() => currentPage = page),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Color(0xFFE6E8F0)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$page',
+                              style: TextStyle(
                                 fontWeight: isActive
                                     ? FontWeight.bold
                                     : FontWeight.normal,
                                 fontSize: 14,
-                                fontFamily: 'Inter'),
+                                fontFamily: 'Inter',
+                              ),
+                            ),
                           ),
                         ),
                       );
@@ -389,7 +444,10 @@ class _CardPelangganState extends State<CardPelanggan> {
                       onPressed: currentPage < totalPages
                           ? () => setState(() => currentPage++)
                           : null,
-                      icon: const Icon(Icons.chevron_right),
+                      icon: const Icon(
+                        Icons.arrow_right_alt,
+                        size: 18,
+                      ),
                       color: currentPage < totalPages
                           ? Colors.black
                           : Colors.grey.shade400,

@@ -31,7 +31,7 @@ class CardPenjualan extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      height: 395,
+      height: 367,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -51,8 +51,10 @@ class CardPenjualan extends StatelessWidget {
             child: Text(
               'Penjualan Hari Ini',
               style: TextStyle(
+                fontSize: 16,
+                height: 1.0,
                 fontWeight: FontWeight.w600,
-                fontSize: 20,
+                color: Color(0xFF111B37),
                 fontFamily: 'Inter',
               ),
             ),
