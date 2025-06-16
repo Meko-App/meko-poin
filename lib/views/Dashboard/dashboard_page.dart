@@ -9,6 +9,7 @@ import 'package:meko_poin/views/Dashboard/contents/inventori_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/transaksi_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pengguna_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/database_content.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/pengguna_content_state.dart';
 
 class DashboardPage extends StatefulWidget {
   final User user;
@@ -22,10 +23,17 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   bool _showSidebar = true;
   String _selectedMenu = "Ringkasan";
+  PenggunaContentState? _penggunaContentCurrentState;
 
   void _toggleSidebar() {
     setState(() {
       _showSidebar = !_showSidebar;
+    });
+  }
+
+  void _updatePenggunaContentState(PenggunaContentState state) {
+    setState(() {
+      _penggunaContentCurrentState = state;
     });
   }
 
@@ -44,6 +52,19 @@ class _DashboardPageState extends State<DashboardPage> {
       } else {
         return 'Unknown';
       }
+    }
+
+    String headerCurrentPage = _selectedMenu;
+    String? headerSubPage;
+
+    if (_selectedMenu == 'Pengguna') {
+      if (_penggunaContentCurrentState == PenggunaContentState.form) {
+        headerSubPage = 'Buat Baru';
+      } else {
+        headerSubPage = null; // Kembali ke hanya "Pengguna" saat di tabel
+      }
+    } else {
+      headerSubPage = null; // Reset jika bukan menu Pengguna
     }
 
     return Scaffold(
@@ -67,6 +88,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     onMenuSelected: (menu) {
                       setState(() {
                         _selectedMenu = menu;
+                        _penggunaContentCurrentState = null;
                       });
                     },
                   ),
@@ -78,14 +100,23 @@ class _DashboardPageState extends State<DashboardPage> {
                 children: [
                   Header(
                     currentModulPage: getModulPage(_selectedMenu),
-                    currentPage: _selectedMenu,
+                    currentPage: headerCurrentPage,
+                    currentPage2: headerSubPage,
                     trailing: const CircleAvatar(
                       radius: 18,
                       backgroundImage: AssetImage('assets/user.png'),
                     ),
                   ),
                   Expanded(
-                    child: DashboardContent(menu: _selectedMenu),
+                    child: DashboardContent(
+                      menu: _selectedMenu,
+                      // Meneruskan callback khusus untuk PenggunaContent
+                      onPenggunaContentStateChanged: (state) {
+                        if (_selectedMenu == 'Pengguna') {
+                          _updatePenggunaContentState(state);
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -153,8 +184,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class DashboardContent extends StatelessWidget {
   final String menu;
+  final Function(PenggunaContentState)? onPenggunaContentStateChanged;
 
-  const DashboardContent({super.key, required this.menu});
+  const DashboardContent(
+      {super.key, required this.menu, this.onPenggunaContentStateChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +212,7 @@ class DashboardContent extends StatelessWidget {
       case 'Transaksi':
         return const TransaksiContent();
       case 'Pengguna':
-        return const PenggunaContent();
+        return PenggunaContent(onStateChanged: onPenggunaContentStateChanged!);
       case 'Database':
         return const DatabaseContent();
       default:

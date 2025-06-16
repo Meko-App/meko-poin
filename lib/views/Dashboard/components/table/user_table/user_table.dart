@@ -1,3 +1,4 @@
+// lib/views/Dashboard/components/table/user_table/user_table.dart
 import 'package:flutter/material.dart';
 import 'user_table_header.dart';
 import 'user_table_row.dart';
@@ -5,7 +6,10 @@ import 'user_table_pagination.dart';
 import 'user_table_search.dart';
 
 class UserTable extends StatefulWidget {
-  const UserTable({super.key});
+  final VoidCallback onAddNew; // Tambahkan properti ini
+
+  const UserTable(
+      {super.key, required this.onAddNew}); // Tambahkan ke constructor
 
   @override
   State<UserTable> createState() => _UserTableState();
@@ -25,6 +29,7 @@ class _UserTableState extends State<UserTable> {
   }
 
   List<Map<String, dynamic>> data = [
+    // ... (data yang sama)
     {
       'name': 'John Doe',
       'email': 'john@doe.com1',
@@ -194,6 +199,7 @@ class _UserTableState extends State<UserTable> {
           UserTableSearch(
             currentPageData: currentPageData,
             data: data,
+            onAddNew: widget.onAddNew, // Teruskan callback ke UserTableSearch
           ),
 
           // 2. Header (Tetap Fixed)
@@ -207,10 +213,10 @@ class _UserTableState extends State<UserTable> {
           // 3. Body (Scrollable)
           Expanded(
             child: Scrollbar(
-              controller: _scrollController, // Connect the controller
+              controller: _scrollController,
               thumbVisibility: true,
               child: SingleChildScrollView(
-                controller: _scrollController, // Same controller here
+                controller: _scrollController,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: currentPageData

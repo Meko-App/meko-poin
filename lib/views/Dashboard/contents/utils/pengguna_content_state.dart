@@ -1,0 +1,4 @@
+enum PenggunaContentState {
+  table,
+  form,
+}
