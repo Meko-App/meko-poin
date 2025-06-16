@@ -8,7 +8,9 @@ class PasswordHasher {
     return digest.toString();
   }
 
-  static bool verifyPassword(String inputPassword, String hashedPassword) {
-    return hashPassword(inputPassword) == hashedPassword;
+  static bool verifyPassword(
+      String inputPassword, String storedHashedPassword) {
+    final inputHash = hashPassword(inputPassword);
+    return inputHash == storedHashedPassword;
   }
 }

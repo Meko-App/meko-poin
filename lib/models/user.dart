@@ -2,12 +2,14 @@ class User {
   final int id;
   final String name;
   final String email;
+  final String password;
   final int roleId;
 
   User({
     required this.id,
     required this.name,
     required this.email,
+    required this.password,
     required this.roleId,
   });
 
@@ -16,6 +18,7 @@ class User {
       id: map['id'],
       name: map['name'],
       email: map['email'],
+      password: map['password'],
       roleId: map['role_id'],
     );
   }
@@ -25,7 +28,24 @@ class User {
       'id': id,
       'name': name,
       'email': email,
+      'password': password,
       'role_id': roleId,
     };
+  }
+
+  User copyWith({
+    int? id,
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      roleId: roleId ?? this.roleId,
+    );
   }
 }

@@ -1,15 +1,19 @@
+// services/auth_service.dart
 import '../models/user.dart';
 import 'database_helper.dart';
+import 'user_repository.dart';
 
 class AuthService {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final UserRepository _userRepository;
+
+  AuthService() : _userRepository = UserRepository(DatabaseHelper.instance);
 
   Future<User?> login(String email, String password) async {
-    return await _dbHelper.authenticateUser(email, password);
+    return await _userRepository.authenticateUser(email, password);
   }
 
   Future<void> logout() async {
     // Additional cleanup if needed
-    await _dbHelper.close();
+    await DatabaseHelper.instance.close();
   }
 }
