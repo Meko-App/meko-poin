@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/models/user.dart';
 
 class UserTablePagination extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final int startItem;
   final int endItem;
-  final List<Map<String, dynamic>> data;
+  final List<User> data;
   final int itemsPerPage;
   final Function(int) onItemsPerPageChanged;
   final Function(int) onPageChanged;

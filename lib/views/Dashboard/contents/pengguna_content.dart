@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/table/user_table/user_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/pengguna_content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/form/user_form.dart';
 
 class PenggunaContent extends StatefulWidget {
   final Function(PenggunaContentState) onStateChanged;
+  final UserRepository userRepository;
 
-  const PenggunaContent({super.key, required this.onStateChanged});
+  const PenggunaContent(
+      {super.key, required this.onStateChanged, required this.userRepository});
 
   @override
   State<PenggunaContent> createState() => _PenggunaContentState();
@@ -15,10 +18,12 @@ class PenggunaContent extends StatefulWidget {
 class _PenggunaContentState extends State<PenggunaContent> {
   PenggunaContentState _currentState = PenggunaContentState.table;
   Map<String, dynamic>? _userToEdit;
+  late final UserRepository userRepository;
 
   @override
   void initState() {
     super.initState();
+    userRepository = widget.userRepository;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onStateChanged(_currentState);
     });
@@ -97,7 +102,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
                   currentMaxHeight, // Menggunakan nilai kondisional di sini
             ),
             child: _currentState == PenggunaContentState.table
-                ? UserTable(onAddNew: _showForm)
+                ? UserTable(onAddNew: _showForm, userRepository: userRepository)
                 : UserForm(
                     onCancel: _showTable,
                     initialUserData: _userToEdit,

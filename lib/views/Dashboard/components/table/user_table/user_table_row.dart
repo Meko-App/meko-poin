@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 
 class UserTableRow extends StatelessWidget {
-  final Map<String, dynamic> row;
+  final String name;
+  final String email;
+  final String role;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const UserTableRow({
     super.key,
-    required this.row,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(
+      constraints: const BoxConstraints(
         minHeight: 55, // Tinggi minimum row
       ),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -37,7 +45,7 @@ class UserTableRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
-                  row['name'],
+                  name,
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.2,
@@ -54,7 +62,7 @@ class UserTableRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
-                  row['email'],
+                  email,
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.0,
@@ -71,7 +79,7 @@ class UserTableRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
-                  row['role'],
+                  role,
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.0,
@@ -89,9 +97,9 @@ class UserTableRow extends StatelessWidget {
                 child: PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'edit') {
-                      // TODO: aksi edit
+                      onEdit();
                     } else if (value == 'delete') {
-                      // TODO: aksi hapus
+                      onDelete();
                     }
                   },
                   offset: const Offset(0, 30),

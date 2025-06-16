@@ -1,16 +1,17 @@
-// lib/views/Dashboard/components/table/user_table/user_table_search.dart
 import 'package:flutter/material.dart';
 
 class UserTableSearch extends StatelessWidget {
-  final List<Map<String, dynamic>> currentPageData;
-  final List<Map<String, dynamic>> data;
-  final VoidCallback onAddNew; // Tambahkan properti ini
+  final List<dynamic> currentPageData;
+  final List<dynamic> data;
+  final VoidCallback onAddNew;
+  final Function(String) onSearch;
 
   const UserTableSearch({
     super.key,
     required this.currentPageData,
     required this.data,
-    required this.onAddNew, // Tambahkan ke constructor
+    required this.onAddNew,
+    required this.onSearch,
   });
 
   @override
@@ -37,6 +38,7 @@ class UserTableSearch extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
+                    onChanged: onSearch,
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w400,
@@ -44,7 +46,7 @@ class UserTableSearch extends StatelessWidget {
                       color: Colors.black,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Cari Nama',
+                      hintText: 'Cari Nama atau Email',
                       hintStyle: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w400,
@@ -83,7 +85,7 @@ class UserTableSearch extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
-                  onPressed: onAddNew, // Panggil callback di sini
+                  onPressed: onAddNew,
                   child: const Text(
                     'Buat Baru',
                     style: TextStyle(

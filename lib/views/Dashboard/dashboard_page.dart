@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/header.dart';
 import 'package:meko_poin/views/Dashboard/components/sidebar.dart';
 import 'package:meko_poin/views/Dashboard/contents/ringkasan_content.dart';
@@ -13,8 +14,13 @@ import 'package:meko_poin/views/Dashboard/contents/utils/pengguna_content_state.
 
 class DashboardPage extends StatefulWidget {
   final User user;
+  final UserRepository userRepository;
 
-  const DashboardPage({super.key, required this.user});
+  const DashboardPage({
+    super.key,
+    required this.user,
+    required this.userRepository,
+  });
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -110,12 +116,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   Expanded(
                     child: DashboardContent(
                       menu: _selectedMenu,
-                      // Meneruskan callback khusus untuk PenggunaContent
                       onPenggunaContentStateChanged: (state) {
                         if (_selectedMenu == 'Pengguna') {
                           _updatePenggunaContentState(state);
                         }
                       },
+                      userRepository: widget.userRepository,
                     ),
                   ),
                 ],
@@ -185,9 +191,13 @@ class _DashboardPageState extends State<DashboardPage> {
 class DashboardContent extends StatelessWidget {
   final String menu;
   final Function(PenggunaContentState)? onPenggunaContentStateChanged;
+  final UserRepository userRepository;
 
   const DashboardContent(
-      {super.key, required this.menu, this.onPenggunaContentStateChanged});
+      {super.key,
+      required this.menu,
+      this.onPenggunaContentStateChanged,
+      required this.userRepository});
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +222,10 @@ class DashboardContent extends StatelessWidget {
       case 'Transaksi':
         return const TransaksiContent();
       case 'Pengguna':
-        return PenggunaContent(onStateChanged: onPenggunaContentStateChanged!);
+        return PenggunaContent(
+          onStateChanged: onPenggunaContentStateChanged!,
+          userRepository: userRepository, // Teruskan repository
+        );
       case 'Database':
         return const DatabaseContent();
       default:

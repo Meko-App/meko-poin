@@ -1,15 +1,20 @@
-// lib/views/Dashboard/components/table/user_table/user_table.dart
 import 'package:flutter/material.dart';
+import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/services/user_repository.dart';
 import 'user_table_header.dart';
 import 'user_table_row.dart';
 import 'user_table_pagination.dart';
 import 'user_table_search.dart';
 
 class UserTable extends StatefulWidget {
-  final VoidCallback onAddNew; // Tambahkan properti ini
+  final VoidCallback onAddNew;
+  final UserRepository userRepository;
 
-  const UserTable(
-      {super.key, required this.onAddNew}); // Tambahkan ke constructor
+  const UserTable({
+    super.key,
+    required this.onAddNew,
+    required this.userRepository,
+  });
 
   @override
   State<UserTable> createState() => _UserTableState();
@@ -21,6 +26,30 @@ class _UserTableState extends State<UserTable> {
   int itemsPerPage = 10;
   bool isAllSelected = false;
   Set<int> selectedRows = {};
+  List<User> _users = [];
+  bool _isLoading = true;
+  String _searchQuery = '';
+  String sortBy = 'name';
+  bool isAscending = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final users = await widget.userRepository.getAllUsers();
+      setState(() => _users = users);
+    } catch (e) {
+      // Handle error
+      debugPrint('Error loading users: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -28,130 +57,50 @@ class _UserTableState extends State<UserTable> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> data = [
-    // ... (data yang sama)
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com1',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com2',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com3',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com4',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com5',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com6',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com7',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com8',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com9',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com10',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com11',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com12',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com13',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com14',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com15',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com16',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com17',
-      'role': 'Operator',
-    },
-    {
-      'name': 'John Doe',
-      'email': 'john@doe.com18',
-      'role': 'Operator',
-    }
-  ];
+  List<User> get filteredUsers {
+    if (_searchQuery.isEmpty) return _users;
+    return _users
+        .where((user) =>
+            user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            user.email.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+  }
 
-  String sortBy = 'name';
-  bool isAscending = true;
-
-  List<Map<String, dynamic>> get sortedData {
-    List<Map<String, dynamic>> sorted = List.from(data);
+  List<User> get sortedUsers {
+    List<User> sorted = List.from(filteredUsers);
     sorted.sort((a, b) {
-      dynamic valueA = a[sortBy];
-      dynamic valueB = b[sortBy];
+      dynamic valueA;
+      dynamic valueB;
 
-      int result;
-      if (valueA is int) {
-        result = valueA.compareTo(valueB);
-      } else if (valueA is String &&
-          RegExp(r'^\d{2}\.\d{2}$').hasMatch(valueA)) {
-        result = int.parse(valueA.replaceAll('.', ''))
-            .compareTo(int.parse(valueB.replaceAll('.', '')));
-      } else {
-        result = valueA.toString().compareTo(valueB.toString());
+      switch (sortBy) {
+        case 'name':
+          valueA = a.name;
+          valueB = b.name;
+          break;
+        case 'email':
+          valueA = a.email;
+          valueB = b.email;
+          break;
+        case 'role':
+          valueA = a.roleId;
+          valueB = b.roleId;
+          break;
+        default:
+          valueA = a.name;
+          valueB = b.name;
       }
 
+      int result = valueA.toString().compareTo(valueB.toString());
       return isAscending ? result : -result;
     });
     return sorted;
   }
 
-  List<Map<String, dynamic>> get currentPageData {
+  List<User> get currentPageData {
     int start = (currentPage - 1) * itemsPerPage;
     int end = start + itemsPerPage;
-    return sortedData.sublist(
-        start, end > sortedData.length ? sortedData.length : end);
+    return sortedUsers.sublist(
+        start, end > sortedUsers.length ? sortedUsers.length : end);
   }
 
   void onSort(String column) {
@@ -179,12 +128,23 @@ class _UserTableState extends State<UserTable> {
     );
   }
 
+  String _getRoleName(int roleId) {
+    switch (roleId) {
+      case 1:
+        return 'Admin';
+      case 2:
+        return 'Operator';
+      default:
+        return 'User';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final totalPages = (data.length / itemsPerPage).ceil();
+    final totalPages = (sortedUsers.length / itemsPerPage).ceil();
     final startItem = (currentPage - 1) * itemsPerPage + 1;
-    final endItem = (currentPage * itemsPerPage > data.length)
-        ? data.length
+    final endItem = (currentPage * itemsPerPage > sortedUsers.length)
+        ? sortedUsers.length
         : currentPage * itemsPerPage;
 
     return Container(
@@ -195,14 +155,20 @@ class _UserTableState extends State<UserTable> {
       ),
       child: Column(
         children: [
-          // 1. Search Bar (Tetap Fixed)
+          // Search Bar
           UserTableSearch(
             currentPageData: currentPageData,
-            data: data,
-            onAddNew: widget.onAddNew, // Teruskan callback ke UserTableSearch
+            data: sortedUsers,
+            onAddNew: widget.onAddNew,
+            onSearch: (query) {
+              setState(() {
+                _searchQuery = query;
+                currentPage = 1;
+              });
+            },
           ),
 
-          // 2. Header (Tetap Fixed)
+          // Header
           UserTableHeader(
             sortBy: sortBy,
             isAscending: isAscending,
@@ -210,48 +176,98 @@ class _UserTableState extends State<UserTable> {
             sortIcon: _sortIcon,
           ),
 
-          // 3. Body (Scrollable)
+          // Body
           Expanded(
-            child: Scrollbar(
-              controller: _scrollController,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: currentPageData
-                      .map((row) => UserTableRow(
-                            row: row,
-                            key: ValueKey(row['email']),
-                          ))
-                      .toList(),
-                ),
-              ),
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : sortedUsers.isEmpty
+                    ? const Center(child: Text('Tidak ada data user'))
+                    : Scrollbar(
+                        controller: _scrollController,
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: currentPageData
+                                .map((user) => UserTableRow(
+                                      name: user.name,
+                                      email: user.email,
+                                      role: _getRoleName(user.roleId),
+                                      key: ValueKey(user.id),
+                                      onEdit: () => _handleEditUser(user),
+                                      onDelete: () => _handleDeleteUser(user),
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                      ),
           ),
 
-          // 4. Pagination (Tetap Fixed)
-          UserTablePagination(
-            currentPage: currentPage,
-            totalPages: totalPages,
-            startItem: startItem,
-            endItem: endItem,
-            data: data,
-            itemsPerPage: itemsPerPage,
-            onItemsPerPageChanged: (value) {
-              setState(() {
-                itemsPerPage = value;
-                currentPage = 1;
-              });
-            },
-            onPageChanged: (page) {
-              setState(() {
-                currentPage = page;
-              });
-            },
+          // Pagination
+          if (!_isLoading && sortedUsers.isNotEmpty)
+            UserTablePagination(
+              currentPage: currentPage,
+              totalPages: totalPages,
+              startItem: startItem,
+              endItem: endItem,
+              data: sortedUsers,
+              itemsPerPage: itemsPerPage,
+              onItemsPerPageChanged: (value) {
+                setState(() {
+                  itemsPerPage = value;
+                  currentPage = 1;
+                });
+              },
+              onPageChanged: (page) {
+                setState(() => currentPage = page);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleEditUser(User user) async {
+    // Implement edit functionality
+    debugPrint('Edit user: ${user.name}');
+  }
+
+  Future<void> _handleDeleteUser(User user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi'),
+        content: Text('Hapus user ${user.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      try {
+        await widget.userRepository.deleteUser(user.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User berhasil dihapus')),
+          );
+        }
+        _loadUsers(); // Refresh data
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal menghapus user: $e')),
+          );
+        }
+      }
+    }
   }
 }
