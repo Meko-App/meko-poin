@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/services/database_helper.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'views/auth/login_page.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:meko_poin/services/user_repository.dart';
+import 'package:meko_poin/utils/validators.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,9 +26,14 @@ void main() async {
     await windowManager.focus();
   });
 
-  // Init SQLite FFI
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
+
+  final databaseHelper = DatabaseHelper.instance;
+  await databaseHelper.database;
+  final userRepository = UserRepository(databaseHelper);
+
+  Validators.initialize(userRepository);
 
   runApp(const MyApp());
 

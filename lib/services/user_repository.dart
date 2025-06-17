@@ -29,6 +29,25 @@ class UserRepository {
     return await db.insert('Data_User', user.toMap());
   }
 
+  Future<bool> isEmailUnique(String email, {int? currentUserId}) async {
+    final db = await dbHelper.database;
+    List<Map<String, dynamic>> result;
+    if (currentUserId != null) {
+      result = await db.query(
+        'Data_User',
+        where: 'email = ? AND id != ?',
+        whereArgs: [email, currentUserId],
+      );
+    } else {
+      result = await db.query(
+        'Data_User',
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+    }
+    return result.isEmpty; // Jika kosong, berarti unik
+  }
+
   Future<List<User>> getAllUsers() async {
     final db = await dbHelper.database;
     final result = await db.query('Data_User');

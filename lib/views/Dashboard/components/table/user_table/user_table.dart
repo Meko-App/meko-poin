@@ -9,11 +9,15 @@ import 'user_table_search.dart';
 class UserTable extends StatefulWidget {
   final VoidCallback onAddNew;
   final UserRepository userRepository;
+  final Function(User) onEditUser;
+  final Function(User) onDeleteUser;
 
   const UserTable({
     super.key,
     required this.onAddNew,
     required this.userRepository,
+    required this.onEditUser,
+    required this.onDeleteUser,
   });
 
   @override
@@ -41,14 +45,20 @@ class _UserTableState extends State<UserTable> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     try {
-      final users = await widget.userRepository.getAllUsers();
-      setState(() => _users = users);
+      final allUsers = await widget.userRepository.getAllUsers();
+      final operatorUsers = allUsers.where((user) => user.roleId == 2).toList();
+      setState(() => _users = operatorUsers);
     } catch (e) {
-      // Handle error
       debugPrint('Error loading users: $e');
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant UserTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadUsers();
   }
 
   @override
@@ -135,7 +145,7 @@ class _UserTableState extends State<UserTable> {
       case 2:
         return 'Operator';
       default:
-        return 'User';
+        return 'Operator';
     }
   }
 
@@ -195,8 +205,8 @@ class _UserTableState extends State<UserTable> {
                                       email: user.email,
                                       role: _getRoleName(user.roleId),
                                       key: ValueKey(user.id),
-                                      onEdit: () => _handleEditUser(user),
-                                      onDelete: () => _handleDeleteUser(user),
+                                      onEdit: () => widget.onEditUser(user),
+                                      onDelete: () => widget.onDeleteUser(user),
                                     ))
                                 .toList(),
                           ),
@@ -226,48 +236,5 @@ class _UserTableState extends State<UserTable> {
         ],
       ),
     );
-  }
-
-  Future<void> _handleEditUser(User user) async {
-    // Implement edit functionality
-    debugPrint('Edit user: ${user.name}');
-  }
-
-  Future<void> _handleDeleteUser(User user) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: Text('Hapus user ${user.name}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await widget.userRepository.deleteUser(user.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User berhasil dihapus')),
-          );
-        }
-        _loadUsers(); // Refresh data
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal menghapus user: $e')),
-          );
-        }
-      }
-    }
   }
 }

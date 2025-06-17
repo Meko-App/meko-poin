@@ -3,6 +3,8 @@ import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/table/user_table/user_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/pengguna_content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/form/user_form.dart';
+import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/utils/password_hasher.dart';
 
 class PenggunaContent extends StatefulWidget {
   final Function(PenggunaContentState) onStateChanged;
@@ -29,10 +31,18 @@ class _PenggunaContentState extends State<PenggunaContent> {
     });
   }
 
-  void _showForm({Map<String, dynamic>? userData}) {
+  void _showForm({User? user}) {
     setState(() {
       _currentState = PenggunaContentState.form;
-      _userToEdit = userData;
+      _userToEdit = user != null
+          ? {
+              'id': user.id,
+              'name': user.name,
+              'email': user.email,
+              'roleId': user.roleId,
+              'password': user.password,
+            }
+          : null;
       widget.onStateChanged(_currentState);
     });
   }
@@ -43,6 +53,58 @@ class _PenggunaContentState extends State<PenggunaContent> {
       _userToEdit = null;
       widget.onStateChanged(_currentState);
     });
+  }
+
+  Future<void> _handleUserFormSubmit(Map<String, dynamic> userData) async {
+    try {
+      if (_userToEdit == null) {
+        // Add new user
+        final hashedPassword =
+            PasswordHasher.hashPassword(userData['password']);
+        final newUser = User(
+          id: 0,
+          name: userData['name'],
+          email: userData['email'],
+          password: hashedPassword,
+          roleId: userData['roleId'],
+        );
+        await userRepository.insertUser(newUser);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User baru berhasil ditambahkan')),
+          );
+        }
+      } else {
+        // Edit existing user
+        String passwordToUse;
+        if (userData['password'] != null && userData['password'].isNotEmpty) {
+          passwordToUse = PasswordHasher.hashPassword(userData['password']);
+        } else {
+          passwordToUse = _userToEdit!['password'];
+        }
+
+        final updatedUser = User(
+          id: _userToEdit!['id'],
+          name: userData['name'],
+          email: userData['email'],
+          password: passwordToUse,
+          roleId: userData['roleId'],
+        );
+        await userRepository.updateUser(updatedUser);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User berhasil diperbarui')),
+          );
+        }
+      }
+      _showTable();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan user: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -58,11 +120,10 @@ class _PenggunaContentState extends State<PenggunaContent> {
         children: [
           Row(
             children: [
-              // Tampilkan tombol kembali hanya jika di mode form
               if (_currentState == PenggunaContentState.form)
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  onPressed: _showTable, // Tombol kembali ke tabel
+                  onPressed: _showTable,
                   color: Colors.grey.shade700,
                 ),
               if (_currentState == PenggunaContentState.form)
@@ -72,10 +133,10 @@ class _PenggunaContentState extends State<PenggunaContent> {
                 children: [
                   Text(
                     _currentState == PenggunaContentState.table
-                        ? "Pengguna" // Judul untuk tabel
+                        ? "Pengguna"
                         : (_userToEdit != null
                             ? "Edit Pengguna"
-                            : "Buat Pengguna Baru"), // Judul untuk form
+                            : "Buat Pengguna Baru"),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
@@ -84,7 +145,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Data master untuk pengguna aplikasi MEKO POIN", // Deskripsi statis
+                    "Data master untuk pengguna aplikasi MEKO POIN",
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -98,14 +159,57 @@ class _PenggunaContentState extends State<PenggunaContent> {
           const SizedBox(height: 24),
           ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight:
-                  currentMaxHeight, // Menggunakan nilai kondisional di sini
+              maxHeight: currentMaxHeight,
             ),
             child: _currentState == PenggunaContentState.table
-                ? UserTable(onAddNew: _showForm, userRepository: userRepository)
+                ? UserTable(
+                    onAddNew: _showForm,
+                    userRepository: userRepository,
+                    onEditUser: (user) => _showForm(user: user),
+                    onDeleteUser: (user) async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Konfirmasi'),
+                          content: Text('Hapus user ${user.name}?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Batal'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Hapus'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true) {
+                        try {
+                          await userRepository.deleteUser(user.id);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('User berhasil dihapus')),
+                            );
+                          }
+                          _showTable();
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Gagal menghapus user: $e')),
+                            );
+                          }
+                        }
+                      }
+                    },
+                  )
                 : UserForm(
                     onCancel: _showTable,
                     initialUserData: _userToEdit,
+                    onSubmit: _handleUserFormSubmit,
                   ),
           ),
         ],
