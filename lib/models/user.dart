@@ -1,12 +1,12 @@
 class User {
-  final int id;
+  final int? id;
   final String name;
   final String email;
   final String password;
   final int roleId;
 
   User({
-    required this.id,
+    this.id,
     required this.name,
     required this.email,
     required this.password,
@@ -31,21 +31,5 @@ class User {
       'password': password,
       'role_id': roleId,
     };
-  }
-
-  User copyWith({
-    int? id,
-    String? name,
-    String? email,
-    String? password,
-    int? roleId,
-  }) {
-    return User(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      email: email ?? this.email,
-      password: password ?? this.password,
-      roleId: roleId ?? this.roleId,
-    );
   }
 }

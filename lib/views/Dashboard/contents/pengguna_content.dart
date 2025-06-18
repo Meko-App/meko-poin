@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/table/user_table/user_table.dart';
-import 'package:meko_poin/views/Dashboard/contents/utils/pengguna_content_state.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/form/user_form.dart';
 import 'package:meko_poin/models/user.dart';
 import 'package:meko_poin/utils/password_hasher.dart';
 
 class PenggunaContent extends StatefulWidget {
-  final Function(PenggunaContentState) onStateChanged;
+  final Function(ContentState) onStateChanged;
   final UserRepository userRepository;
 
   const PenggunaContent(
@@ -18,7 +18,7 @@ class PenggunaContent extends StatefulWidget {
 }
 
 class _PenggunaContentState extends State<PenggunaContent> {
-  PenggunaContentState _currentState = PenggunaContentState.table;
+  ContentState _currentState = ContentState.table;
   Map<String, dynamic>? _userToEdit;
   late final UserRepository userRepository;
 
@@ -33,7 +33,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
 
   void _showForm({User? user}) {
     setState(() {
-      _currentState = PenggunaContentState.form;
+      _currentState = ContentState.form;
       _userToEdit = user != null
           ? {
               'id': user.id,
@@ -49,7 +49,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
 
   void _showTable() {
     setState(() {
-      _currentState = PenggunaContentState.table;
+      _currentState = ContentState.table;
       _userToEdit = null;
       widget.onStateChanged(_currentState);
     });
@@ -62,7 +62,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
         final hashedPassword =
             PasswordHasher.hashPassword(userData['password']);
         final newUser = User(
-          id: 0,
+          id: null,
           name: userData['name'],
           email: userData['email'],
           password: hashedPassword,
@@ -109,7 +109,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
 
   @override
   Widget build(BuildContext context) {
-    double currentMaxHeight = _currentState == PenggunaContentState.table
+    double currentMaxHeight = _currentState == ContentState.table
         ? MediaQuery.of(context).size.height * 0.77
         : double.infinity;
 
@@ -120,19 +120,18 @@ class _PenggunaContentState extends State<PenggunaContent> {
         children: [
           Row(
             children: [
-              if (_currentState == PenggunaContentState.form)
+              if (_currentState == ContentState.form)
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _showTable,
                   color: Colors.grey.shade700,
                 ),
-              if (_currentState == PenggunaContentState.form)
-                const SizedBox(width: 8),
+              if (_currentState == ContentState.form) const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _currentState == PenggunaContentState.table
+                    _currentState == ContentState.table
                         ? "Pengguna"
                         : (_userToEdit != null
                             ? "Edit Pengguna"
@@ -161,7 +160,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
             constraints: BoxConstraints(
               maxHeight: currentMaxHeight,
             ),
-            child: _currentState == PenggunaContentState.table
+            child: _currentState == ContentState.table
                 ? UserTable(
                     onAddNew: _showForm,
                     userRepository: userRepository,
@@ -187,7 +186,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
 
                       if (confirmed == true) {
                         try {
-                          await userRepository.deleteUser(user.id);
+                          await userRepository.deleteUser(user.id!);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(

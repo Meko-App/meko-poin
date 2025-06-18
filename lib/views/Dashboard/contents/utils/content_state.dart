@@ -1,0 +1,4 @@
+enum ContentState {
+  table,
+  form,
+}
