@@ -143,17 +143,6 @@ class _MasterDataTableState extends State<MasterDataTable> {
     );
   }
 
-  String _getRoleName(int roleId) {
-    switch (roleId) {
-      case 1:
-        return 'Admin';
-      case 2:
-        return 'Operator';
-      default:
-        return 'Operator';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final totalPages = (sortedMasterData.length / itemsPerPage).ceil();
