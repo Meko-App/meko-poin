@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'views/auth/login_page.dart';
 import 'package:window_manager/window_manager.dart';
@@ -29,10 +30,14 @@ void main() async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
+  final dbPath = await getDatabasesPath();
+  final path = join(dbPath, 'app_database.db');
+  await databaseFactoryFfi.deleteDatabase(path);
+
   final databaseHelper = DatabaseHelper.instance;
   await databaseHelper.database;
-  final userRepository = UserRepository(databaseHelper);
 
+  final userRepository = UserRepository(databaseHelper);
   Validators.initialize(userRepository);
 
   runApp(const MyApp());

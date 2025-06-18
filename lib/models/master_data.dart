@@ -1,20 +1,20 @@
 class MasterData {
-  final int id;
+  final int? id;
   final int userId;
   final String name;
   final String category;
   final int? price;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   MasterData({
-    required this.id,
+    this.id,
     required this.userId,
     required this.name,
     required this.category,
     this.price,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory MasterData.fromMap(Map<String, dynamic> map) {
@@ -36,8 +36,8 @@ class MasterData {
       'name': name,
       'category': category,
       'price': price,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 }

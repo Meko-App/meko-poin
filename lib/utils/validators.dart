@@ -26,6 +26,13 @@ class Validators {
     return null;
   }
 
+  static String? validatePrice(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Harga wajib diisi';
+    }
+    return null;
+  }
+
   static Future<String?> validateEmailInputUser({
     String? value,
     int? currentUserId,

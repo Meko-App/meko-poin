@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
@@ -37,7 +38,9 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(
               builder: (context) => DashboardPage(
                   user: user,
-                  userRepository: UserRepository(DatabaseHelper.instance))),
+                  userRepository: UserRepository(DatabaseHelper.instance),
+                  masterDataRepository:
+                      MasterDataRepository(DatabaseHelper.instance))),
         );
       } else if (mounted) {
         _showError('Invalid email or password');

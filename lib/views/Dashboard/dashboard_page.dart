@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/header.dart';
 import 'package:meko_poin/views/Dashboard/components/sidebar.dart';
@@ -10,17 +11,18 @@ import 'package:meko_poin/views/Dashboard/contents/inventori_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/transaksi_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pengguna_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/database_content.dart';
-import 'package:meko_poin/views/Dashboard/contents/utils/pengguna_content_state.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 
 class DashboardPage extends StatefulWidget {
   final User user;
   final UserRepository userRepository;
+  final MasterDataRepository masterDataRepository;
 
-  const DashboardPage({
-    super.key,
-    required this.user,
-    required this.userRepository,
-  });
+  const DashboardPage(
+      {super.key,
+      required this.user,
+      required this.userRepository,
+      required this.masterDataRepository});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -29,7 +31,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   bool _showSidebar = true;
   String _selectedMenu = "Ringkasan";
-  PenggunaContentState? _penggunaContentCurrentState;
+  ContentState? _contentCurrentState;
 
   void _toggleSidebar() {
     setState(() {
@@ -37,9 +39,9 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  void _updatePenggunaContentState(PenggunaContentState state) {
+  void _updateContentState(ContentState state) {
     setState(() {
-      _penggunaContentCurrentState = state;
+      _contentCurrentState = state;
     });
   }
 
@@ -63,14 +65,14 @@ class _DashboardPageState extends State<DashboardPage> {
     String headerCurrentPage = _selectedMenu;
     String? headerSubPage;
 
-    if (_selectedMenu == 'Pengguna') {
-      if (_penggunaContentCurrentState == PenggunaContentState.form) {
+    if (_selectedMenu == 'Pengguna' || _selectedMenu == 'Master Data') {
+      if (_contentCurrentState == ContentState.form) {
         headerSubPage = 'Buat Baru';
       } else {
-        headerSubPage = null; // Kembali ke hanya "Pengguna" saat di tabel
+        headerSubPage = null;
       }
     } else {
-      headerSubPage = null; // Reset jika bukan menu Pengguna
+      headerSubPage = null;
     }
 
     return Scaffold(
@@ -78,7 +80,6 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         Row(
           children: [
-            // Sidebar dengan animasi
             AnimatedSize(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
@@ -94,7 +95,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     onMenuSelected: (menu) {
                       setState(() {
                         _selectedMenu = menu;
-                        _penggunaContentCurrentState = null;
+                        _contentCurrentState = null;
                       });
                     },
                   ),
@@ -115,14 +116,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   Expanded(
                     child: DashboardContent(
-                      menu: _selectedMenu,
-                      onPenggunaContentStateChanged: (state) {
-                        if (_selectedMenu == 'Pengguna') {
-                          _updatePenggunaContentState(state);
-                        }
-                      },
-                      userRepository: widget.userRepository,
-                    ),
+                        menu: _selectedMenu,
+                        onContentStateChanged: (state) {
+                          if (_selectedMenu == 'Pengguna' ||
+                              _selectedMenu == 'Master Data') {
+                            _updateContentState(state);
+                          }
+                        },
+                        userRepository: widget.userRepository,
+                        masterDataRepository: widget.masterDataRepository),
                   ),
                 ],
               ),
@@ -190,14 +192,16 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class DashboardContent extends StatelessWidget {
   final String menu;
-  final Function(PenggunaContentState)? onPenggunaContentStateChanged;
+  final Function(ContentState)? onContentStateChanged;
   final UserRepository userRepository;
+  final MasterDataRepository masterDataRepository;
 
   const DashboardContent(
       {super.key,
       required this.menu,
-      this.onPenggunaContentStateChanged,
-      required this.userRepository});
+      this.onContentStateChanged,
+      required this.userRepository,
+      required this.masterDataRepository});
 
   @override
   Widget build(BuildContext context) {
@@ -216,14 +220,17 @@ class DashboardContent extends StatelessWidget {
       case 'Pelanggan':
         return const PelangganContent();
       case 'Master Data':
-        return const MasterDataContent();
+        return MasterdataContent(
+          onStateChanged: onContentStateChanged!,
+          masterDataRepository: masterDataRepository, // Teruskan repository
+        );
       case 'Inventori':
         return const InventoriContent();
       case 'Transaksi':
         return const TransaksiContent();
       case 'Pengguna':
         return PenggunaContent(
-          onStateChanged: onPenggunaContentStateChanged!,
+          onStateChanged: onContentStateChanged!,
           userRepository: userRepository, // Teruskan repository
         );
       case 'Database':

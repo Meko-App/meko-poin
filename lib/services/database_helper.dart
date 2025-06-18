@@ -20,13 +20,19 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, fileName);
 
-    return await databaseFactoryFfi.openDatabase(
+    final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
         version: 1,
         onCreate: _createDB,
       ),
     );
+
+    // final tables =
+    //     await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+    // print("Tabel yang tersedia: $tables");
+
+    return db;
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -38,6 +44,7 @@ class DatabaseHelper {
     await _createTransactionTable(db);
     await _createTransactionItemTable(db);
     await _insertDefaultAdmin(db);
+    await _insertDummyDataMaster(db);
   }
 
   Future<void> _createUserTable(Database db) async {
@@ -58,7 +65,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         name TEXT,
-        category TEXT CHECK(category IN ('product', 'paper', 'packaging', 'additional')),
+        category TEXT CHECK(category IN ('Product', 'Paper', 'Packaging', 'Additional')),
         price INTEGER,
         created_at DATETIME,
         updated_at DATETIME,
@@ -156,6 +163,17 @@ class DatabaseHelper {
       'email': 'admin@example.com',
       'password': PasswordHasher.hashPassword('admin123'),
       'role_id': 1,
+    });
+  }
+
+  Future<void> _insertDummyDataMaster(Database db) async {
+    await db.insert('Data_Master', {
+      'user_id': 1,
+      'name': 'Produk Dummy',
+      'category': 'Product',
+      'price': 15000,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     });
   }
 
