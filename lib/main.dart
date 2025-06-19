@@ -32,7 +32,10 @@ void main() async {
 
   final dbPath = await getDatabasesPath();
   final path = join(dbPath, 'app_database.db');
-  await databaseFactoryFfi.deleteDatabase(path);
+
+  if (await databaseFactoryFfi.databaseExists(path)) {
+    await databaseFactoryFfi.deleteDatabase(path);
+  }
 
   final databaseHelper = DatabaseHelper.instance;
   await databaseHelper.database;

@@ -57,7 +57,6 @@ class _MasterDataFormState extends State<MasterDataForm> {
       setState(() {
         _selectedError = 'Category wajib diisi';
       });
-      return;
     }
 
     // Validasi harga
@@ -66,10 +65,18 @@ class _MasterDataFormState extends State<MasterDataForm> {
       _priceError = priceError;
     });
 
+    if (nameError != null ||
+        priceError != null ||
+        _selectedCategory == 'Pilih Kategori') {
+      return;
+    }
+
     final Map<String, dynamic> productData = {
       'name': _nameController.text,
       'category': _selectedCategory,
-      'price': _priceController.text,
+      'price': _priceController.text.isEmpty
+          ? null
+          : int.tryParse(_priceController.text.replaceAll('.', '')),
     };
 
     widget.onSubmit(productData);
@@ -385,6 +392,25 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     focusedBorder: InputBorder.none,
                     filled: false,
                   ),
+                  onChanged: (value) {
+                    String digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+
+                    if (digitsOnly.isEmpty) {
+                      _priceController.text = '';
+                      _priceController.selection =
+                          TextSelection.collapsed(offset: 0);
+                      return;
+                    }
+
+                    final number = int.parse(digitsOnly);
+                    final formatted = _formatWithThousandSeparator(number);
+
+                    _priceController.value = TextEditingValue(
+                      text: formatted,
+                      selection:
+                          TextSelection.collapsed(offset: formatted.length),
+                    );
+                  },
                 ),
               ),
             ],
@@ -404,4 +430,11 @@ class _MasterDataFormState extends State<MasterDataForm> {
       ],
     );
   }
+}
+
+String _formatWithThousandSeparator(int value) {
+  return value.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
 }

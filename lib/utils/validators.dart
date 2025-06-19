@@ -27,9 +27,14 @@ class Validators {
   }
 
   static String? validatePrice(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Harga wajib diisi';
+    final cleaned = (value ?? '').replaceAll('.', '');
+
+    if (cleaned.isEmpty) return null;
+
+    if (int.tryParse(cleaned) == null) {
+      return 'Harga harus berupa angka';
     }
+
     return null;
   }
 

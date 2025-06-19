@@ -66,7 +66,10 @@ class _MasterdataContentState extends State<MasterdataContent> {
           id: null,
           name: data['name'],
           category: data['category'],
-          price: int.parse(data['price'].replaceAll(RegExp(r'[^0-9]'), '')),
+          price:
+              (data['price'] == null || data['price'].toString().trim().isEmpty)
+                  ? 0
+                  : int.parse(data['price'].replaceAll(RegExp(r'[^0-9]'), '')),
           userId: userId,
         );
         await masterDataRepository.insertMasterData(newData);
@@ -81,7 +84,10 @@ class _MasterdataContentState extends State<MasterdataContent> {
           id: _dataToEdit!['id'],
           name: data['name'],
           category: data['category'],
-          price: int.parse(data['price'].replaceAll(RegExp(r'[^0-9]'), '')),
+          price:
+              (data['price'] == null || data['price'].toString().trim().isEmpty)
+                  ? 0
+                  : int.parse(data['price'].replaceAll(RegExp(r'[^0-9]'), '')),
           userId: _dataToEdit!['id_user'],
         );
         await masterDataRepository.updateMasterData(updatedData);
