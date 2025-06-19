@@ -47,18 +47,18 @@ class _SidebarState extends State<Sidebar> {
                 children: [
                   Image.asset(
                     'assets/logo.png',
-                    width: 31,
-                    height: 22,
+                    width: 204,
+                    height: 37.36,
                   ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    "MEKO POIN",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 19,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
+                  // const SizedBox(width: 10),
+                  // const Text(
+                  //   "MEKO POIN",
+                  //   style: TextStyle(
+                  //     fontWeight: FontWeight.bold,
+                  //     fontSize: 19,
+                  //     color: Color(0xFF1E293B),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
