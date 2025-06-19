@@ -1,37 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:meko_poin/models/additional/master_data_with_user.dart';
-import 'package:meko_poin/models/master_data.dart';
-import 'package:meko_poin/services/master_data_repository.dart';
-import 'master_data_table_header.dart';
-import 'master_data_table_row.dart';
-import 'master_data_table_pagination.dart';
-import 'master_data_table_search.dart';
+import 'package:meko_poin/models/additional/inventory_with_user_master_data.dart';
+import 'package:meko_poin/models/inventory.dart';
+import 'package:meko_poin/services/inventory_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_table/inventory_table_header.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_table/inventory_table_pagination.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_table/inventory_table_row.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_table/inventory_table_search.dart';
 
-class MasterDataTable extends StatefulWidget {
+class InventoryTable extends StatefulWidget {
   final VoidCallback onAddNew;
-  final MasterDataRepository masterDataRepository;
-  final Function(MasterData) onEditUser;
-  final Function(MasterData) onDeleteUser;
+  final InventoryRepository inventoryRepository;
+  final Function(Inventory) onEditUser;
+  final Function(Inventory) onDeleteUser;
 
-  const MasterDataTable({
+  const InventoryTable({
     super.key,
     required this.onAddNew,
-    required this.masterDataRepository,
+    required this.inventoryRepository,
     required this.onEditUser,
     required this.onDeleteUser,
   });
 
   @override
-  State<MasterDataTable> createState() => _MasterDataTableState();
+  State<InventoryTable> createState() => _InventoryTableState();
 }
 
-class _MasterDataTableState extends State<MasterDataTable> {
+class _InventoryTableState extends State<InventoryTable> {
   final ScrollController _scrollController = ScrollController();
   int currentPage = 1;
   int itemsPerPage = 10;
   bool isAllSelected = false;
   Set<int> selectedRows = {};
-  List<MasterDataWithUser> _masterDataList = [];
+  List<InventoryWithUserMasterData> _inventoryList = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String sortBy = 'name';
@@ -47,8 +47,8 @@ class _MasterDataTableState extends State<MasterDataTable> {
     setState(() => _isLoading = true);
     try {
       final allData =
-          await widget.masterDataRepository.getAllMasterDataWithUser();
-      setState(() => _masterDataList = allData);
+          await widget.inventoryRepository.getAllInventoryWithUserMasterData();
+      setState(() => _inventoryList = allData);
     } catch (e) {
       debugPrint('Error loading master data: $e');
     } finally {
@@ -57,7 +57,7 @@ class _MasterDataTableState extends State<MasterDataTable> {
   }
 
   @override
-  void didUpdateWidget(covariant MasterDataTable oldWidget) {
+  void didUpdateWidget(covariant InventoryTable oldWidget) {
     super.didUpdateWidget(oldWidget);
     _loadMasterData();
   }
@@ -68,41 +68,41 @@ class _MasterDataTableState extends State<MasterDataTable> {
     super.dispose();
   }
 
-  List<MasterDataWithUser> get filteredMasterData {
-    if (_searchQuery.isEmpty) return _masterDataList;
-    return _masterDataList
-        .where((masterdata) => masterdata.masterData.name
+  List<InventoryWithUserMasterData> get filteredInventoryData {
+    if (_searchQuery.isEmpty) return _inventoryList;
+    return _inventoryList
+        .where((inventoryData) => inventoryData.name
             .toLowerCase()
             .contains(_searchQuery.toLowerCase()))
         .toList();
   }
 
-  List<MasterDataWithUser> get sortedMasterData {
-    List<MasterDataWithUser> sorted = List.from(filteredMasterData);
+  List<InventoryWithUserMasterData> get sortedInventoryData {
+    List<InventoryWithUserMasterData> sorted = List.from(filteredInventoryData);
     sorted.sort((a, b) {
       dynamic valueA;
       dynamic valueB;
 
       switch (sortBy) {
         case 'name':
-          valueA = a.masterData.name;
-          valueB = b.masterData.name;
+          valueA = a.name;
+          valueB = b.name;
           break;
-        case 'category':
-          valueA = a.masterData.category;
-          valueB = b.masterData.category;
+        case 'stock':
+          valueA = a.inventoryData.stock;
+          valueB = b.inventoryData.stock;
           break;
-        case 'harga':
-          valueA = a.masterData.price;
-          valueB = b.masterData.price;
+        case 'catatan':
+          valueA = a.inventoryData.notes;
+          valueB = b.inventoryData.notes;
           break;
         case 'addedBy':
           valueA = a.addedBy;
           valueB = b.addedBy;
           break;
         default:
-          valueA = a.masterData.name;
-          valueB = b.masterData.name;
+          valueA = a.name;
+          valueB = b.name;
       }
 
       int result = valueA.toString().compareTo(valueB.toString());
@@ -111,11 +111,11 @@ class _MasterDataTableState extends State<MasterDataTable> {
     return sorted;
   }
 
-  List<MasterDataWithUser> get currentPageData {
+  List<InventoryWithUserMasterData> get currentPageData {
     int start = (currentPage - 1) * itemsPerPage;
     int end = start + itemsPerPage;
-    return sortedMasterData.sublist(
-        start, end > sortedMasterData.length ? sortedMasterData.length : end);
+    return sortedInventoryData.sublist(start,
+        end > sortedInventoryData.length ? sortedInventoryData.length : end);
   }
 
   void onSort(String column) {
@@ -145,10 +145,10 @@ class _MasterDataTableState extends State<MasterDataTable> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (sortedMasterData.length / itemsPerPage).ceil();
+    final totalPages = (sortedInventoryData.length / itemsPerPage).ceil();
     final startItem = (currentPage - 1) * itemsPerPage + 1;
-    final endItem = (currentPage * itemsPerPage > sortedMasterData.length)
-        ? sortedMasterData.length
+    final endItem = (currentPage * itemsPerPage > sortedInventoryData.length)
+        ? sortedInventoryData.length
         : currentPage * itemsPerPage;
 
     return Container(
@@ -160,9 +160,9 @@ class _MasterDataTableState extends State<MasterDataTable> {
       child: Column(
         children: [
           // Search Bar
-          MasterDataTableSearch(
+          InventoryTableSearch(
             currentPageData: currentPageData,
-            data: sortedMasterData,
+            data: sortedInventoryData,
             onAddNew: widget.onAddNew,
             onSearch: (query) {
               setState(() {
@@ -173,7 +173,7 @@ class _MasterDataTableState extends State<MasterDataTable> {
           ),
 
           // Header
-          MasterDataTableHeader(
+          InventoryTableHeader(
             sortBy: sortBy,
             isAscending: isAscending,
             onSort: onSort,
@@ -184,8 +184,8 @@ class _MasterDataTableState extends State<MasterDataTable> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : sortedMasterData.isEmpty
-                    ? const Center(child: Text('Tidak ada data master'))
+                : sortedInventoryData.isEmpty
+                    ? const Center(child: Text('Tidak ada data inventory'))
                     : Scrollbar(
                         controller: _scrollController,
                         thumbVisibility: true,
@@ -194,16 +194,16 @@ class _MasterDataTableState extends State<MasterDataTable> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: currentPageData
-                                .map((data) => MasterDataTableRow(
-                                      name: data.masterData.name,
-                                      category: data.masterData.category,
-                                      price: data.masterData.price ?? 0,
+                                .map((data) => InventoryTableRow(
+                                      name: data.name,
+                                      stock: data.inventoryData.stock,
+                                      notes: data.inventoryData.notes,
                                       addedBy: data.addedBy,
-                                      key: ValueKey(data.masterData.id),
+                                      key: ValueKey(data.inventoryData.id),
                                       onEdit: () =>
-                                          widget.onEditUser(data.masterData),
-                                      onDelete: () =>
-                                          widget.onDeleteUser(data.masterData),
+                                          widget.onEditUser(data.inventoryData),
+                                      onDelete: () => widget
+                                          .onDeleteUser(data.inventoryData),
                                     ))
                                 .toList(),
                           ),
@@ -212,13 +212,13 @@ class _MasterDataTableState extends State<MasterDataTable> {
           ),
 
           // Pagination
-          if (!_isLoading && sortedMasterData.isNotEmpty)
-            MasterDataTablePagination(
+          if (!_isLoading && sortedInventoryData.isNotEmpty)
+            InventoryTablePagination(
               currentPage: currentPage,
               totalPages: totalPages,
               startItem: startItem,
               endItem: endItem,
-              data: sortedMasterData,
+              data: sortedInventoryData,
               itemsPerPage: itemsPerPage,
               onItemsPerPageChanged: (value) {
                 setState(() {

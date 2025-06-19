@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/header.dart';
@@ -7,7 +8,7 @@ import 'package:meko_poin/views/Dashboard/components/sidebar.dart';
 import 'package:meko_poin/views/Dashboard/contents/ringkasan_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pelanggan_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/masterdata_content.dart';
-import 'package:meko_poin/views/Dashboard/contents/inventori_content.dart';
+import 'package:meko_poin/views/Dashboard/contents/inventory_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/transaksi_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pengguna_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/database_content.dart';
@@ -17,12 +18,14 @@ class DashboardPage extends StatefulWidget {
   final User user;
   final UserRepository userRepository;
   final MasterDataRepository masterDataRepository;
+  final InventoryRepository inventoryRepository;
 
   const DashboardPage(
       {super.key,
       required this.user,
       required this.userRepository,
-      required this.masterDataRepository});
+      required this.masterDataRepository,
+      required this.inventoryRepository});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -62,10 +65,13 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
 
-    String headerCurrentPage = _selectedMenu;
+    String headerCurrentPage =
+        _selectedMenu == 'Inventori' ? 'Gudang' : _selectedMenu;
     String? headerSubPage;
 
-    if (_selectedMenu == 'Pengguna' || _selectedMenu == 'Master Data') {
+    if (_selectedMenu == 'Pengguna' ||
+        _selectedMenu == 'Master Data' ||
+        _selectedMenu == 'Inventori') {
       if (_contentCurrentState == ContentState.form) {
         headerSubPage = 'Buat Baru';
       } else {
@@ -119,12 +125,14 @@ class _DashboardPageState extends State<DashboardPage> {
                         menu: _selectedMenu,
                         onContentStateChanged: (state) {
                           if (_selectedMenu == 'Pengguna' ||
-                              _selectedMenu == 'Master Data') {
+                              _selectedMenu == 'Master Data' ||
+                              _selectedMenu == 'Inventori') {
                             _updateContentState(state);
                           }
                         },
                         userRepository: widget.userRepository,
-                        masterDataRepository: widget.masterDataRepository),
+                        masterDataRepository: widget.masterDataRepository,
+                        inventoryRepository: widget.inventoryRepository),
                   ),
                 ],
               ),
@@ -195,13 +203,15 @@ class DashboardContent extends StatelessWidget {
   final Function(ContentState)? onContentStateChanged;
   final UserRepository userRepository;
   final MasterDataRepository masterDataRepository;
+  final InventoryRepository inventoryRepository;
 
   const DashboardContent(
       {super.key,
       required this.menu,
       this.onContentStateChanged,
       required this.userRepository,
-      required this.masterDataRepository});
+      required this.masterDataRepository,
+      required this.inventoryRepository});
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +235,10 @@ class DashboardContent extends StatelessWidget {
           masterDataRepository: masterDataRepository, // Teruskan repository
         );
       case 'Inventori':
-        return const InventoriContent();
+        return InventoryContent(
+          onStateChanged: onContentStateChanged!,
+          inventoryRepository: inventoryRepository, // Teruskan repository
+        );
       case 'Transaksi':
         return const TransaksiContent();
       case 'Pengguna':

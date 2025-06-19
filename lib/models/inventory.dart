@@ -1,20 +1,20 @@
 class Inventory {
-  final int id;
+  final int? id;
   final int userId;
   final int masterDataId;
   final int stock;
   final String notes;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Inventory({
-    required this.id,
+    this.id,
     required this.userId,
     required this.masterDataId,
     required this.stock,
     required this.notes,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory Inventory.fromMap(Map<String, dynamic> map) {
@@ -36,8 +36,8 @@ class Inventory {
       'master_data_id': masterDataId,
       'stock': stock,
       'notes': notes,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 }
