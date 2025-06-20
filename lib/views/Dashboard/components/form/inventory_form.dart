@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:meko_poin/utils/validators.dart';
+import 'package:meko_poin/models/master_data.dart';
+import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/master_data_repository.dart';
 
 class InventoryForm extends StatefulWidget {
   final VoidCallback onCancel;
@@ -19,9 +21,15 @@ class InventoryForm extends StatefulWidget {
 }
 
 class _InventoryFormState extends State<InventoryForm> {
+  late final MasterDataRepository _masterDataRepository;
+
+  Future<List<MasterData>> _fetchMasterData() async {
+    return await _masterDataRepository.getAllMasterData();
+  }
+
   final TextEditingController _stockController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  String? _selectedItem;
+  int? _selectedItem;
   String? _selectedError;
   String? _stockError;
   String? _notesError;
@@ -32,10 +40,11 @@ class _InventoryFormState extends State<InventoryForm> {
     if (widget.initialData != null) {
       _stockController.text = widget.initialData!['stock']?.toString() ?? '';
       _notesController.text = widget.initialData!['notes'] ?? '';
-      _selectedItem = widget.initialData!['item'] ?? 'Pilih Barang';
+      _selectedItem = widget.initialData!['master_data_id'] ?? 0;
     } else {
-      _selectedItem = 'Pilih Kategori';
+      _selectedItem = 0;
     }
+    _masterDataRepository = MasterDataRepository(DatabaseHelper.instance);
   }
 
   @override
@@ -47,7 +56,7 @@ class _InventoryFormState extends State<InventoryForm> {
 
   void _saveInventory() {
     // Validasi barang
-    if (_selectedItem == 'Pilih Barang') {
+    if (_selectedItem == 0) {
       setState(() {
         _selectedError = 'Barang wajib dipilih';
       });
@@ -63,7 +72,7 @@ class _InventoryFormState extends State<InventoryForm> {
     }
 
     final Map<String, dynamic> inventoryData = {
-      'item': _selectedItem,
+      'master_data_id': _selectedItem,
       'stock': int.tryParse(_stockController.text),
       'notes': _notesController.text,
     };
@@ -180,95 +189,109 @@ class _InventoryFormState extends State<InventoryForm> {
   }
 
   Widget _buildItemDropdown() {
-    // Define your items list
-    final List<String> items = [
-      'Pilih Barang',
-      'Produk A',
-      'Produk B',
-      'Produk C',
-      'Produk D'
-    ];
+    return FutureBuilder<List<MasterData>>(
+      future: _fetchMasterData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator(); // Tampilkan loading indicator
+        }
 
-    // Ensure _selectedItem is either null or matches one of the items
-    if (_selectedItem == null || !items.contains(_selectedItem)) {
-      _selectedItem = 'Pilih Barang'; // Set default value
-    }
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 34,
-          child: DropdownButtonFormField<String>(
-            value: _selectedItem,
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: _selectedError != null
-                      ? Colors.red
-                      : Colors.grey.shade300,
-                  width: 1.0,
+        final masterDataList = snapshot.data ?? [];
+
+        // Tambahkan default item di awal list
+        final items = [DropdownItem(id: 0, name: 'Pilih Barang')];
+
+        items.addAll(masterDataList
+            .map((data) => DropdownItem(id: data.id, name: data.name))
+            .toList());
+
+        if (_selectedItem == null ||
+            !items.any((item) => item.id == _selectedItem)) {
+          _selectedItem = 0;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 34,
+              child: DropdownButtonFormField<int?>(
+                value: _selectedItem,
+                decoration: InputDecoration(
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: _selectedError != null
+                          ? Colors.red
+                          : Colors.grey.shade300,
+                      width: 1.0,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: _selectedError != null
+                          ? Colors.red
+                          : Color(0xFF1379F0),
+                      width: 1.0,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                dropdownColor: Colors.white,
+                elevation: 2,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                iconSize: 20,
+                isExpanded: true,
+                items: items.map<DropdownMenuItem<int?>>((item) {
+                  return DropdownMenuItem<int?>(
+                    value: item.id,
+                    child: Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF111B37),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (int? newValue) {
+                  setState(() {
+                    _selectedItem = newValue;
+                    if (_selectedError != null && newValue != null) {
+                      _selectedError = null;
+                    }
+                  });
+                },
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF111B37),
                 ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color:
-                      _selectedError != null ? Colors.red : Color(0xFF1379F0),
-                  width: 1.0,
-                ),
-              ),
-              filled: true,
-              fillColor: Colors.white,
             ),
-            dropdownColor: Colors.white,
-            elevation: 2,
-            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-            iconSize: 20,
-            isExpanded: true,
-            items: items.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
+            if (_selectedError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF111B37),
+                  _selectedError!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red,
                   ),
                 ),
-              );
-            }).toList(),
-            onChanged: (String? newValue) {
-              setState(() {
-                _selectedItem = newValue;
-                if (_selectedError != null && newValue != 'Pilih Barang') {
-                  _selectedError = null;
-                }
-              });
-            },
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF111B37),
-            ),
-          ),
-        ),
-        if (_selectedError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0),
-            child: Text(
-              _selectedError!,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.red,
               ),
-            ),
-          ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -478,4 +501,11 @@ class _InventoryFormState extends State<InventoryForm> {
       ],
     );
   }
+}
+
+class DropdownItem {
+  final int? id;
+  final String name;
+
+  DropdownItem({required this.id, required this.name});
 }

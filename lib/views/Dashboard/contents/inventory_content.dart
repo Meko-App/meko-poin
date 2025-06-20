@@ -187,7 +187,8 @@ class _InventoryContentState extends State<InventoryContent> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text('User berhasil dihapus')),
+                                  content:
+                                      Text('Data Inventory berhasil dihapus')),
                             );
                           }
                           _showTable();
@@ -195,7 +196,8 @@ class _InventoryContentState extends State<InventoryContent> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                  content: Text('Gagal menghapus user: $e')),
+                                  content: Text(
+                                      'Gagal menghapus Data Inventory: $e')),
                             );
                           }
                         }
