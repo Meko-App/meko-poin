@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 
 class InventoryForm extends StatefulWidget {
@@ -22,6 +23,8 @@ class InventoryForm extends StatefulWidget {
 
 class _InventoryFormState extends State<InventoryForm> {
   late final MasterDataRepository _masterDataRepository;
+  late final InventoryRepository _inventoryRepository;
+  List<int> _existingInventoryIds = [];
 
   Future<List<MasterData>> _fetchMasterData() async {
     return await _masterDataRepository.getAllMasterData();
@@ -45,6 +48,15 @@ class _InventoryFormState extends State<InventoryForm> {
       _selectedItem = 0;
     }
     _masterDataRepository = MasterDataRepository(DatabaseHelper.instance);
+    _inventoryRepository = InventoryRepository(DatabaseHelper.instance);
+    _loadInventoryIds();
+  }
+
+  Future<void> _loadInventoryIds() async {
+    final ids = await _inventoryRepository.getExistingInventoryIds();
+    setState(() {
+      _existingInventoryIds = ids;
+    });
   }
 
   @override
@@ -202,17 +214,36 @@ class _InventoryFormState extends State<InventoryForm> {
 
         final masterDataList = snapshot.data ?? [];
 
-        // Tambahkan default item di awal list
-        final items = [DropdownItem(id: 0, name: 'Pilih Barang')];
+        final availableItems = masterDataList
+            .where(
+                (masterItem) => !_existingInventoryIds.contains(masterItem.id))
+            .toList();
 
-        items.addAll(masterDataList
-            .map((data) => DropdownItem(id: data.id, name: data.name))
-            .toList());
+        final dropdownItems = <DropdownMenuItem<int?>>[
+          const DropdownMenuItem<int?>(
+            value: 0,
+            child: Text('Pilih Barang'),
+          ),
+          ...availableItems
+              .map((item) => DropdownMenuItem<int?>(
+                    value: item.id,
+                    child: Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF111B37),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ];
 
-        if (_selectedItem == null ||
-            !items.any((item) => item.id == _selectedItem)) {
-          _selectedItem = 0;
-        }
+        // Handle initial selection
+        final validSelection =
+            dropdownItems.any((item) => item.value == _selectedItem)
+                ? _selectedItem
+                : null;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +251,7 @@ class _InventoryFormState extends State<InventoryForm> {
             SizedBox(
               height: 34,
               child: DropdownButtonFormField<int?>(
-                value: _selectedItem,
+                value: validSelection,
                 decoration: InputDecoration(
                   contentPadding:
                       const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
@@ -250,19 +281,7 @@ class _InventoryFormState extends State<InventoryForm> {
                 icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                 iconSize: 20,
                 isExpanded: true,
-                items: items.map<DropdownMenuItem<int?>>((item) {
-                  return DropdownMenuItem<int?>(
-                    value: item.id,
-                    child: Text(
-                      item.name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF111B37),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                items: dropdownItems,
                 onChanged: (int? newValue) {
                   setState(() {
                     _selectedItem = newValue;

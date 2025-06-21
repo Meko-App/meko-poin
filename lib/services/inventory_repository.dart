@@ -25,6 +25,13 @@ class InventoryRepository {
     return result.map((map) => Inventory.fromMap(map)).toList();
   }
 
+  Future<List<int>> getExistingInventoryIds() async {
+    final db = await dbHelper.database;
+    final results =
+        await db.query('Data_Inventory', columns: ['master_data_id']);
+    return results.map((e) => e['master_data_id'] as int).toList();
+  }
+
   Future<List<InventoryWithUserMasterData>>
       getAllInventoryWithUserMasterData() async {
     final db = await dbHelper.database;
