@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
@@ -43,7 +44,9 @@ class _LoginPageState extends State<LoginPage> {
                   masterDataRepository:
                       MasterDataRepository(DatabaseHelper.instance),
                   inventoryRepository:
-                      InventoryRepository(DatabaseHelper.instance))),
+                      InventoryRepository(DatabaseHelper.instance),
+                  inventoryLogRepository:
+                      InventoryLogRepository(DatabaseHelper.instance))),
         );
       } else if (mounted) {
         _showError('Invalid email or password');

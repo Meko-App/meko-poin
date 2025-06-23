@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/form/inventory_form.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_log_table/inventory_log_table.dart';
 import 'package:meko_poin/views/Dashboard/components/table/inventory_table/inventory_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 // import 'package:meko_poin/views/Dashboard/components/form/master_data_form.dart';
@@ -10,11 +12,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class InventoryContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
   final InventoryRepository inventoryRepository;
+  final InventoryLogRepository inventoryLogRepository;
 
   const InventoryContent(
       {super.key,
       required this.onStateChanged,
-      required this.inventoryRepository});
+      required this.inventoryRepository,
+      required this.inventoryLogRepository});
 
   @override
   State<InventoryContent> createState() => _InventoryContentState();
@@ -24,11 +28,14 @@ class _InventoryContentState extends State<InventoryContent> {
   ContentState _currentState = ContentState.table;
   Map<String, dynamic>? _dataToEdit;
   late final InventoryRepository inventoryRepository;
+  late final InventoryLogRepository inventoryLogRepository;
+  int? _selectedInventoryIdForLog;
 
   @override
   void initState() {
     super.initState();
     inventoryRepository = widget.inventoryRepository;
+    inventoryLogRepository = widget.inventoryLogRepository;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onStateChanged(_currentState);
     });
@@ -54,6 +61,14 @@ class _InventoryContentState extends State<InventoryContent> {
     setState(() {
       _currentState = ContentState.table;
       _dataToEdit = null;
+      widget.onStateChanged(_currentState);
+    });
+  }
+
+  void _showLog(int inventoryId) {
+    setState(() {
+      _currentState = ContentState.log;
+      _selectedInventoryIdForLog = inventoryId;
       widget.onStateChanged(_currentState);
     });
   }
@@ -106,9 +121,9 @@ class _InventoryContentState extends State<InventoryContent> {
 
   @override
   Widget build(BuildContext context) {
-    double currentMaxHeight = _currentState == ContentState.table
-        ? MediaQuery.of(context).size.height * 0.77
-        : double.infinity;
+    double currentMaxHeight = _currentState == ContentState.form
+        ? double.infinity
+        : MediaQuery.of(context).size.height * 0.77;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -117,22 +132,27 @@ class _InventoryContentState extends State<InventoryContent> {
         children: [
           Row(
             children: [
-              if (_currentState == ContentState.form)
+              if (_currentState == ContentState.form ||
+                  _currentState == ContentState.log)
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _showTable,
                   color: Colors.grey.shade700,
                 ),
-              if (_currentState == ContentState.form) const SizedBox(width: 8),
+              if (_currentState == ContentState.form ||
+                  _currentState == ContentState.log)
+                const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _currentState == ContentState.table
                         ? "Inventori"
-                        : (_dataToEdit != null
-                            ? "Edit Data Inventori"
-                            : "Tambah Data Inventori"),
+                        : (_currentState == ContentState.form
+                            ? (_dataToEdit != null
+                                ? "Edit Data Inventori"
+                                : "Tambah Data Inventori")
+                            : "Log Aktivitas"),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
@@ -141,7 +161,11 @@ class _InventoryContentState extends State<InventoryContent> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Data master untuk inventory dan produk",
+                    _currentState == ContentState.table
+                        ? "Data master untuk inventory dan produk"
+                        : (_currentState == ContentState.form
+                            ? "Form untuk menambah atau mengedit data inventori"
+                            : "Aktivitas perubahan stok barang"),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -161,8 +185,8 @@ class _InventoryContentState extends State<InventoryContent> {
                 ? InventoryTable(
                     onAddNew: _showForm,
                     inventoryRepository: inventoryRepository,
-                    onEditUser: (data) => _showForm(data: data),
-                    onDeleteUser: (data) async {
+                    onEditInventory: (data) => _showForm(data: data),
+                    onDeleteInventory: (data) async {
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
@@ -205,12 +229,18 @@ class _InventoryContentState extends State<InventoryContent> {
                         }
                       }
                     },
+                    onViewLog: _showLog,
                   )
-                : InventoryForm(
-                    onCancel: _showTable,
-                    initialData: _dataToEdit,
-                    onSubmit: _handleDataFormSubmit,
-                  ),
+                : (_currentState == ContentState.form
+                    ? InventoryForm(
+                        onCancel: _showTable,
+                        initialData: _dataToEdit,
+                        onSubmit: _handleDataFormSubmit,
+                      )
+                    : InventoryLogTable(
+                        inventoryId: _selectedInventoryIdForLog!,
+                        inventoryLogRepository: inventoryLogRepository,
+                      )),
           ),
         ],
       ),

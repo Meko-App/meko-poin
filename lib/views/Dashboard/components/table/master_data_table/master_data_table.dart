@@ -10,15 +10,15 @@ import 'master_data_table_search.dart';
 class MasterDataTable extends StatefulWidget {
   final VoidCallback onAddNew;
   final MasterDataRepository masterDataRepository;
-  final Function(MasterData) onEditUser;
-  final Function(MasterData) onDeleteUser;
+  final Function(MasterData) onEditMasterData;
+  final Function(MasterData) onDeleteMasterData;
 
   const MasterDataTable({
     super.key,
     required this.onAddNew,
     required this.masterDataRepository,
-    required this.onEditUser,
-    required this.onDeleteUser,
+    required this.onEditMasterData,
+    required this.onDeleteMasterData,
   });
 
   @override
@@ -200,10 +200,10 @@ class _MasterDataTableState extends State<MasterDataTable> {
                                       price: data.masterData.price ?? 0,
                                       addedBy: data.addedBy,
                                       key: ValueKey(data.masterData.id),
-                                      onEdit: () =>
-                                          widget.onEditUser(data.masterData),
-                                      onDelete: () =>
-                                          widget.onDeleteUser(data.masterData),
+                                      onEdit: () => widget
+                                          .onEditMasterData(data.masterData),
+                                      onDelete: () => widget
+                                          .onDeleteMasterData(data.masterData),
                                     ))
                                 .toList(),
                           ),

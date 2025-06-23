@@ -162,8 +162,8 @@ class _MasterdataContentState extends State<MasterdataContent> {
                 ? MasterDataTable(
                     onAddNew: _showForm,
                     masterDataRepository: masterDataRepository,
-                    onEditUser: (data) => _showForm(data: data),
-                    onDeleteUser: (data) async {
+                    onEditMasterData: (data) => _showForm(data: data),
+                    onDeleteMasterData: (data) async {
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(

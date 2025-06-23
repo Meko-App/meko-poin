@@ -6,9 +6,11 @@ import 'views/auth/login_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/utils/validators.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null);
 
   // Inisialisasi window manager
   await windowManager.ensureInitialized();

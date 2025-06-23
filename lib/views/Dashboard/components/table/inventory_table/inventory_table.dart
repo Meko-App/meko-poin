@@ -10,15 +10,17 @@ import 'package:meko_poin/views/Dashboard/components/table/inventory_table/inven
 class InventoryTable extends StatefulWidget {
   final VoidCallback onAddNew;
   final InventoryRepository inventoryRepository;
-  final Function(Inventory) onEditUser;
-  final Function(Inventory) onDeleteUser;
+  final Function(Inventory) onEditInventory;
+  final Function(Inventory) onDeleteInventory;
+  final Function(int inventoryId) onViewLog;
 
   const InventoryTable({
     super.key,
     required this.onAddNew,
     required this.inventoryRepository,
-    required this.onEditUser,
-    required this.onDeleteUser,
+    required this.onEditInventory,
+    required this.onDeleteInventory,
+    required this.onViewLog,
   });
 
   @override
@@ -158,6 +160,7 @@ class _InventoryTableState extends State<InventoryTable> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Search Bar
           InventoryTableSearch(
@@ -200,10 +203,12 @@ class _InventoryTableState extends State<InventoryTable> {
                                       notes: data.inventoryData.notes,
                                       addedBy: data.addedBy,
                                       key: ValueKey(data.inventoryData.id),
-                                      onEdit: () =>
-                                          widget.onEditUser(data.inventoryData),
-                                      onDelete: () => widget
-                                          .onDeleteUser(data.inventoryData),
+                                      onEdit: () => widget
+                                          .onEditInventory(data.inventoryData),
+                                      onDelete: () => widget.onDeleteInventory(
+                                          data.inventoryData),
+                                      onViewLog: () => widget
+                                          .onViewLog(data.inventoryData.id!),
                                     ))
                                 .toList(),
                           ),

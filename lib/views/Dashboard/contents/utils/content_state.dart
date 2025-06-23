@@ -1,4 +1,1 @@
-enum ContentState {
-  table,
-  form,
-}
+enum ContentState { table, form, log }

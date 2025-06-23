@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
@@ -19,13 +20,15 @@ class DashboardPage extends StatefulWidget {
   final UserRepository userRepository;
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
+  final InventoryLogRepository inventoryLogRepository;
 
   const DashboardPage(
       {super.key,
       required this.user,
       required this.userRepository,
       required this.masterDataRepository,
-      required this.inventoryRepository});
+      required this.inventoryRepository,
+      required this.inventoryLogRepository});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -74,6 +77,8 @@ class _DashboardPageState extends State<DashboardPage> {
         _selectedMenu == 'Inventori') {
       if (_contentCurrentState == ContentState.form) {
         headerSubPage = 'Buat Baru';
+      } else if (_contentCurrentState == ContentState.log) {
+        headerSubPage = 'Log Aktivitas';
       } else {
         headerSubPage = null;
       }
@@ -132,7 +137,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         },
                         userRepository: widget.userRepository,
                         masterDataRepository: widget.masterDataRepository,
-                        inventoryRepository: widget.inventoryRepository),
+                        inventoryRepository: widget.inventoryRepository,
+                        inventoryLogRepository: widget.inventoryLogRepository),
                   ),
                 ],
               ),
@@ -204,6 +210,7 @@ class DashboardContent extends StatelessWidget {
   final UserRepository userRepository;
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
+  final InventoryLogRepository inventoryLogRepository;
 
   const DashboardContent(
       {super.key,
@@ -211,7 +218,8 @@ class DashboardContent extends StatelessWidget {
       this.onContentStateChanged,
       required this.userRepository,
       required this.masterDataRepository,
-      required this.inventoryRepository});
+      required this.inventoryRepository,
+      required this.inventoryLogRepository});
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +245,8 @@ class DashboardContent extends StatelessWidget {
       case 'Inventori':
         return InventoryContent(
           onStateChanged: onContentStateChanged!,
-          inventoryRepository: inventoryRepository, // Teruskan repository
+          inventoryRepository: inventoryRepository,
+          inventoryLogRepository: inventoryLogRepository, // Teruskan repository
         );
       case 'Transaksi':
         return const TransaksiContent();

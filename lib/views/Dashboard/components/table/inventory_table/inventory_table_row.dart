@@ -7,6 +7,7 @@ class InventoryTableRow extends StatelessWidget {
   final String addedBy;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onViewLog;
 
   const InventoryTableRow({
     super.key,
@@ -16,6 +17,7 @@ class InventoryTableRow extends StatelessWidget {
     required this.addedBy,
     required this.onEdit,
     required this.onDelete,
+    required this.onViewLog,
   });
 
   @override
@@ -120,7 +122,7 @@ class InventoryTableRow extends StatelessWidget {
                     } else if (value == 'delete') {
                       onDelete();
                     } else if (value == 'log') {
-                      // code here
+                      onViewLog();
                     }
                   },
                   offset: const Offset(0, 30),

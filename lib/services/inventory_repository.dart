@@ -38,7 +38,7 @@ class InventoryRepository {
       );
       await _inventoryLogRepository.insertInventoryLog(log);
 
-      await _inventoryLogRepository.printAllInventoryLogs();
+      // await _inventoryLogRepository.printAllInventoryLogs();
     }
     return id;
   }
@@ -120,7 +120,7 @@ class InventoryRepository {
         );
         await _inventoryLogRepository.insertInventoryLog(log);
 
-        await _inventoryLogRepository.printAllInventoryLogs();
+        // await _inventoryLogRepository.printAllInventoryLogs();
       }
     }
     return rowsAffected;
@@ -199,7 +199,7 @@ class InventoryRepository {
       );
       await _inventoryLogRepository.insertInventoryLog(log);
 
-      await _inventoryLogRepository.printAllInventoryLogs();
+      // await _inventoryLogRepository.printAllInventoryLogs();
     }
     return rowsAffected;
   }
