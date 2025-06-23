@@ -54,6 +54,10 @@ class _InventoryFormState extends State<InventoryForm> {
 
   Future<void> _loadInventoryIds() async {
     final ids = await _inventoryRepository.getExistingInventoryIds();
+    if (widget.initialData != null &&
+        widget.initialData!['master_data_id'] != null) {
+      ids.remove(widget.initialData!['master_data_id']);
+    }
     setState(() {
       _existingInventoryIds = ids;
     });
@@ -214,10 +218,12 @@ class _InventoryFormState extends State<InventoryForm> {
 
         final masterDataList = snapshot.data ?? [];
 
-        final availableItems = masterDataList
-            .where(
-                (masterItem) => !_existingInventoryIds.contains(masterItem.id))
-            .toList();
+        final availableItems = widget.initialData != null
+            ? masterDataList.where((masterItem) =>
+                !_existingInventoryIds.contains(masterItem.id) ||
+                masterItem.id == _selectedItem)
+            : masterDataList.where(
+                (masterItem) => !_existingInventoryIds.contains(masterItem.id));
 
         final dropdownItems = <DropdownMenuItem<int?>>[
           const DropdownMenuItem<int?>(

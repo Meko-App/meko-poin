@@ -1,11 +1,16 @@
 import '../models/inventory.dart';
 import 'database_helper.dart';
 import 'package:meko_poin/models/additional/inventory_with_user_master_data.dart';
+import 'package:meko_poin/models/inventory_log.dart';
+import 'package:meko_poin/services/inventory_log_repository.dart';
 
 class InventoryRepository {
   final DatabaseHelper dbHelper;
+  late final InventoryLogRepository _inventoryLogRepository;
 
-  InventoryRepository(this.dbHelper);
+  InventoryRepository(this.dbHelper) {
+    _inventoryLogRepository = InventoryLogRepository(dbHelper);
+  }
 
   Future<int> insertInventory(Inventory inventory) async {
     final db = await dbHelper.database;
@@ -16,7 +21,26 @@ class InventoryRepository {
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-    return await db.insert('Data_Inventory', dataToInsert);
+    final id = await db.insert('Data_Inventory', dataToInsert);
+
+    if (id > 0) {
+      final log = InventoryLog(
+        id: null,
+        inventoryId: id,
+        userId: inventory.userId,
+        type: 'increment',
+        initialStock: 0,
+        currentStock: inventory.stock,
+        notes: 'Penambahan stok baru sebesar ${inventory.stock}',
+        difference: inventory.stock,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await _inventoryLogRepository.insertInventoryLog(log);
+
+      await _inventoryLogRepository.printAllInventoryLogs();
+    }
+    return id;
   }
 
   Future<List<Inventory>> getAllInventories() async {
@@ -62,12 +86,44 @@ class InventoryRepository {
 
   Future<int> softDeleteInventory(int id) async {
     final db = await dbHelper.database;
-    return await db.update(
+    final inventoryToDeleteMap = await db.query(
       'Data_Inventory',
-      {'deleted_at': DateTime.now().toIso8601String()},
       where: 'id = ?',
       whereArgs: [id],
+      limit: 1,
     );
+
+    int rowsAffected = 0;
+    if (inventoryToDeleteMap.isNotEmpty) {
+      final inventoryToDelete = Inventory.fromMap(inventoryToDeleteMap.first);
+
+      rowsAffected = await db.update(
+        'Data_Inventory',
+        {'deleted_at': DateTime.now().toIso8601String()},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      // After successful soft delete, log the event
+      if (rowsAffected > 0) {
+        final log = InventoryLog(
+          id: null,
+          inventoryId: id,
+          userId: inventoryToDelete.userId,
+          type: 'decrement',
+          initialStock: inventoryToDelete.stock,
+          currentStock: inventoryToDelete.stock,
+          notes: 'Penghapusan data',
+          difference: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        await _inventoryLogRepository.insertInventoryLog(log);
+
+        await _inventoryLogRepository.printAllInventoryLogs();
+      }
+    }
+    return rowsAffected;
   }
 
   Future<int> restoreInventory(int id) async {
@@ -93,16 +149,59 @@ class InventoryRepository {
   Future<int> updateInventory(Inventory inventory) async {
     final db = await dbHelper.database;
 
+    final oldInventoryMap = await db.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventory.id],
+      limit: 1,
+    );
+
+    int oldStock = 0;
+    var type = '';
+    int difference = 0;
+    if (oldInventoryMap.isNotEmpty) {
+      oldStock = oldInventoryMap.first['stock'] as int;
+    }
+
+    if (inventory.stock > oldStock) {
+      type = 'increment';
+      difference = inventory.stock - oldStock;
+    } else {
+      type = 'decrement';
+      difference = oldStock - inventory.stock;
+    }
+
     final data = inventory.toMap()
       ..remove('created_at')
       ..['updated_at'] = DateTime.now().toIso8601String();
 
-    return await db.update(
+    final rowsAffected = await db.update(
       'Data_Inventory',
       data,
       where: 'id = ?',
       whereArgs: [inventory.id],
     );
+
+    if (rowsAffected > 0) {
+      final log = InventoryLog(
+        id: null,
+        inventoryId: inventory.id!,
+        userId: inventory.userId,
+        type: type,
+        initialStock: oldStock,
+        currentStock: inventory.stock,
+        notes: type == 'increment'
+            ? 'Penambahan stok sebesar $difference'
+            : 'Pengurangan stok sebesar $difference',
+        difference: difference,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await _inventoryLogRepository.insertInventoryLog(log);
+
+      await _inventoryLogRepository.printAllInventoryLogs();
+    }
+    return rowsAffected;
   }
 
   Future<int> deleteInventory(int id) async {

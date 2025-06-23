@@ -119,6 +119,8 @@ class InventoryTableRow extends StatelessWidget {
                       onEdit();
                     } else if (value == 'delete') {
                       onDelete();
+                    } else if (value == 'log') {
+                      // code here
                     }
                   },
                   offset: const Offset(0, 30),
@@ -131,7 +133,7 @@ class InventoryTableRow extends StatelessWidget {
                       value: 'edit',
                       child: Row(
                         children: const [
-                          Icon(Icons.edit, color: Color(0xFF3B82F6), size: 16),
+                          Icon(Icons.edit, color: Colors.green, size: 16),
                           SizedBox(width: 8),
                           Text('Edit', style: TextStyle(fontSize: 14)),
                         ],
@@ -142,9 +144,19 @@ class InventoryTableRow extends StatelessWidget {
                       child: Row(
                         children: const [
                           Icon(Icons.delete_outline,
-                              color: Colors.grey, size: 16),
+                              color: Colors.red, size: 16),
                           SizedBox(width: 8),
                           Text('Hapus', style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'log',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.access_time, color: Colors.blue, size: 16),
+                          SizedBox(width: 8),
+                          Text('Log Aktivitas', style: TextStyle(fontSize: 14)),
                         ],
                       ),
                     ),

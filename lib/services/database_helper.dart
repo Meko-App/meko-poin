@@ -100,6 +100,7 @@ class DatabaseHelper {
         inventory_id INTEGER,
         user_id INTEGER,
         type TEXT CHECK(type IN ('increment', 'decrement')),
+        initial_stock INTEGER,
         current_stock INTEGER,
         notes TEXT,
         difference INTEGER,
