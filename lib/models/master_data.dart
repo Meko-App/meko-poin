@@ -6,6 +6,7 @@ class MasterData {
   final int? price;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   MasterData({
     this.id,
@@ -15,6 +16,7 @@ class MasterData {
     this.price,
     this.createdAt,
     this.updatedAt,
+    this.deletedAt,
   });
 
   factory MasterData.fromMap(Map<String, dynamic> map) {
@@ -26,6 +28,8 @@ class MasterData {
       price: map['price'],
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: DateTime.parse(map['updated_at']),
+      deletedAt:
+          map['deleted_at'] != null ? DateTime.parse(map['deleted_at']) : null,
     );
   }
 
@@ -38,6 +42,35 @@ class MasterData {
       'price': price,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
     };
   }
+
+  MasterData markAsDeleted() {
+    return MasterData(
+      id: id,
+      userId: userId,
+      name: name,
+      category: category,
+      price: price,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+      deletedAt: DateTime.now(),
+    );
+  }
+
+  MasterData restore() {
+    return MasterData(
+      id: id,
+      userId: userId,
+      name: name,
+      category: category,
+      price: price,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+      deletedAt: null,
+    );
+  }
+
+  bool get isDeleted => deletedAt != null;
 }

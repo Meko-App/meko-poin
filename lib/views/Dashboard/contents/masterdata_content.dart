@@ -184,7 +184,9 @@ class _MasterdataContentState extends State<MasterdataContent> {
 
                       if (confirmed == true) {
                         try {
-                          await masterDataRepository.deleteMasterData(data.id!);
+                          // await masterDataRepository.deleteMasterData(data.id!);
+                          await masterDataRepository
+                              .softDeleteMasterData(data.id!);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(

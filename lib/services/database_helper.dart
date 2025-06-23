@@ -70,6 +70,7 @@ class DatabaseHelper {
         price INTEGER,
         created_at DATETIME,
         updated_at DATETIME,
+        deleted_at TEXT,
         FOREIGN KEY (user_id) REFERENCES Data_User(id)
       )
     ''');

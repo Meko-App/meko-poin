@@ -39,9 +39,11 @@ class MasterDataRepository {
   //   return id;
   // }
 
-  Future<List<MasterData>> getAllMasterData() async {
+  Future<List<MasterData>> getAllMasterData(
+      {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
-    final result = await db.query('Data_Master');
+    final where = includeDeleted ? null : 'deleted_at IS NULL';
+    final result = await db.query('Data_Master', where: where);
     return result.map((map) => MasterData.fromMap(map)).toList();
   }
 
@@ -52,6 +54,7 @@ class MasterDataRepository {
            u.name AS addedBy
     FROM Data_Master m
     JOIN Data_User u ON m.user_id = u.id
+    WHERE m.deleted_at IS NULL
   ''');
 
     return result
@@ -68,6 +71,26 @@ class MasterDataRepository {
               addedBy: row['addedBy'] as String,
             ))
         .toList();
+  }
+
+  Future<int> softDeleteMasterData(int id) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_Master',
+      {'deleted_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> restoreMasterData(int id) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_Master',
+      {'deleted_at': null},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<MasterData?> getMasterDataById(int id) async {
