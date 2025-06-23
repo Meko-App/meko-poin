@@ -40,6 +40,7 @@ class InventoryRepository {
     FROM Data_Inventory i
     JOIN Data_User u ON i.user_id = u.id
     JOIN Data_Master m ON i.master_data_id = m.id
+    WHERE i.deleted_at is NULL
   ''');
 
     return result
@@ -57,6 +58,26 @@ class InventoryRepository {
               name: row['name'] as String,
             ))
         .toList();
+  }
+
+  Future<int> softDeleteInventory(int id) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_Inventory',
+      {'deleted_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> restoreInventory(int id) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_Inventory',
+      {'deleted_at': null},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<Inventory?> getInventoryById(int id) async {

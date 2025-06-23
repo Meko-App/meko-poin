@@ -86,6 +86,7 @@ class DatabaseHelper {
         notes TEXT,
         created_at DATETIME,
         updated_at DATETIME,
+        deleted_at TEXT,
         FOREIGN KEY (user_id) REFERENCES Data_User(id),
         FOREIGN KEY (master_data_id) REFERENCES Data_Master(id)
       )

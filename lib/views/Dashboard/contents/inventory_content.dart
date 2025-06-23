@@ -183,7 +183,9 @@ class _InventoryContentState extends State<InventoryContent> {
 
                       if (confirmed == true) {
                         try {
-                          await inventoryRepository.deleteInventory(data.id!);
+                          // await inventoryRepository.deleteInventory(data.id!);
+                          await inventoryRepository
+                              .softDeleteInventory(data.id!);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
