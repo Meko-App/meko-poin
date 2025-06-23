@@ -61,15 +61,16 @@ class _MasterdataContentState extends State<MasterdataContent> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('userId') ?? 0;
     try {
+      final priceString = data['price']?.toString() ?? '';
+      final cleanedPrice = priceString.replaceAll(RegExp(r'[^0-9]'), '');
+      final priceValue = cleanedPrice.isEmpty ? 0 : int.parse(cleanedPrice);
+
       if (_dataToEdit == null) {
         final newData = MasterData(
           id: null,
           name: data['name'],
           category: data['category'],
-          price:
-              (data['price'] == null || data['price'].toString().trim().isEmpty)
-                  ? 0
-                  : int.parse(data['price'].replaceAll(RegExp(r'[^0-9]'), '')),
+          price: priceValue,
           userId: userId,
         );
         await masterDataRepository.insertMasterData(newData);
@@ -84,10 +85,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
           id: _dataToEdit!['id'],
           name: data['name'],
           category: data['category'],
-          price:
-              (data['price'] == null || data['price'].toString().trim().isEmpty)
-                  ? 0
-                  : int.parse(data['price'].replaceAll(RegExp(r'[^0-9]'), '')),
+          price: priceValue,
           userId: _dataToEdit!['id_user'],
         );
         await masterDataRepository.updateMasterData(updatedData);
