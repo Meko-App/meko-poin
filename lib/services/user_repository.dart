@@ -48,10 +48,33 @@ class UserRepository {
     return result.isEmpty; // Jika kosong, berarti unik
   }
 
-  Future<List<User>> getAllUsers() async {
+  Future<List<User>> getAllUsers({bool includeDeleted = false}) async {
     final db = await dbHelper.database;
-    final result = await db.query('Data_User');
+    final where = includeDeleted ? null : 'deleted_at IS NULL';
+    final result = await db.query('Data_User', where: where);
     return result.map((map) => User.fromMap(map)).toList();
+  }
+
+  // Soft delete a user
+  Future<int> softDeleteUser(int id) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_User',
+      {'deleted_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Restore a soft-deleted user
+  Future<int> restoreUser(int id) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_User',
+      {'deleted_at': null},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<User?> getUserById(int id) async {

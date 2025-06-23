@@ -54,7 +54,8 @@ class DatabaseHelper {
         name TEXT,
         email TEXT UNIQUE,
         password TEXT,
-        role_id INTEGER
+        role_id INTEGER,
+        deleted_at TEXT
       )
     ''');
   }

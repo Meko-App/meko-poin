@@ -4,6 +4,7 @@ class User {
   final String email;
   final String password;
   final int roleId;
+  final DateTime? deletedAt;
 
   User({
     this.id,
@@ -11,6 +12,7 @@ class User {
     required this.email,
     required this.password,
     required this.roleId,
+    this.deletedAt,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
@@ -20,6 +22,8 @@ class User {
       email: map['email'],
       password: map['password'],
       roleId: map['role_id'],
+      deletedAt:
+          map['deleted_at'] != null ? DateTime.parse(map['deleted_at']) : null,
     );
   }
 
@@ -30,6 +34,31 @@ class User {
       'email': email,
       'password': password,
       'role_id': roleId,
+      'deleted_at': deletedAt?.toIso8601String(),
     };
   }
+
+  User markAsDeleted() {
+    return User(
+      id: id,
+      name: name,
+      email: email,
+      password: password,
+      roleId: roleId,
+      deletedAt: DateTime.now(),
+    );
+  }
+
+  User restore() {
+    return User(
+      id: id,
+      name: name,
+      email: email,
+      password: password,
+      roleId: roleId,
+      deletedAt: null,
+    );
+  }
+
+  bool get isDeleted => deletedAt != null;
 }

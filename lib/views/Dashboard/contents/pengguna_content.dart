@@ -186,7 +186,8 @@ class _PenggunaContentState extends State<PenggunaContent> {
 
                       if (confirmed == true) {
                         try {
-                          await userRepository.deleteUser(user.id!);
+                          // await userRepository.deleteUser(user.id!);
+                          await userRepository.softDeleteUser(user.id!);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
