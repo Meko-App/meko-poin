@@ -31,7 +31,12 @@ class _MasterDataFormState extends State<MasterDataForm> {
     super.initState();
     if (widget.initialData != null) {
       _nameController.text = widget.initialData!['name'] ?? '';
-      _priceController.text = widget.initialData!['price']?.toString() ?? '';
+      final price = widget.initialData!['price'];
+      if (price != null) {
+        _priceController.text = _formatWithThousandSeparator(price);
+      } else {
+        _priceController.text = '';
+      }
       _selectedCategory = widget.initialData!['category'] ?? 'Pilih Kategori';
     } else {
       _selectedCategory = 'Pilih Kategori';
@@ -60,7 +65,9 @@ class _MasterDataFormState extends State<MasterDataForm> {
     }
 
     // Validasi harga
-    final priceError = Validators.validatePrice(_priceController.text);
+    final priceError =
+        Validators.validatePrice(_priceController.text.replaceAll('.', ''));
+
     setState(() {
       _priceError = priceError;
     });
@@ -432,8 +439,17 @@ class _MasterDataFormState extends State<MasterDataForm> {
   }
 }
 
-String _formatWithThousandSeparator(int value) {
-  return value.toString().replaceAllMapped(
+String _formatWithThousandSeparator(dynamic value) {
+  if (value == null) return '';
+
+  int number;
+  if (value is String) {
+    number = int.tryParse(value.replaceAll('.', '')) ?? 0;
+  } else {
+    number = value as int;
+  }
+
+  return number.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (Match m) => '${m[1]}.',
       );
