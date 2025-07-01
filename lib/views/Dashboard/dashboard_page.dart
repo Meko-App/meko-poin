@@ -3,6 +3,7 @@ import 'package:meko_poin/models/user.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/header.dart';
 import 'package:meko_poin/views/Dashboard/components/sidebar.dart';
@@ -18,6 +19,7 @@ import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 class DashboardPage extends StatefulWidget {
   final User user;
   final UserRepository userRepository;
+  final TransactionRepository transactionRepository;
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
@@ -26,6 +28,7 @@ class DashboardPage extends StatefulWidget {
       {super.key,
       required this.user,
       required this.userRepository,
+      required this.transactionRepository,
       required this.masterDataRepository,
       required this.inventoryRepository,
       required this.inventoryLogRepository});
@@ -131,11 +134,13 @@ class _DashboardPageState extends State<DashboardPage> {
                         onContentStateChanged: (state) {
                           if (_selectedMenu == 'Pengguna' ||
                               _selectedMenu == 'Master Data' ||
-                              _selectedMenu == 'Inventori') {
+                              _selectedMenu == 'Inventori' ||
+                              _selectedMenu == 'Transaksi') {
                             _updateContentState(state);
                           }
                         },
                         userRepository: widget.userRepository,
+                        transactionRepository: widget.transactionRepository,
                         masterDataRepository: widget.masterDataRepository,
                         inventoryRepository: widget.inventoryRepository,
                         inventoryLogRepository: widget.inventoryLogRepository),
@@ -208,6 +213,7 @@ class DashboardContent extends StatelessWidget {
   final String menu;
   final Function(ContentState)? onContentStateChanged;
   final UserRepository userRepository;
+  final TransactionRepository transactionRepository;
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
@@ -217,6 +223,7 @@ class DashboardContent extends StatelessWidget {
       required this.menu,
       this.onContentStateChanged,
       required this.userRepository,
+      required this.transactionRepository,
       required this.masterDataRepository,
       required this.inventoryRepository,
       required this.inventoryLogRepository});
@@ -249,7 +256,10 @@ class DashboardContent extends StatelessWidget {
           inventoryLogRepository: inventoryLogRepository, // Teruskan repository
         );
       case 'Transaksi':
-        return const TransaksiContent();
+        return TransaksiContent(
+          onStateChanged: onContentStateChanged!,
+          transactionRepository: transactionRepository, // Teruskan repository
+        );
       case 'Pengguna':
         return PenggunaContent(
           onStateChanged: onContentStateChanged!,

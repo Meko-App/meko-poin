@@ -3,6 +3,7 @@ import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
@@ -41,6 +42,8 @@ class _LoginPageState extends State<LoginPage> {
               builder: (context) => DashboardPage(
                   user: user,
                   userRepository: UserRepository(DatabaseHelper.instance),
+                  transactionRepository:
+                      TransactionRepository(DatabaseHelper.instance),
                   masterDataRepository:
                       MasterDataRepository(DatabaseHelper.instance),
                   inventoryRepository:
