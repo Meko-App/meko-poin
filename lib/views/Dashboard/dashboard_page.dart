@@ -77,7 +77,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
     if (_selectedMenu == 'Pengguna' ||
         _selectedMenu == 'Master Data' ||
-        _selectedMenu == 'Inventori') {
+        _selectedMenu == 'Inventori' ||
+        _selectedMenu == 'Transaksi') {
       if (_contentCurrentState == ContentState.form) {
         headerSubPage = 'Buat Baru';
       } else if (_contentCurrentState == ContentState.log) {

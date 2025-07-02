@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/form/transaction_form.dart';
 import 'package:meko_poin/views/Dashboard/components/table/transaction_table/transaction_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class TransaksiContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
@@ -120,7 +120,10 @@ class _TransaksiContentState extends State<TransaksiContent> {
                     onAddNew: _showForm,
                     onPrintReport: _printReport,
                   )
-                : Container(), // Replace with your TransactionForm when available
+                : TransactionForm(
+                    onCancel: _showTable,
+                    onSubmit: (p0) {},
+                  ),
           ),
         ],
       ),
