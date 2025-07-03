@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:meko_poin/models/customer.dart';
+import 'package:meko_poin/services/customer_repository.dart';
+import 'package:meko_poin/services/database_helper.dart';
 
 class TransactionForm extends StatefulWidget {
   final VoidCallback onCancel;
@@ -18,6 +21,13 @@ class TransactionForm extends StatefulWidget {
 class _TransactionFormState extends State<TransactionForm> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  bool _isNameEnabled = false;
+  List<Customer> _searchResults = [];
+  OverlayEntry? _overlayEntry;
+  final FocusNode _phoneFocusNode = FocusNode();
+  final FocusNode _nameFocusNode = FocusNode();
+  final GlobalKey _phoneFieldKey = GlobalKey();
+
   final TextEditingController _orderQuantityController =
       TextEditingController();
   final TextEditingController _discountNominalController =
@@ -49,17 +59,334 @@ class _TransactionFormState extends State<TransactionForm> {
   @override
   void initState() {
     super.initState();
+    _phoneController.addListener(_onPhoneChanged);
+    _phoneFocusNode.addListener(_onPhoneFocusChanged);
+    _nameFocusNode.addListener(_onNameFocusChanged);
   }
 
   @override
   void dispose() {
+    _phoneController.removeListener(_onPhoneChanged);
+    _phoneFocusNode.removeListener(_onPhoneFocusChanged);
+    _nameFocusNode.removeListener(_onNameFocusChanged);
     _phoneController.dispose();
     _nameController.dispose();
+    _phoneFocusNode.dispose();
+    _nameFocusNode.dispose();
+    _removeOverlay();
+
     _orderQuantityController.dispose();
     _discountNominalController.dispose();
     _discountPercentController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  void _onPhoneFocusChanged() {
+    if (!_phoneFocusNode.hasFocus && _overlayEntry != null) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (!_phoneFocusNode.hasFocus && !_nameFocusNode.hasFocus) {
+          _removeOverlay();
+        }
+      });
+    }
+  }
+
+  void _onNameFocusChanged() {
+    if (!_nameFocusNode.hasFocus &&
+        !_phoneFocusNode.hasFocus &&
+        _overlayEntry != null) {
+      _removeOverlay();
+    }
+  }
+
+  Future<void> _onPhoneChanged() async {
+    final text = _phoneController.text;
+
+    if (text.length >= 3) {
+      final results = await CustomerRepository(DatabaseHelper.instance)
+          .searchCustomers(text);
+      setState(() {
+        _searchResults = results;
+      });
+      if (_phoneFocusNode.hasFocus) {
+        _showOverlay();
+      }
+    } else {
+      _removeOverlay();
+      if (_nameController.text.isNotEmpty) {
+        _nameController.clear();
+      }
+      setState(() {
+        _isNameEnabled = false;
+      });
+    }
+  }
+
+  void _showOverlay() {
+    _removeOverlay();
+
+    final renderBox =
+        _phoneFieldKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                _removeOverlay();
+                _phoneFocusNode.unfocus();
+              },
+              behavior: HitTestBehavior.translucent,
+            ),
+          ),
+          Positioned(
+            left: offset.dx,
+            top: offset.dy + size.height + 4,
+            width: size.width,
+            child: Material(
+              color: Colors.transparent,
+              elevation: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    width: 1,
+                  ),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.3,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    children: [
+                      if (_searchResults.isEmpty)
+                        _buildDropdownItem(
+                          title: 'Tambahkan pelanggan baru',
+                          subtitle: _phoneController.text,
+                          onTap: _selectAddNewOption,
+                        )
+                      else
+                        ..._searchResults.map((customer) => _buildDropdownItem(
+                              title: customer.name,
+                              subtitle: customer.phone,
+                              onTap: () => _selectCustomer(customer),
+                            )),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (mounted) {
+      Overlay.of(context).insert(_overlayEntry!);
+    }
+  }
+
+  Widget _buildDropdownItem({
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          onTap();
+          _removeOverlay();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey.shade200,
+                width: 1,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _removeOverlay() {
+    if (_overlayEntry != null) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    }
+  }
+
+  void _selectCustomer(Customer customer) {
+    setState(() {
+      _phoneController.text = customer.phone;
+      _nameController.text = customer.name;
+      _isNameEnabled = false;
+    });
+    _phoneFocusNode.unfocus();
+    _removeOverlay();
+  }
+
+  void _selectAddNewOption() {
+    setState(() {
+      _isNameEnabled = true;
+      _nameController.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(_nameFocusNode);
+    });
+    _removeOverlay();
+  }
+
+  Widget _buildPhoneField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFormLabel('No. Hp'),
+        const SizedBox(height: 8),
+        SizedBox(
+          key: _phoneFieldKey,
+          child: TextField(
+            controller: _phoneController,
+            focusNode: _phoneFocusNode,
+            onTap: () {
+              if (_phoneController.text.length >= 3) {
+                _showOverlay();
+              }
+            },
+            decoration: InputDecoration(
+              hintText: 'Masukkan no HP',
+              hintStyle: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF78829D),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1379F0),
+                  width: 1.0,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF111B37),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFormLabel('Nama'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _nameController,
+          focusNode: _nameFocusNode,
+          enabled: _isNameEnabled,
+          decoration: InputDecoration(
+            hintText: 'Masukkan nama',
+            hintStyle: TextStyle(
+              fontSize: 14,
+              color:
+                  _isNameEnabled ? const Color(0xFF78829D) : Colors.grey[400],
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: Colors.grey.shade300,
+                width: 1.0,
+              ),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: Colors.grey.shade300,
+                width: 1.0,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(
+                color: Color(0xFF1379F0),
+                width: 1.0,
+              ),
+            ),
+            filled: true,
+            fillColor: _isNameEnabled ? Colors.white : Colors.grey.shade100,
+            isDense: true,
+          ),
+          style: TextStyle(
+            fontSize: 14,
+            color: _isNameEnabled ? const Color(0xFF111B37) : Colors.grey[600],
+          ),
+        ),
+      ],
+    );
   }
 
   void _submitTransaction() {
@@ -130,31 +457,9 @@ class _TransactionFormState extends State<TransactionForm> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildFormLabel('No. Hp'),
-                                      const SizedBox(height: 8),
-                                      _buildTextField(
-                                          _phoneController, 'Masukkan no HP'),
-                                    ],
-                                  ),
-                                ),
+                                Expanded(child: _buildPhoneField()),
                                 const SizedBox(width: 24),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildFormLabel('Nama'),
-                                      const SizedBox(height: 8),
-                                      _buildTextField(
-                                          _nameController, 'Masukkan nama'),
-                                    ],
-                                  ),
-                                ),
+                                Expanded(child: _buildNameField()),
                               ],
                             ),
                           ],
