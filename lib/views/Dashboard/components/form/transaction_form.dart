@@ -105,248 +105,234 @@ class _TransactionFormState extends State<TransactionForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Column (2/3 width)
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Pelanggan Section Card
-                        _buildSectionCard(
-                          title: 'Pelanggan',
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _buildFormLabel('No. Hp'),
-                                        const SizedBox(height: 8),
-                                        _buildTextField(
-                                            _phoneController, 'Masukkan no HP'),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 24),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _buildFormLabel('Nama'),
-                                        const SizedBox(height: 8),
-                                        _buildTextField(
-                                            _nameController, 'Masukkan nama'),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Pesanan Section Card
-                        _buildSectionCard(
-                          title: 'Pesanan',
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildOrderInputRow(),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Keranjang Section
-                        _buildSectionCard(
-                          title: 'Keranjang',
-                          content: _buildCartTable(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // Right Column (1/3 width)
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Pembayaran Section Card
-                        _buildSectionCard(
-                          title: 'Pembayaran',
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 8),
-                              // Diskon Nominal
-                              const Text(
-                                'Diskon (Nominal)',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF111B37),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildTextField(_discountNominalController,
-                                  'Masukkan diskon nominal'),
-                              const SizedBox(height: 16),
-
-                              // Diskon Persen
-                              const Text(
-                                'Diskon (Persen)',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF111B37),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildTextField(_discountPercentController,
-                                  'Masukkan diskon persen'),
-                              const SizedBox(height: 16),
-                              // Total Harga
-                              const Text(
-                                'Total Harga',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF111B37),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'Rp 60.000',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF111B37),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Metode Pembayaran
-                              const Text(
-                                'Metode Pembayaran',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF111B37),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildPaymentMethodDropdown(),
-                              const SizedBox(height: 16),
-
-                              // Catatan
-                              const Text(
-                                'Catatan (Opsional)',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF111B37),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildTextField(
-                                  _noteController, 'Masukkan catatan'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Footer with buttons
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                top: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1.0,
-                ),
-              ),
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InkWell(
-                  onTap: widget.onCancel,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: Text(
-                      'Batal',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: Color(0xFF4B5675),
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
+                // Left Column (2/3 width)
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Pelanggan Section Card
+                      _buildSectionCard(
+                        title: 'Pelanggan',
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildFormLabel('No. Hp'),
+                                      const SizedBox(height: 8),
+                                      _buildTextField(
+                                          _phoneController, 'Masukkan no HP'),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildFormLabel('Nama'),
+                                      const SizedBox(height: 8),
+                                      _buildTextField(
+                                          _nameController, 'Masukkan nama'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+
+                      // Pesanan Section Card
+                      _buildSectionCard(
+                        title: 'Pesanan',
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildOrderInputRow(),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Keranjang Section
+                      _buildSectionCard(
+                        title: 'Keranjang',
+                        content: _buildCartTable(),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _submitTransaction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1379F0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 11),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: const Text(
-                    'Tinjau',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12),
+
+                const SizedBox(width: 16),
+
+                // Right Column (1/3 width)
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Pembayaran Section Card
+                      _buildSectionCard(
+                        title: 'Pembayaran',
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            // Diskon Nominal
+                            const Text(
+                              'Diskon (Nominal)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF111B37),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildTextField(_discountNominalController,
+                                'Masukkan diskon nominal'),
+                            const SizedBox(height: 16),
+
+                            // Diskon Persen
+                            const Text(
+                              'Diskon (Persen)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF111B37),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildTextField(_discountPercentController,
+                                'Masukkan diskon persen'),
+                            const SizedBox(height: 16),
+                            // Total Harga
+                            const Text(
+                              'Total Harga',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF111B37),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Rp 60.000',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF111B37),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Metode Pembayaran
+                            const Text(
+                              'Metode Pembayaran',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF111B37),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildPaymentMethodDropdown(),
+                            const SizedBox(height: 16),
+
+                            // Catatan
+                            const Text(
+                              'Catatan (Opsional)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF111B37),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                                _noteController, 'Masukkan catatan'),
+                            const SizedBox(height: 16),
+
+                            // Buttons moved here
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                InkWell(
+                                  onTap: widget.onCancel,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 8),
+                                    child: Text(
+                                      'Batal',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        color: Color(0xFF4B5675),
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                ElevatedButton(
+                                  onPressed: _submitTransaction,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1379F0),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 11),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Tinjau',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
