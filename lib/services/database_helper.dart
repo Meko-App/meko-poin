@@ -135,7 +135,7 @@ class DatabaseHelper {
         discount_price INTEGER,
         discount_percentage INTEGER,
         final_price INTEGER,
-        payment_method TEXT CHECK(payment_method IN ('cash', 'gris')),
+        payment_method TEXT CHECK(payment_method IN ('cash', 'qris')),
         notes TEXT,
         created_at DATETIME,
         updated_at DATETIME,

@@ -89,6 +89,29 @@ class _TransactionFormState extends State<TransactionForm> {
     super.dispose();
   }
 
+  Future<int> _getLastTransactionId() async {
+    final db = await DatabaseHelper.instance.database;
+    final result =
+        await db.rawQuery('SELECT MAX(id) as last_id FROM Data_Transaction');
+    return result.first['last_id'] as int? ?? 0;
+  }
+
+  bool _isFormValid() {
+    if (_phoneController.text.isEmpty || _nameController.text.isEmpty) {
+      return false;
+    }
+
+    if (_cartItems.isEmpty) {
+      return false;
+    }
+
+    if (_selectedPaymentMethod == null) {
+      return false;
+    }
+
+    return true;
+  }
+
   void _calculateTotalPrice() {
     final total = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
     setState(() {
@@ -129,10 +152,12 @@ class _TransactionFormState extends State<TransactionForm> {
 
   Future<void> _loadCartItems() async {
     final items = await _transactionItemRepo.getAllCartItems();
-    setState(() {
-      _cartItems = items;
-    });
-    _calculateTotalPrice();
+    if (mounted) {
+      setState(() {
+        _cartItems = items;
+      });
+      _calculateTotalPrice();
+    }
   }
 
   void _filterMasterDataItems(String? category) {
@@ -539,6 +564,11 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
+    final lastId = await _getLastTransactionId();
+    final invoiceNumber = '#${lastId + 1}';
+    final now = DateTime.now();
+    final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
+
     // Hitung total harga
     final totalPrice = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
 
@@ -550,8 +580,10 @@ class _TransactionFormState extends State<TransactionForm> {
     final finalPrice = totalPrice - discountPrice;
 
     final transactionData = {
-      'phone': _phoneController.text,
       'name': _nameController.text,
+      'phone': _phoneController.text,
+      'date': formattedDate,
+      'invoice': invoiceNumber,
       'discount_nominal': discountNominal,
       'discount_percent': discountPercent,
       'final_price': finalPrice,
@@ -843,9 +875,13 @@ class _TransactionFormState extends State<TransactionForm> {
                                 ),
                                 const SizedBox(width: 10),
                                 ElevatedButton(
-                                  onPressed: _submitTransaction,
+                                  onPressed: _isFormValid()
+                                      ? _submitTransaction
+                                      : null,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1379F0),
+                                    backgroundColor: _isFormValid()
+                                        ? const Color(0xFF1379F0)
+                                        : Colors.grey.shade400,
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 11),
                                     shape: RoundedRectangleBorder(
@@ -1388,7 +1424,7 @@ class _TransactionFormState extends State<TransactionForm> {
           _selectedPaymentMethod = newValue;
         });
       },
-      items: const ['Tunai', 'Transfer Bank', 'QRIS'],
+      items: const ['Cash', 'QRIS'],
     );
   }
 
@@ -1543,7 +1579,7 @@ String _formatPrice(int price) {
   return formatter.format(price);
 }
 
-class ReviewOrderModal extends StatelessWidget {
+class ReviewOrderModal extends StatefulWidget {
   final VoidCallback onProcess;
   final VoidCallback onCancel;
   final Map<String, dynamic> transactionData;
@@ -1556,11 +1592,53 @@ class ReviewOrderModal extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _ReviewOrderModalState createState() => _ReviewOrderModalState();
+}
+
+class _ReviewOrderModalState extends State<ReviewOrderModal> {
+  late final List<TransactionItem> _cartItems;
+  // final MasterDataService _masterDataService = MasterDataService();
+  Map<int, MasterData> _masterDataMap = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cartItems = widget.transactionData['cart_items'] as List<TransactionItem>;
+    _fetchMasterData();
+  }
+
+  Future<void> _fetchMasterData() async {
+    final Set<int> masterDataIds =
+        _cartItems.map((item) => item.masterDataId).toSet();
+    final Map<int, MasterData> fetchedData = {};
+
+    for (int id in masterDataIds) {
+      final MasterData? data =
+          await MasterDataRepository(DatabaseHelper.instance)
+              .getMasterDataById(id);
+      if (data != null) {
+        fetchedData[id] = data;
+      }
+    }
+
+    setState(() {
+      _masterDataMap = fetchedData;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cartItems = transactionData['cart_items'] as List<TransactionItem>;
-    final totalPrice = cartItems.fold(0, (sum, item) => sum + item.totalPrice);
-    final discountNominal = transactionData['discount_nominal'] as int;
-    final discountPercent = transactionData['discount_percent'] as int;
+    final name = widget.transactionData['name'] as String;
+    final phone = widget.transactionData['phone'] as String;
+    final date = widget.transactionData['date'] as String;
+    final invoice = widget.transactionData['invoice'] as String;
+    final paymentMethod =
+        widget.transactionData['payment_method'] as String? ?? '-';
+    final totalPrice = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
+    final discountNominal = widget.transactionData['discount_nominal'] as int;
+    final discountPercent = widget.transactionData['discount_percent'] as int;
     final discountPrice =
         discountNominal + (totalPrice * discountPercent ~/ 100);
     final finalPrice = totalPrice - discountPrice;
@@ -1600,7 +1678,7 @@ class ReviewOrderModal extends StatelessWidget {
                       size: 20, color: Color(0xFF78829D)),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  onPressed: onCancel,
+                  onPressed: widget.onCancel,
                 ),
               ],
             ),
@@ -1609,52 +1687,50 @@ class ReviewOrderModal extends StatelessWidget {
           // Content
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoRow('Nama', 'John Doe'),
-                const SizedBox(height: 8),
-                _buildInfoRow('No. HP', '081221430376'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Tanggal', '5 Feb 2024, 14:00:23'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Invoice', '#1'),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoRow('Nama', name),
+                      const SizedBox(height: 8),
+                      _buildInfoRow('No. HP', phone),
+                      const SizedBox(height: 8),
+                      _buildInfoRow('Tanggal', date),
+                      const SizedBox(height: 8),
+                      _buildInfoRow('Invoice', invoice),
 
-                const SizedBox(height: 16),
-                const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                      const SizedBox(height: 16),
 
-                // Order items
-                Column(
-                  children: cartItems.map((item) {
-                    final masterData = // Anda perlu mendapatkan data master dari item.masterDataId
-                        MasterData(
-                      name: 'Item ${item.masterDataId}',
-                      category: 'Product',
-                      userId: 0,
-                      price: item.totalPrice ~/ item.qty,
-                    );
+                      // Order items
+                      Column(
+                        children: _cartItems.map((item) {
+                          final MasterData? masterData =
+                              _masterDataMap[item.masterDataId];
+                          final String itemName = masterData?.name ??
+                              'Unknown Item (ID: ${item.masterDataId})';
 
-                    return _buildItemPesanan(
-                      masterData.name,
-                      item.qty.toString(),
-                      'Rp ${item.totalPrice}',
-                    );
-                  }).toList(),
-                ),
+                          return _buildItemPesanan(
+                            itemName,
+                            item.qty.toString(),
+                            'Rp ${item.totalPrice}',
+                          );
+                        }).toList(),
+                      ),
 
-                const SizedBox(height: 16),
-                const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                      const SizedBox(height: 16),
 
-                _buildPaymentRow('Diskon', 'Rp $discountPrice'),
-                const SizedBox(height: 8),
-                _buildPaymentRow('Total', 'Rp $finalPrice'),
-                const SizedBox(height: 8),
-                _buildPaymentRow(
-                    'Pembayaran', transactionData['payment_method'] ?? '-'),
-              ],
-            ),
+                      _buildPaymentRow('Diskon', 'Rp $discountPrice'),
+                      const SizedBox(height: 8),
+                      _buildPaymentRow('Total', 'Rp $finalPrice'),
+                      const SizedBox(height: 8),
+                      _buildPaymentRow('Pembayaran', paymentMethod),
+                    ],
+                  ),
           ),
 
           // Footer buttons
@@ -1669,7 +1745,7 @@ class ReviewOrderModal extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 OutlinedButton(
-                  onPressed: onCancel,
+                  onPressed: widget.onCancel,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFE5E7EB)),
                     padding: const EdgeInsets.symmetric(
@@ -1690,7 +1766,7 @@ class ReviewOrderModal extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: onProcess,
+                  onPressed: widget.onProcess,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1379F0),
                     padding: const EdgeInsets.symmetric(
@@ -1831,7 +1907,7 @@ class ReviewOrderModal extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 100,
+              width: 130,
               child: Text(
                 price,
                 textAlign: TextAlign.right,
