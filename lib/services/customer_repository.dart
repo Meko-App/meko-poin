@@ -55,4 +55,19 @@ class CustomerRepository {
     );
     return result.map((map) => Customer.fromMap(map)).toList();
   }
+
+  Future<Customer?> findCustomerByPhone(String phone) async {
+    final db = await DatabaseHelper.instance.database;
+    final results = await db.query(
+      'Data_Customer',
+      where: 'phone = ?',
+      whereArgs: [phone],
+      limit: 1,
+    );
+
+    if (results.isNotEmpty) {
+      return Customer.fromMap(results.first);
+    }
+    return null;
+  }
 }

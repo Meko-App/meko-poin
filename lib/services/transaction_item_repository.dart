@@ -56,4 +56,14 @@ class TransactionItemRepository {
       where: 'transaction_id IS NULL',
     );
   }
+
+  Future<TransactionItem?> findExistingCartItem(int masterDataId) async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      'Data_Transaction_Item',
+      where: 'master_data_id = ? AND transaction_id IS NULL',
+      whereArgs: [masterDataId],
+    );
+    return result.isNotEmpty ? TransactionItem.fromMap(result.first) : null;
+  }
 }

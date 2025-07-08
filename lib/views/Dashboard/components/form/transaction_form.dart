@@ -8,15 +8,18 @@ import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TransactionForm extends StatefulWidget {
   final VoidCallback onCancel;
   final Function(Map<String, dynamic>) onSubmit;
+  final VoidCallback onSuccess;
 
   const TransactionForm({
     super.key,
     required this.onCancel,
     required this.onSubmit,
+    required this.onSuccess,
   });
 
   @override
@@ -66,6 +69,7 @@ class _TransactionFormState extends State<TransactionForm> {
     super.initState();
     _loadMasterData();
     _loadCartItems();
+    _clearCartItem();
     _phoneController.addListener(_onPhoneChanged);
     _phoneFocusNode.addListener(_onPhoneFocusChanged);
     _nameFocusNode.addListener(_onNameFocusChanged);
@@ -87,6 +91,190 @@ class _TransactionFormState extends State<TransactionForm> {
     _discountPercentController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _processTransaction(Map<String, dynamic> transactionData) async {
+    try {
+      // 1. Simpan data customer
+      final customer = await _saveCustomer(
+          transactionData['name'], transactionData['phone']);
+
+      // 2. Simpan data transaksi
+      final transactionId =
+          await _saveTransaction(customer.id!, transactionData);
+
+      // 3. Update transaction items dengan transaction_id
+      await _updateTransactionItems(transactionId);
+
+      // 4. Update stok inventory dan buat log
+      await _updateInventoryAndLog(transactionId);
+
+      // Berhasil, tampilkan notifikasi
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaksi berhasil diproses')),
+        );
+
+        // Kosongkan keranjang dan reset form
+        await _clearCartItem();
+        _phoneController.clear();
+        _nameController.clear();
+        setState(() {
+          _selectedPaymentMethod = null;
+          _discountNominalController.clear();
+          _discountPercentController.clear();
+          _noteController.clear();
+        });
+
+        widget.onSuccess();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memproses transaksi: $e')),
+        );
+      }
+    }
+  }
+
+  Future<Customer> _saveCustomer(String name, String phone) async {
+    final customerRepo = CustomerRepository(DatabaseHelper.instance);
+
+    // Cek apakah customer sudah ada
+    final existingCustomer = await customerRepo.findCustomerByPhone(phone);
+
+    if (existingCustomer != null) {
+      // Update customer jika ada perubahan
+      if (existingCustomer.name != name) {
+        final updatedCustomer = Customer(
+          id: existingCustomer.id,
+          userId: existingCustomer.userId,
+          name: name,
+          phone: phone,
+          createdAt: existingCustomer.createdAt,
+          updatedAt: DateTime.now(),
+        );
+        await customerRepo.updateCustomer(updatedCustomer);
+        return updatedCustomer;
+      }
+      return existingCustomer;
+    } else {
+      // Buat customer baru
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId') ?? 0;
+
+      final newCustomer = Customer(
+        id: null,
+        userId: userId,
+        name: name,
+        phone: phone,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final customerId = await customerRepo.insertCustomer(newCustomer);
+      return Customer(
+        id: customerId,
+        userId: newCustomer.userId,
+        name: newCustomer.name,
+        phone: newCustomer.phone,
+        createdAt: newCustomer.createdAt,
+        updatedAt: newCustomer.updatedAt,
+      );
+    }
+  }
+
+  Future<int> _saveTransaction(
+      int customerId, Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId') ?? 0;
+
+    final db = await DatabaseHelper.instance.database;
+
+    final transactionId = await db.insert('Data_Transaction', {
+      'user_id': userId,
+      'customer_id': customerId,
+      'discount_price': data['discount_nominal'],
+      'final_price': data['final_price'],
+      'payment_method': data['payment_method']?.toLowerCase(),
+      'notes': data['note'],
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+
+    return transactionId;
+  }
+
+  Future<void> _updateTransactionItems(int transactionId) async {
+    final db = await DatabaseHelper.instance.database;
+
+    // Update semua cart items yang transaction_id masih null
+    await db.update(
+      'Data_Transaction_Item',
+      {
+        'transaction_id': transactionId,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'transaction_id IS NULL',
+    );
+  }
+
+  Future<void> _updateInventoryAndLog(int transactionId) async {
+    final db = await DatabaseHelper.instance.database;
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId') ?? 0;
+
+    // Dapatkan semua item transaksi
+    final items = await db.query(
+      'Data_Transaction_Item',
+      where: 'transaction_id = ?',
+      whereArgs: [transactionId],
+    );
+
+    for (final item in items) {
+      final masterDataId = item['master_data_id'] as int;
+      final qty = item['qty'] as int;
+
+      // Dapatkan data inventory
+      final inventory = await db.query(
+        'Data_Inventory',
+        where: 'master_data_id = ?',
+        whereArgs: [masterDataId],
+        limit: 1,
+      );
+
+      if (inventory.isNotEmpty) {
+        final initialStock = inventory.first['stock'] as int;
+        final currentStock = initialStock - qty;
+
+        // Update stok inventory
+        await db.update(
+          'Data_Inventory',
+          {
+            'stock': currentStock,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          where: 'master_data_id = ?',
+          whereArgs: [masterDataId],
+        );
+
+        // Buat log inventory
+        final now = DateTime.now();
+        final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
+
+        await db.insert('Data_Inventory_Log', {
+          'inventory_id': inventory.first['id'],
+          'user_id': userId,
+          'type': 'decrement',
+          'initial_stock': initialStock,
+          'current_stock': currentStock,
+          'difference': qty,
+          'notes':
+              'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
+          'created_at': now.toIso8601String(),
+          'updated_at': now.toIso8601String(),
+        });
+      }
+    }
   }
 
   Future<int> _getLastTransactionId() async {
@@ -174,7 +362,7 @@ class _TransactionFormState extends State<TransactionForm> {
     });
   }
 
-  Future<void> _addOrUpdateItemToCart() async {
+  Future<void> _addOrUpdateItemToCart(bool isNewItem) async {
     if (_selectedOrderCategory == null || _selectedOrderItem == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -197,21 +385,83 @@ class _TransactionFormState extends State<TransactionForm> {
       orElse: () => throw Exception('Item tidak ditemukan'),
     );
 
-    final totalPrice = (selectedMasterData.price ?? 0) * qty;
+    try {
+      final availableStock =
+          await _masterDataRepo.getStockByMasterDataId(selectedMasterData.id!);
+      print(availableStock);
+      if (availableStock == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Stok belum tersedia, harap hubungi admin')),
+        );
+        return;
+      }
+      final existingItem = await _transactionItemRepo
+          .findExistingCartItem(selectedMasterData.id!);
 
-    final newItem = TransactionItem(
-      id: _selectedCartItem?.id,
-      masterDataId: selectedMasterData.id!,
-      qty: qty,
-      totalPrice: totalPrice,
-      createdAt: _selectedCartItem?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+      if (existingItem != null) {
+        final totalQty;
+        final totalPrice;
+        if (isNewItem == false) {
+          totalQty = qty;
+          totalPrice = (selectedMasterData.price ?? 0) * qty;
+        } else {
+          totalQty = existingItem.qty + qty;
+          totalPrice = (existingItem.totalPrice ~/ existingItem.qty) *
+              (existingItem.qty + qty);
+        }
+        if (totalQty > availableStock) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Stok tidak mencukupi. Stok tersedia: $availableStock')),
+          );
+          return;
+        }
+        final updatedItem = TransactionItem(
+          id: existingItem.id,
+          masterDataId: existingItem.masterDataId,
+          qty: totalQty,
+          totalPrice: totalPrice,
+          createdAt: existingItem.createdAt,
+          updatedAt: DateTime.now(),
+        );
 
-    if (_selectedCartItem == null) {
-      await _transactionItemRepo.insertTransactionItem(newItem);
-    } else {
-      await _transactionItemRepo.updateTransactionItem(newItem);
+        await _transactionItemRepo.updateTransactionItem(updatedItem);
+      } else {
+        final totalPrice = (selectedMasterData.price ?? 0) * qty;
+        if (qty > availableStock) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Stok tidak mencukupi. Stok tersedia: $availableStock')),
+          );
+          return;
+        }
+
+        final newItem = TransactionItem(
+          masterDataId: selectedMasterData.id!,
+          qty: qty,
+          totalPrice: totalPrice,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        await _transactionItemRepo.insertTransactionItem(newItem);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(existingItem != null
+              ? 'Jumlah item diperbarui'
+              : 'Item ditambahkan ke keranjang'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan item: $e')),
+      );
     }
 
     _resetItemForm();
@@ -233,6 +483,12 @@ class _TransactionFormState extends State<TransactionForm> {
 
   Future<void> _deleteCartItem(int id) async {
     await _transactionItemRepo.deleteTransactionItem(id);
+    _resetItemForm();
+    await _loadCartItems();
+  }
+
+  Future<void> _clearCartItem() async {
+    await _transactionItemRepo.clearCart();
     _resetItemForm();
     await _loadCartItems();
   }
@@ -584,7 +840,8 @@ class _TransactionFormState extends State<TransactionForm> {
       'phone': _phoneController.text,
       'date': formattedDate,
       'invoice': invoiceNumber,
-      'discount_nominal': discountNominal,
+      'discount_nominal':
+          discountNominal == 0 ? discountPrice : discountNominal,
       'discount_percent': discountPercent,
       'final_price': finalPrice,
       'payment_method': _selectedPaymentMethod,
@@ -605,14 +862,11 @@ class _TransactionFormState extends State<TransactionForm> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: ReviewOrderModal(
-            onProcess: () {
-              Navigator.of(context).pop(); // Close the modal
-              widget.onSubmit(transactionData); // Call the original onSubmit
-            },
+            onProcess: _processTransaction,
             onCancel: () {
               Navigator.of(context).pop(); // Close the modal
             },
-            transactionData: transactionData, // Tambahkan parameter ini
+            transactionData: transactionData,
           ),
         );
       },
@@ -1375,7 +1629,9 @@ class _TransactionFormState extends State<TransactionForm> {
             child: IconButton(
               padding: EdgeInsets.zero,
               icon: const Icon(Icons.add, color: Colors.white, size: 20),
-              onPressed: _addOrUpdateItemToCart,
+              onPressed: () async {
+                await _addOrUpdateItemToCart(true);
+              },
             ),
           )
         else
@@ -1391,8 +1647,10 @@ class _TransactionFormState extends State<TransactionForm> {
                 ),
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.check, color: Colors.white, size: 20),
-                  onPressed: _addOrUpdateItemToCart,
+                  icon: const Icon(Icons.edit, color: Colors.white, size: 20),
+                  onPressed: () async {
+                    await _addOrUpdateItemToCart(false);
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -1580,7 +1838,7 @@ String _formatPrice(int price) {
 }
 
 class ReviewOrderModal extends StatefulWidget {
-  final VoidCallback onProcess;
+  final Function(Map<String, dynamic>) onProcess;
   final VoidCallback onCancel;
   final Map<String, dynamic> transactionData;
 
@@ -1766,7 +2024,11 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: widget.onProcess,
+                  onPressed: () {
+                    widget.onProcess(widget
+                        .transactionData); // Panggil dengan data transaksi
+                    widget.onCancel(); // Tutup dialog
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1379F0),
                     padding: const EdgeInsets.symmetric(

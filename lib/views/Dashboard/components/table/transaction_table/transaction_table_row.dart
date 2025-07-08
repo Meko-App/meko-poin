@@ -76,6 +76,7 @@ class TransactionTableRow extends StatelessWidget {
                 ),
               ),
             ),
+            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -99,23 +100,6 @@ class TransactionTableRow extends StatelessWidget {
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
                   'Rp ${amountFormat.format(transaction.finalPrice)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.0,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
-                    fontFamily: 'Inter',
-                  ),
-                ),
-              ),
-            ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 18.0, vertical: 20.0),
-                child: Text(
-                  addedBy,
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.0,

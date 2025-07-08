@@ -136,4 +136,25 @@ class MasterDataRepository {
     );
     return result.map((map) => MasterData.fromMap(map)).toList();
   }
+
+  Future<int?> getStockByMasterDataId(int masterDataId) async {
+    final db = await DatabaseHelper.instance.database;
+    try {
+      final result = await db.query(
+        'Data_Inventory',
+        columns: ['stock'],
+        where: 'master_data_id = ? AND deleted_at IS NULL',
+        whereArgs: [masterDataId],
+      );
+
+      if (result.isEmpty) {
+        return null;
+      }
+      return result.first['stock'] as int;
+    } catch (e) {
+      // Jika tabel tidak ada sama sekali (harusnya tidak terjadi jika migrasi database sudah benar)
+      print('Error checking inventory: $e');
+      return 0;
+    }
+  }
 }

@@ -1,1 +1,1 @@
-enum ContentState { table, form, log }
+enum ContentState { table, form, log, detail }

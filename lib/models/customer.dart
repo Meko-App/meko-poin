@@ -1,5 +1,5 @@
 class Customer {
-  final int id;
+  final int? id;
   final int userId;
   final String name;
   final String phone;
@@ -7,7 +7,7 @@ class Customer {
   final DateTime updatedAt;
 
   Customer({
-    required this.id,
+    this.id,
     required this.userId,
     required this.name,
     required this.phone,

@@ -46,11 +46,8 @@ class _TransaksiContentState extends State<TransaksiContent> {
   }
 
   void _showDetail(int transactionId) {
-    // Implement detail view navigation if needed
-    // For now we'll just show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Viewing details for transaction $transactionId')),
-    );
+    _currentState = ContentState.detail;
+    widget.onStateChanged(_currentState);
   }
 
   Future<void> _printReport() async {
@@ -73,20 +70,25 @@ class _TransaksiContentState extends State<TransaksiContent> {
         children: [
           Row(
             children: [
-              if (_currentState == ContentState.form)
+              if (_currentState == ContentState.form ||
+                  _currentState == ContentState.detail)
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _showTable,
                   color: Colors.grey.shade700,
                 ),
-              if (_currentState == ContentState.form) const SizedBox(width: 8),
+              if (_currentState == ContentState.form ||
+                  _currentState == ContentState.detail)
+                const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _currentState == ContentState.table
                         ? "Transaksi"
-                        : "Tambah Data Transaksi",
+                        : _currentState == ContentState.detail
+                            ? "Detail Transaksi"
+                            : "Tambah Data Transaksi",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
@@ -96,8 +98,10 @@ class _TransaksiContentState extends State<TransaksiContent> {
                   const SizedBox(height: 4),
                   Text(
                     _currentState == ContentState.table
-                        ? "Data transaksi penjualan dan pembelian"
-                        : "Form untuk menambah data transaksi",
+                        ? "Data untuk mengelola transaksi"
+                        : _currentState == ContentState.detail
+                            ? "Menampilkan detail data transaksi"
+                            : "Form untuk menambah data transaksi",
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -120,10 +124,17 @@ class _TransaksiContentState extends State<TransaksiContent> {
                     onAddNew: _showForm,
                     onPrintReport: _printReport,
                   )
-                : TransactionForm(
-                    onCancel: _showTable,
-                    onSubmit: (p0) {},
-                  ),
+                : _currentState == ContentState.detail
+                    ? TransactionForm(
+                        onCancel: _showTable,
+                        onSubmit: (p0) {},
+                        onSuccess: _showTable,
+                      ) // Ngke detail didieu
+                    : TransactionForm(
+                        onCancel: _showTable,
+                        onSubmit: (p0) {},
+                        onSuccess: _showTable,
+                      ),
           ),
         ],
       ),
