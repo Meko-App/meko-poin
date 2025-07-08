@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:meko_poin/models/customer.dart';
+import 'package:meko_poin/models/master_data.dart';
+import 'package:meko_poin/models/transaction_item.dart';
 import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/transaction_item_repository.dart';
 
 class TransactionForm extends StatefulWidget {
   final VoidCallback onCancel;
@@ -39,26 +44,28 @@ class _TransactionFormState extends State<TransactionForm> {
   String? _selectedOrderCategory;
   String? _selectedOrderItem;
   String? _selectedPaymentMethod;
+  TransactionItem? _hoveredCartItem;
 
-  // Dummy data for cart items (replace with your actual cart management)
-  List<Map<String, dynamic>> _cartItems = [
-    {
-      'category': 'Produk',
-      'item': 'SELF PHOTO 1-2 Orang',
-      'quantity': 1,
-      'price': 45000
-    },
-    {
-      'category': 'Bahan',
-      'item': 'STRIPE GLOSSY',
-      'quantity': 1,
-      'price': 15000
-    },
-  ];
+  final MasterDataRepository _masterDataRepo =
+      MasterDataRepository(DatabaseHelper.instance);
+  final TransactionItemRepository _transactionItemRepo =
+      TransactionItemRepository(DatabaseHelper.instance);
+
+  TransactionItem? _selectedCartItem;
+  List<TransactionItem> _cartItems = [];
+  List<MasterData> _masterDataItems = [];
+  List<MasterData> _filteredMasterDataItems = [];
+
+  int _totalPrice = 0;
+  int _finalPrice = 0;
+  bool _isNominalDiscount = false;
+  bool _isPercentageDiscount = false;
 
   @override
   void initState() {
     super.initState();
+    _loadMasterData();
+    _loadCartItems();
     _phoneController.addListener(_onPhoneChanged);
     _phoneFocusNode.addListener(_onPhoneFocusChanged);
     _nameFocusNode.addListener(_onNameFocusChanged);
@@ -80,6 +87,139 @@ class _TransactionFormState extends State<TransactionForm> {
     _discountPercentController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  void _calculateTotalPrice() {
+    final total = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
+    setState(() {
+      _totalPrice = total;
+      _finalPrice = total;
+    });
+    _calculateDiscount();
+  }
+
+  void _calculateDiscount() {
+    int discount = 0;
+
+    if (_isNominalDiscount) {
+      final nominal = int.tryParse(_discountNominalController.text) ?? 0;
+      discount = nominal;
+    } else if (_isPercentageDiscount) {
+      final percentage = int.tryParse(_discountPercentController.text) ?? 0;
+      discount = (_totalPrice * percentage) ~/ 100;
+    }
+
+    setState(() {
+      _finalPrice = _totalPrice - discount;
+    });
+  }
+
+  Future<void> _loadMasterData() async {
+    try {
+      final items = await _masterDataRepo.getAllMasterData();
+      setState(() {
+        _masterDataItems = items;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data master: $e')),
+      );
+    }
+  }
+
+  Future<void> _loadCartItems() async {
+    final items = await _transactionItemRepo.getAllCartItems();
+    setState(() {
+      _cartItems = items;
+    });
+    _calculateTotalPrice();
+  }
+
+  void _filterMasterDataItems(String? category) {
+    if (category == null) {
+      setState(() {
+        _filteredMasterDataItems = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _filteredMasterDataItems =
+          _masterDataItems.where((item) => item.category == category).toList();
+    });
+  }
+
+  Future<void> _addOrUpdateItemToCart() async {
+    if (_selectedOrderCategory == null || _selectedOrderItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Pilih kategori dan item terlebih dahulu')),
+      );
+      return;
+    }
+
+    final qty = int.tryParse(_orderQuantityController.text) ?? 1;
+    if (qty <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jumlah harus lebih dari 0')),
+      );
+      return;
+    }
+
+    // Cari master data yang dipilih
+    final selectedMasterData = _filteredMasterDataItems.firstWhere(
+      (item) => item.name == _selectedOrderItem,
+      orElse: () => throw Exception('Item tidak ditemukan'),
+    );
+
+    final totalPrice = (selectedMasterData.price ?? 0) * qty;
+
+    final newItem = TransactionItem(
+      id: _selectedCartItem?.id,
+      masterDataId: selectedMasterData.id!,
+      qty: qty,
+      totalPrice: totalPrice,
+      createdAt: _selectedCartItem?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    if (_selectedCartItem == null) {
+      await _transactionItemRepo.insertTransactionItem(newItem);
+    } else {
+      await _transactionItemRepo.updateTransactionItem(newItem);
+    }
+
+    _resetItemForm();
+    await _loadCartItems();
+  }
+
+  void _editCartItem(TransactionItem item) async {
+    final masterData =
+        await _masterDataRepo.getMasterDataById(item.masterDataId);
+
+    setState(() {
+      _selectedCartItem = item;
+      _selectedOrderCategory = masterData?.category;
+      _filterMasterDataItems(masterData?.category);
+      _selectedOrderItem = masterData?.name;
+      _orderQuantityController.text = item.qty.toString();
+    });
+  }
+
+  Future<void> _deleteCartItem(int id) async {
+    await _transactionItemRepo.deleteTransactionItem(id);
+    _resetItemForm();
+    await _loadCartItems();
+  }
+
+  void _resetItemForm() {
+    setState(() {
+      _selectedOrderCategory = null;
+      _selectedOrderItem = null;
+      _filteredMasterDataItems = [];
+      _orderQuantityController.text = '';
+      _selectedCartItem = null;
+    });
   }
 
   void _onPhoneFocusChanged() {
@@ -300,6 +440,7 @@ class _TransactionFormState extends State<TransactionForm> {
               hintText: 'Masukkan no HP',
               hintStyle: const TextStyle(
                 fontSize: 14,
+                fontFamily: 'Inter',
                 color: Color(0xFF78829D),
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -348,6 +489,7 @@ class _TransactionFormState extends State<TransactionForm> {
             hintText: 'Masukkan nama',
             hintStyle: TextStyle(
               fontSize: 14,
+              fontFamily: 'Inter',
               color:
                   _isNameEnabled ? const Color(0xFF78829D) : Colors.grey[400],
             ),
@@ -389,22 +531,36 @@ class _TransactionFormState extends State<TransactionForm> {
     );
   }
 
-  void _submitTransaction() {
-    final Map<String, dynamic> transactionData = {
+  void _submitTransaction() async {
+    if (_cartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keranjang tidak boleh kosong')),
+      );
+      return;
+    }
+
+    // Hitung total harga
+    final totalPrice = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
+
+    // Hitung diskon
+    final discountNominal = int.tryParse(_discountNominalController.text) ?? 0;
+    final discountPercent = int.tryParse(_discountPercentController.text) ?? 0;
+    final discountPrice =
+        discountNominal + (totalPrice * discountPercent ~/ 100);
+    final finalPrice = totalPrice - discountPrice;
+
+    final transactionData = {
       'phone': _phoneController.text,
       'name': _nameController.text,
-      'order_category': _selectedOrderCategory,
-      'order_item': _selectedOrderItem,
-      'order_quantity': _orderQuantityController.text,
-      'discount_nominal': _discountNominalController.text,
-      'discount_percent': _discountPercentController.text,
+      'discount_nominal': discountNominal,
+      'discount_percent': discountPercent,
+      'final_price': finalPrice,
       'payment_method': _selectedPaymentMethod,
       'note': _noteController.text,
-      'cart_items': _cartItems, // Pass cart items to the review modal
+      'cart_items': _cartItems,
     };
 
     _showReviewOrderModal(transactionData);
-    // widget.onSubmit(transactionData); // This would be called after confirming in the modal
   }
 
   void _showReviewOrderModal(Map<String, dynamic> transactionData) {
@@ -424,6 +580,7 @@ class _TransactionFormState extends State<TransactionForm> {
             onCancel: () {
               Navigator.of(context).pop(); // Close the modal
             },
+            transactionData: transactionData, // Tambahkan parameter ini
           ),
         );
       },
@@ -514,8 +671,47 @@ class _TransactionFormState extends State<TransactionForm> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildTextField(_discountNominalController,
-                                'Masukkan diskon nominal'),
+                            TextField(
+                              controller: _discountNominalController,
+                              enabled: !_isPercentageDiscount,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Masukkan diskon nominal',
+                                hintStyle: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF78829D),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                      color: Colors.grey.shade300, width: 1.0),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFF1379F0), width: 1.0),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                isDense: true,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF111B37),
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _isNominalDiscount = value.isNotEmpty;
+                                  if (_isNominalDiscount) {
+                                    _isPercentageDiscount = false;
+                                    _discountPercentController.clear();
+                                  }
+                                  _calculateDiscount();
+                                });
+                              },
+                            ),
                             const SizedBox(height: 16),
 
                             // Diskon Persen
@@ -529,9 +725,49 @@ class _TransactionFormState extends State<TransactionForm> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildTextField(_discountPercentController,
-                                'Masukkan diskon persen'),
+                            TextField(
+                              controller: _discountPercentController,
+                              enabled: !_isNominalDiscount,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Masukkan diskon persen',
+                                hintStyle: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF78829D),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                      color: Colors.grey.shade300, width: 1.0),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFF1379F0), width: 1.0),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                isDense: true,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF111B37),
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _isPercentageDiscount = value.isNotEmpty;
+                                  if (_isPercentageDiscount) {
+                                    _isNominalDiscount = false;
+                                    _discountNominalController.clear();
+                                  }
+                                  _calculateDiscount();
+                                });
+                              },
+                            ),
                             const SizedBox(height: 16),
+
                             // Total Harga
                             const Text(
                               'Total Harga',
@@ -544,10 +780,10 @@ class _TransactionFormState extends State<TransactionForm> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Rp 60.000',
+                            Text(
+                              _formatPrice(_finalPrice),
                               textAlign: TextAlign.right,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 20,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.bold,
@@ -811,6 +1047,128 @@ class _TransactionFormState extends State<TransactionForm> {
     );
   }
 
+  Widget _buildCategoryDropdown() {
+    // Ambil kategori unik dari master data
+    final categories = _masterDataItems.map((e) => e.category).toSet().toList();
+
+    return DropdownButtonFormField<String>(
+      value: _selectedOrderCategory,
+      hint: const Text(
+        'Pilih kategori',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          color: Color(0xFF78829D),
+        ),
+      ),
+      items: categories.map((category) {
+        return DropdownMenuItem<String>(
+          value: category,
+          child: Text(category),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() {
+          _selectedOrderCategory = value;
+          _filterMasterDataItems(value);
+          _selectedOrderItem = null;
+        });
+      },
+      decoration: InputDecoration(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: true,
+      ),
+      style: const TextStyle(
+        fontSize: 14,
+        color: Color(0xFF111B37),
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+      dropdownColor: Colors.white,
+    );
+  }
+
+  Widget _buildItemDropdown() {
+    if (_filteredMasterDataItems.isEmpty) {
+      return DropdownButtonFormField<String>(
+        value: null,
+        hint: const Text(
+          'Pilih kategori terlebih dahulu',
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF78829D),
+          ),
+        ),
+        items: null,
+        onChanged: null,
+        decoration: InputDecoration(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          isDense: true,
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      value: _selectedOrderItem,
+      hint: const Text(
+        'Pilih Item',
+        style: TextStyle(
+          fontSize: 14,
+          color: Color(0xFF78829D),
+        ),
+      ),
+      items: _filteredMasterDataItems.map((item) {
+        return DropdownMenuItem<String>(
+          value: item.name,
+          child: Text(item.name),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() {
+          _selectedOrderItem = value;
+        });
+      },
+      decoration: InputDecoration(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: true,
+      ),
+      style: const TextStyle(
+        fontSize: 14,
+        color: Color(0xFF111B37),
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+    );
+  }
+
   Widget _buildOrderInputRow() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -821,16 +1179,7 @@ class _TransactionFormState extends State<TransactionForm> {
             children: [
               _buildFormLabel('Kategori'),
               const SizedBox(height: 8),
-              _buildDropdownField(
-                value: _selectedOrderCategory,
-                hint: 'Pilih kategori',
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedOrderCategory = newValue;
-                  });
-                },
-                items: const ['Product', 'Paper', 'Packaging', 'Additional'],
-              ),
+              _buildCategoryDropdown(),
             ],
           ),
         ),
@@ -841,16 +1190,7 @@ class _TransactionFormState extends State<TransactionForm> {
             children: [
               _buildFormLabel('Item'),
               const SizedBox(height: 8),
-              _buildDropdownField(
-                value: _selectedOrderItem,
-                hint: 'Pilih Item',
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedOrderItem = newValue;
-                  });
-                },
-                items: const ['SELF PHOTO 1-2', 'STRIPE GLOSSY', 'Item 3'],
-              ),
+              _buildItemDropdown(),
             ],
           ),
         ),
@@ -987,21 +1327,54 @@ class _TransactionFormState extends State<TransactionForm> {
           ),
         ),
         const SizedBox(width: 8),
-        Container(
-          height: 34,
-          width: 34,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1379F0),
-            borderRadius: BorderRadius.circular(8),
+        if (_selectedCartItem == null)
+          // Add button
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1379F0),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.add, color: Colors.white, size: 20),
+              onPressed: _addOrUpdateItemToCart,
+            ),
+          )
+        else
+          // Edit and Delete buttons
+          Row(
+            children: [
+              Container(
+                height: 34,
+                width: 34,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.check, color: Colors.white, size: 20),
+                  onPressed: _addOrUpdateItemToCart,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                height: 34,
+                width: 34,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.delete, color: Colors.white, size: 20),
+                  onPressed: () => _deleteCartItem(_selectedCartItem!.id!),
+                ),
+              ),
+            ],
           ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.add, color: Colors.white, size: 20),
-            onPressed: () {
-              // Add item to cart logic
-            },
-          ),
-        ),
       ],
     );
   }
@@ -1028,19 +1401,6 @@ class _TransactionFormState extends State<TransactionForm> {
       ),
       child: Column(
         children: [
-          // const SizedBox(height: 16),
-          // const Text(
-          //   'Keranjang',
-          //   style: TextStyle(
-          //     fontSize: 16,
-          //     height: 1.0,
-          //     fontWeight: FontWeight.w600,
-          //     color: Color(0xFF111B37),
-          //     fontFamily: 'Inter',
-          //   ),
-          // ),
-          // const SizedBox(height: 16),
-
           // Table Header
           Container(
             decoration: BoxDecoration(
@@ -1053,214 +1413,158 @@ class _TransactionFormState extends State<TransactionForm> {
             child: IntrinsicHeight(
               child: Row(
                 children: [
-                  // Kolom Kategori
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Kategori',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Kolom Item
-                  Expanded(
-                    flex: 3,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Item',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Kolom Jumlah
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Jumlah',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Kolom Harga (tanpa border kanan)
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 12),
-                      child: const Center(
-                        child: Text(
-                          'Harga',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildTableHeaderCell('Kategori', 2),
+                  _buildTableHeaderCell('Item', 3),
+                  _buildTableHeaderCell('Jumlah', 1),
+                  _buildTableHeaderCell('Harga', 2),
                 ],
               ),
             ),
           ),
 
-          // Table Rows (Dynamically generated from _cartItems)
-          ..._cartItems
-              .map((item) => Container(
-                    decoration: const BoxDecoration(
-                      border:
-                          Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-                    ),
-                    child: IntrinsicHeight(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18.0, vertical: 10.0),
-                              child: Text(
-                                item['category'],
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF111B37),
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                            ),
-                          ),
-                          VerticalDivider(
-                              thickness: 1, width: 1, color: Colors.grey[300]),
-                          Expanded(
-                            flex: 3,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18.0, vertical: 10.0),
-                              child: Text(
-                                item['item'],
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF111B37),
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                            ),
-                          ),
-                          VerticalDivider(
-                              thickness: 1, width: 1, color: Colors.grey[300]),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18.0, vertical: 10.0),
-                              child: Text(
-                                '${item['quantity']}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.0,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFF27314B),
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                            ),
-                          ),
-                          VerticalDivider(
-                              thickness: 1, width: 1, color: Colors.grey[300]),
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18.0, vertical: 10.0),
-                              child: Text(
-                                'Rp ${item['price']}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.0,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFF27314B),
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+          // Table Rows
+          if (_cartItems.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: const Center(
+                child: Text(
+                  'Keranjang kosong',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            ..._cartItems.map((item) {
+              final masterData = _masterDataItems.firstWhere(
+                (m) => m.id == item.masterDataId,
+                orElse: () => MasterData(
+                  userId: 0,
+                  name: 'Item tidak ditemukan',
+                  category: 'Unknown',
+                ),
+              );
+
+              return MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  onEnter: (_) => setState(() => _hoveredCartItem = item),
+                  onExit: (_) => setState(() => _hoveredCartItem = null),
+                  child: GestureDetector(
+                    onTap: () => _editCartItem(item),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _selectedCartItem?.id == item.id
+                            ? Colors.blue.shade50
+                            : _hoveredCartItem?.id == item.id
+                                ? Colors.grey.shade100
+                                : Colors.white,
+                        border: const Border(
+                            bottom: BorderSide(color: Color(0xFFE5E7EB))),
+                      ),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            _buildTableCell(masterData.category, 2),
+                            VerticalDivider(
+                                thickness: 1,
+                                width: 1,
+                                color: Colors.grey[300]),
+                            _buildTableCell(masterData.name, 3),
+                            VerticalDivider(
+                                thickness: 1,
+                                width: 1,
+                                color: Colors.grey[300]),
+                            _buildTableCell(item.qty.toString(), 1),
+                            VerticalDivider(
+                                thickness: 1,
+                                width: 1,
+                                color: Colors.grey[300]),
+                            _buildTableCell(_formatPrice(item.totalPrice), 2),
+                          ],
+                        ),
                       ),
                     ),
-                  ))
-              .toList(),
+                  ));
+            }),
         ],
+      ),
+    );
+  }
+
+  // Helper methods for table cells
+  Widget _buildTableHeaderCell(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF4B5675),
+              fontFamily: 'Inter',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableCell(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.2,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF111B37),
+            fontFamily: 'Inter',
+          ),
+        ),
       ),
     );
   }
 }
 
+String _formatPrice(int price) {
+  final formatter =
+      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  return formatter.format(price);
+}
+
 class ReviewOrderModal extends StatelessWidget {
   final VoidCallback onProcess;
   final VoidCallback onCancel;
+  final Map<String, dynamic> transactionData;
 
   const ReviewOrderModal({
     Key? key,
     required this.onProcess,
     required this.onCancel,
+    required this.transactionData,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final cartItems = transactionData['cart_items'] as List<TransactionItem>;
+    final totalPrice = cartItems.fold(0, (sum, item) => sum + item.totalPrice);
+    final discountNominal = transactionData['discount_nominal'] as int;
+    final discountPercent = transactionData['discount_percent'] as int;
+    final discountPrice =
+        discountNominal + (totalPrice * discountPercent ~/ 100);
+    final finalPrice = totalPrice - discountPrice;
+
     return Container(
       width: 400,
       decoration: BoxDecoration(
@@ -1322,23 +1626,33 @@ class ReviewOrderModal extends StatelessWidget {
 
                 // Order items
                 Column(
-                  children: [
-                    _buildItemPesanan('SELF PHOTO 1-2 Orang', '1', 'Rp 45.000'),
-                    _buildItemPesanan('STRIPE GLOSSY', '1', 'Rp 15.000'),
-                    _buildItemPesanan('4R (12X20)', '1', 'Rp 0'),
-                    _buildItemPesanan('KEYCHAIN LOVE', '1', 'Rp 5.000'),
-                  ],
+                  children: cartItems.map((item) {
+                    final masterData = // Anda perlu mendapatkan data master dari item.masterDataId
+                        MasterData(
+                      name: 'Item ${item.masterDataId}',
+                      category: 'Product',
+                      userId: 0,
+                      price: item.totalPrice ~/ item.qty,
+                    );
+
+                    return _buildItemPesanan(
+                      masterData.name,
+                      item.qty.toString(),
+                      'Rp ${item.totalPrice}',
+                    );
+                  }).toList(),
                 ),
 
                 const SizedBox(height: 16),
                 const Divider(height: 1, color: Color(0xFFE5E7EB)),
                 const SizedBox(height: 16),
 
-                _buildPaymentRow('Diskon', '0'),
+                _buildPaymentRow('Diskon', 'Rp $discountPrice'),
                 const SizedBox(height: 8),
-                _buildPaymentRow('Total', 'Rp 65.000'),
+                _buildPaymentRow('Total', 'Rp $finalPrice'),
                 const SizedBox(height: 8),
-                _buildPaymentRow('Pembayaran', 'QRIS'),
+                _buildPaymentRow(
+                    'Pembayaran', transactionData['payment_method'] ?? '-'),
               ],
             ),
           ),

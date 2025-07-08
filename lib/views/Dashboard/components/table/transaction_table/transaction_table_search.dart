@@ -92,6 +92,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
     setState(() {
       _startDate = null;
       _endDate = null;
+      _overlayEntry != null;
     });
     widget.onDateRangeSelected(null, null);
   }

@@ -1,20 +1,20 @@
 class TransactionItem {
-  final int id;
+  final int? id;
   final int masterDataId;
   final int qty;
   final int totalPrice;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final int transactionId;
+  final int? transactionId;
 
   TransactionItem({
-    required this.id,
+    this.id,
     required this.masterDataId,
     required this.qty,
     required this.totalPrice,
     required this.createdAt,
     required this.updatedAt,
-    required this.transactionId,
+    this.transactionId,
   });
 
   factory TransactionItem.fromMap(Map<String, dynamic> map) {

@@ -39,4 +39,21 @@ class TransactionItemRepository {
       whereArgs: [item.id],
     );
   }
+
+  Future<List<TransactionItem>> getAllCartItems() async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      'Data_Transaction_Item',
+      where: 'transaction_id IS NULL',
+    );
+    return result.map((map) => TransactionItem.fromMap(map)).toList();
+  }
+
+  Future<void> clearCart() async {
+    final db = await dbHelper.database;
+    await db.delete(
+      'Data_Transaction_Item',
+      where: 'transaction_id IS NULL',
+    );
+  }
 }
