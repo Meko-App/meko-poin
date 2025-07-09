@@ -37,6 +37,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
       if (_isDisposed || !mounted) return;
 
       final overlay = Overlay.of(context, rootOverlay: true);
+      // ignore: unnecessary_null_comparison
       if (overlay == null) return;
 
       final renderBox = context.findRenderObject() as RenderBox?;

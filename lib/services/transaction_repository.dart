@@ -1,4 +1,5 @@
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
+import 'package:meko_poin/models/transaction_item.dart';
 
 import '../models/transaction.dart';
 import 'database_helper.dart';
@@ -95,5 +96,58 @@ class TransactionRepository {
       whereArgs: [customerId],
     );
     return result.map((map) => Transaction.fromMap(map)).toList();
+  }
+
+  Future<TransactionWithCustomerUser> getTransactionWithCustomerUser(
+      int transactionId) async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+    SELECT 
+      t.*,
+      c.name AS customer_name,
+      c.phone AS customer_phone,
+      u.name AS user_name
+    FROM Data_Transaction t
+    LEFT JOIN Data_Customer c ON t.customer_id = c.id
+    LEFT JOIN Data_User u ON t.user_id = u.id
+    WHERE t.id = ?
+    LIMIT 1
+  ''', [transactionId]);
+
+    if (result.isEmpty) {
+      throw Exception('Transaction not found');
+    }
+
+    return TransactionWithCustomerUser.fromMap(result.first);
+  }
+
+  Future<List<TransactionItem>> getTransactionItems(int transactionId) async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      'Data_Transaction_Item',
+      where: 'transaction_id = ?',
+      whereArgs: [transactionId],
+    );
+    return result.map((map) => TransactionItem.fromMap(map)).toList();
+  }
+
+  Future<Map<String, dynamic>> getItemDetails(int masterDataId) async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      'Data_Master',
+      where: 'id = ?',
+      whereArgs: [masterDataId],
+    );
+
+    if (result.isNotEmpty) {
+      return {
+        'category': result.first['category'] ?? 'Produk',
+        'name': result.first['name'] ?? 'Unknown Item',
+        'price': result.first['price'] ?? 0
+      };
+    }
+
+    return {'category': 'Produk', 'name': 'Item #$masterDataId', 'price': 0};
   }
 }

@@ -83,6 +83,8 @@ class _DashboardPageState extends State<DashboardPage> {
         headerSubPage = 'Buat Baru';
       } else if (_contentCurrentState == ContentState.log) {
         headerSubPage = 'Log Aktivitas';
+      } else if (_contentCurrentState == ContentState.detail) {
+        headerSubPage = 'Detail Transaksi';
       } else {
         headerSubPage = null;
       }

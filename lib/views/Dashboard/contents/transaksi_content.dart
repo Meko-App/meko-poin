@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/detail/transaction_detail.dart';
 import 'package:meko_poin/views/Dashboard/components/form/transaction_form.dart';
 import 'package:meko_poin/views/Dashboard/components/table/transaction_table/transaction_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
@@ -21,6 +22,7 @@ class TransaksiContent extends StatefulWidget {
 class _TransaksiContentState extends State<TransaksiContent> {
   ContentState _currentState = ContentState.table;
   late final TransactionRepository transactionRepository;
+  int? _selectedTransactionId;
 
   @override
   void initState() {
@@ -33,6 +35,7 @@ class _TransaksiContentState extends State<TransaksiContent> {
 
   void _showForm() {
     setState(() {
+      _selectedTransactionId = null;
       _currentState = ContentState.form;
       widget.onStateChanged(_currentState);
     });
@@ -40,14 +43,18 @@ class _TransaksiContentState extends State<TransaksiContent> {
 
   void _showTable() {
     setState(() {
+      _selectedTransactionId = null;
       _currentState = ContentState.table;
       widget.onStateChanged(_currentState);
     });
   }
 
   void _showDetail(int transactionId) {
-    _currentState = ContentState.detail;
-    widget.onStateChanged(_currentState);
+    setState(() {
+      _currentState = ContentState.detail;
+      _selectedTransactionId = transactionId;
+      widget.onStateChanged(_currentState);
+    });
   }
 
   Future<void> _printReport() async {
@@ -125,11 +132,11 @@ class _TransaksiContentState extends State<TransaksiContent> {
                     onPrintReport: _printReport,
                   )
                 : _currentState == ContentState.detail
-                    ? TransactionForm(
-                        onCancel: _showTable,
-                        onSubmit: (p0) {},
-                        onSuccess: _showTable,
-                      ) // Ngke detail didieu
+                    ? TransactionDetail(
+                        transactionId: _selectedTransactionId!,
+                        transactionRepository: transactionRepository,
+                        onBackPressed: _showTable, // Tambahkan ini
+                      )
                     : TransactionForm(
                         onCancel: _showTable,
                         onSubmit: (p0) {},
