@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/report_service.dart';
 
 class TransactionTableSearch extends StatefulWidget {
   final List<dynamic> currentPageData;
@@ -237,7 +238,13 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                   ),
                   minimumSize: const Size(108, 40),
                 ),
-                onPressed: widget.onPrintReport,
+                onPressed: () => ReportService.exportTransactionsToExcel(
+                  transactions: widget.data,
+                  reportTitle: 'Laporan Transaksi',
+                  startDate: _startDate,
+                  endDate: _endDate,
+                  context: context,
+                ),
                 child: const Text(
                   'Cetak Laporan',
                   style: TextStyle(
