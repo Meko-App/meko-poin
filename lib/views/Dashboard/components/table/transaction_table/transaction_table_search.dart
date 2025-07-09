@@ -120,19 +120,16 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
               fontFamily: 'Inter',
             ),
           ),
-          // --- START of the corrected section ---
           Row(
-            // Replaced SizedBox with a direct Row to allow natural sizing
-            mainAxisSize: MainAxisSize
-                .min, // Allows the Row to take minimum horizontal space
+            mainAxisSize: MainAxisSize.min,
             children: [
               CompositedTransformTarget(
                 link: _layerLink,
                 child: InkWell(
-                  // No Expanded here, it will take its natural width
                   onTap: _toggleDropdown,
                   child: Container(
                     height: 34,
+                    width: 240,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       border: Border.all(color: const Color(0xFFD1D5DB)),
@@ -140,8 +137,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      mainAxisSize:
-                          MainAxisSize.min, // Ensure inner row takes min width
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           _startDate == null || _endDate == null
@@ -154,8 +150,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(
-                            width: 8), // Added space between text and icon
+                        const SizedBox(width: 8),
                         Icon(
                           _isDropdownVisible
                               ? Icons.keyboard_arrow_up
@@ -169,7 +164,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                 ),
               ),
               if (_startDate != null && _endDate != null) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 20),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFED143B),
@@ -178,7 +173,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    minimumSize: const Size(0, 34),
+                    minimumSize: const Size(57, 40),
                   ),
                   onPressed: _resetDateRange,
                   child: const Text(
@@ -193,16 +188,16 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                   ),
                 ),
               ],
-              const SizedBox(width: 12),
+              const SizedBox(width: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1379F0), // Blue background
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  minimumSize: const Size(0, 34),
+                  minimumSize: const Size(100, 40),
                 ),
                 onPressed: widget.onAddNew,
                 child: const Text(
@@ -216,7 +211,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0BC33F), // Green background
@@ -226,7 +221,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                     borderRadius: BorderRadius.circular(6),
                     side: const BorderSide(color: Color(0xFFD1D5DB)),
                   ),
-                  minimumSize: const Size(0, 34),
+                  minimumSize: const Size(108, 40),
                 ),
                 onPressed: widget.onPrintReport,
                 child: const Text(

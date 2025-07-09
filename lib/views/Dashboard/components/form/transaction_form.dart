@@ -313,7 +313,9 @@ class _TransactionFormState extends State<TransactionForm> {
     int discount = 0;
 
     if (_isNominalDiscount) {
-      final nominal = int.tryParse(_discountNominalController.text) ?? 0;
+      final nominal =
+          int.tryParse(_discountNominalController.text.replaceAll('.', '')) ??
+              0;
       discount = nominal;
     } else if (_isPercentageDiscount) {
       final percentage = int.tryParse(_discountPercentController.text) ?? 0;
@@ -829,7 +831,8 @@ class _TransactionFormState extends State<TransactionForm> {
     final totalPrice = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
 
     // Hitung diskon
-    final discountNominal = int.tryParse(_discountNominalController.text) ?? 0;
+    final discountNominal =
+        int.tryParse(_discountNominalController.text.replaceAll('.', '')) ?? 0;
     final discountPercent = int.tryParse(_discountPercentController.text) ?? 0;
     final discountPrice =
         discountNominal + (totalPrice * discountPercent ~/ 100);
@@ -988,12 +991,48 @@ class _TransactionFormState extends State<TransactionForm> {
                                 color: Color(0xFF111B37),
                               ),
                               onChanged: (value) {
+                                String digitsOnly =
+                                    value.replaceAll(RegExp(r'[^0-9]'), '');
                                 setState(() {
                                   _isNominalDiscount = value.isNotEmpty;
                                   if (_isNominalDiscount) {
                                     _isPercentageDiscount = false;
                                     _discountPercentController.clear();
                                   }
+
+                                  // Periksa apakah digitsOnly tidak kosong sebelum parsing
+                                  if (digitsOnly.isNotEmpty) {
+                                    try {
+                                      final number = int.parse(digitsOnly);
+                                      final formatted =
+                                          _formatWithThousandSeparator(number);
+
+                                      _discountNominalController.value =
+                                          TextEditingValue(
+                                        text: formatted,
+                                        selection: TextSelection.collapsed(
+                                            offset: formatted.length),
+                                      );
+                                    } catch (e) {
+                                      // Handle error parsing jika diperlukan
+                                      _discountNominalController.value =
+                                          TextEditingValue(
+                                        text: '',
+                                        selection:
+                                            const TextSelection.collapsed(
+                                                offset: 0),
+                                      );
+                                    }
+                                  } else {
+                                    // Jika digitsOnly kosong (semua dihapus)
+                                    _discountNominalController.value =
+                                        TextEditingValue(
+                                      text: '',
+                                      selection: const TextSelection.collapsed(
+                                          offset: 0),
+                                    );
+                                  }
+
                                   _calculateDiscount();
                                 });
                               },
@@ -1338,23 +1377,32 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Widget _buildCategoryDropdown() {
-    // Ambil kategori unik dari master data
     final categories = _masterDataItems.map((e) => e.category).toSet().toList();
 
     return DropdownButtonFormField<String>(
       value: _selectedOrderCategory,
+      isExpanded: true,
       hint: const Text(
         'Pilih kategori',
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 14,
+          fontWeight: FontWeight.w400,
           color: Color(0xFF78829D),
         ),
+        overflow: TextOverflow.ellipsis,
       ),
       items: categories.map((category) {
         return DropdownMenuItem<String>(
           value: category,
-          child: Text(category),
+          child: Text(
+            category,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF111B37),
+            ),
+          ),
         );
       }).toList(),
       onChanged: (value) {
@@ -1385,57 +1433,44 @@ class _TransactionFormState extends State<TransactionForm> {
       ),
       icon: const Icon(Icons.keyboard_arrow_down, size: 20),
       dropdownColor: Colors.white,
+      borderRadius: BorderRadius.circular(8),
     );
   }
 
   Widget _buildItemDropdown() {
-    if (_filteredMasterDataItems.isEmpty) {
-      return DropdownButtonFormField<String>(
-        value: null,
-        hint: const Text(
-          'Pilih kategori terlebih dahulu',
-          style: TextStyle(
-            fontSize: 14,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w400,
-            color: Color(0xFF78829D),
-          ),
-        ),
-        items: null,
-        onChanged: null,
-        decoration: InputDecoration(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
-          ),
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          isDense: true,
-        ),
-      );
-    }
     return DropdownButtonFormField<String>(
-      value: _selectedOrderItem,
-      hint: const Text(
-        'Pilih Item',
-        style: TextStyle(
+      value: _filteredMasterDataItems.isEmpty ? null : _selectedOrderItem,
+      isExpanded: true, // Tambahkan ini
+      hint: Text(
+        _filteredMasterDataItems.isEmpty
+            ? 'Pilih kategori terlebih dahulu'
+            : 'Pilih Item',
+        style: const TextStyle(
           fontSize: 14,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w400,
           color: Color(0xFF78829D),
+          overflow: TextOverflow.ellipsis, // Tambahkan ini
         ),
       ),
-      items: _filteredMasterDataItems.map((item) {
-        return DropdownMenuItem<String>(
-          value: item.name,
-          child: Text(item.name),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedOrderItem = value;
-        });
-      },
+      items: _filteredMasterDataItems.isEmpty
+          ? null
+          : _filteredMasterDataItems.map((item) {
+              return DropdownMenuItem<String>(
+                value: item.name,
+                child: Text(
+                  item.name,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }).toList(),
+      onChanged: _filteredMasterDataItems.isEmpty
+          ? null
+          : (value) {
+              setState(() {
+                _selectedOrderItem = value;
+              });
+            },
       decoration: InputDecoration(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1448,7 +1483,9 @@ class _TransactionFormState extends State<TransactionForm> {
           borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: _filteredMasterDataItems.isEmpty
+            ? Colors.grey.shade100
+            : Colors.white,
         isDense: true,
       ),
       style: const TextStyle(
@@ -1469,7 +1506,10 @@ class _TransactionFormState extends State<TransactionForm> {
             children: [
               _buildFormLabel('Kategori'),
               const SizedBox(height: 8),
-              _buildCategoryDropdown(),
+              SizedBox(
+                width: double.infinity,
+                child: _buildCategoryDropdown(),
+              ),
             ],
           ),
         ),
@@ -1480,7 +1520,10 @@ class _TransactionFormState extends State<TransactionForm> {
             children: [
               _buildFormLabel('Item'),
               const SizedBox(height: 8),
-              _buildItemDropdown(),
+              SizedBox(
+                width: double.infinity,
+                child: _buildItemDropdown(),
+              ),
             ],
           ),
         ),
@@ -1831,6 +1874,22 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 }
 
+String _formatWithThousandSeparator(dynamic value) {
+  if (value == null) return '';
+
+  int number;
+  if (value is String) {
+    number = int.tryParse(value.replaceAll('.', '')) ?? 0;
+  } else {
+    number = value as int;
+  }
+
+  return number.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+}
+
 String _formatPrice(int price) {
   final formatter =
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -1973,7 +2032,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                           return _buildItemPesanan(
                             itemName,
                             item.qty.toString(),
-                            'Rp ${item.totalPrice}',
+                            _formatPrice(item.totalPrice),
                           );
                         }).toList(),
                       ),
@@ -1982,9 +2041,9 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                       const Divider(height: 1, color: Color(0xFFE5E7EB)),
                       const SizedBox(height: 16),
 
-                      _buildPaymentRow('Diskon', 'Rp $discountPrice'),
+                      _buildPaymentRow('Diskon', _formatPrice(discountPrice)),
                       const SizedBox(height: 8),
-                      _buildPaymentRow('Total', 'Rp $finalPrice'),
+                      _buildPaymentRow('Total', _formatPrice(finalPrice)),
                       const SizedBox(height: 8),
                       _buildPaymentRow('Pembayaran', paymentMethod),
                     ],
