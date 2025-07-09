@@ -28,45 +28,50 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   bool _isDropdownVisible = false;
+  bool _isDisposed = false;
 
   void _showDropdown() {
-    if (_isDropdownVisible) return;
+    if (_isDropdownVisible || _isDisposed) return;
 
-    setState(() => _isDropdownVisible = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isDisposed || !mounted) return;
 
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final dropdownWidth = 560.0; // Lebar tetap dropdown
+      final overlay = Overlay.of(context, rootOverlay: true);
+      if (overlay == null) return;
 
-    // Hitung offset agar ujung kanan dropdown sejajar dengan select
-    final rightOffset = screenWidth -
-        (renderBox.localToGlobal(Offset.zero).dx + size.width) -
-        16;
+      final renderBox = context.findRenderObject() as RenderBox?;
+      if (renderBox == null) return;
 
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        right: rightOffset, // Posisikan dari kanan
-        top: renderBox.localToGlobal(Offset.zero).dy + size.height + 4,
-        width: dropdownWidth,
-        child: Material(
-          elevation: 4,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            padding: const EdgeInsets.all(16),
+      setState(() => _isDropdownVisible = true);
+
+      final size = renderBox.size;
+      final screenWidth = MediaQuery.of(context).size.width;
+      final dropdownWidth = 560.0;
+
+      final rightOffset = screenWidth -
+          (renderBox.localToGlobal(Offset.zero).dx + size.width) +
+          260;
+
+      _overlayEntry?.remove();
+      _overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          right: rightOffset,
+          top: renderBox.localToGlobal(Offset.zero).dy + size.height - 5,
+          width: dropdownWidth,
+          child: Material(
+            color: Colors.white,
+            elevation: 10,
+            borderRadius: BorderRadius.circular(8),
             child: _DateRangePickerContent(
               startDate: _startDate,
               endDate: _endDate,
               onApply: (start, end) {
-                setState(() {
-                  _startDate = start;
-                  _endDate = end;
-                });
+                if (!_isDisposed && mounted) {
+                  setState(() {
+                    _startDate = start;
+                    _endDate = end;
+                  });
+                }
                 widget.onDateRangeSelected(_startDate, _endDate);
                 _hideDropdown();
               },
@@ -74,32 +79,40 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    Overlay.of(context).insert(_overlayEntry!);
+      overlay.insert(_overlayEntry!);
+    });
   }
 
   void _hideDropdown() {
-    _overlayEntry?.remove();
-    setState(() => _isDropdownVisible = false);
+    if (_overlayEntry != null) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    }
+    if (!_isDisposed && mounted) {
+      setState(() => _isDropdownVisible = false);
+    }
   }
 
-  void _toggleDropdown() =>
-      _isDropdownVisible ? _hideDropdown() : _showDropdown();
+  void _toggleDropdown() {
+    if (_isDisposed) return;
+    _isDropdownVisible ? _hideDropdown() : _showDropdown();
+  }
 
   void _resetDateRange() {
+    if (_isDisposed) return;
     setState(() {
       _startDate = null;
       _endDate = null;
-      _overlayEntry != null;
     });
     widget.onDateRangeSelected(null, null);
   }
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    _isDisposed = true;
+    _hideDropdown();
     super.dispose();
   }
 
@@ -270,10 +283,15 @@ class _DateRangePickerContentState extends State<_DateRangePickerContent> {
   @override
   void initState() {
     super.initState();
-    _startDate = widget.startDate ?? DateTime.now();
-    _endDate = widget.endDate ?? DateTime.now();
+    DateTime todayAtMidnight = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
 
-    // Initialize months based on the start date or current date
+    _startDate = widget.startDate ?? todayAtMidnight;
+    _endDate = widget.endDate ?? todayAtMidnight;
+
     _currentLeftMonth = DateTime(_startDate.year, _startDate.month, 1);
     _currentRightMonth =
         DateTime(_currentLeftMonth.year, _currentLeftMonth.month + 1, 1);
@@ -355,7 +373,7 @@ class _DateRangePickerContentState extends State<_DateRangePickerContent> {
 
   Widget _buildMonthHeader(DateTime month) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 8, top: 10),
       child: Center(
         // Center the month text
         child: Text(
@@ -600,7 +618,12 @@ class _DateRangePickerContentState extends State<_DateRangePickerContent> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: () => widget.onApply(_startDate, _endDate),
+                    onPressed: () {
+                      final start = _startDate;
+                      final end = _endDate;
+
+                      widget.onApply(start, end);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1379F0),
                       padding: const EdgeInsets.symmetric(

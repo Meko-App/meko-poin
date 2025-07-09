@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
-import 'package:path/path.dart';
+// import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'views/auth/login_page.dart';
 import 'package:window_manager/window_manager.dart';
@@ -10,47 +10,81 @@ import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('id_ID', null);
 
-  // Inisialisasi window manager
-  await windowManager.ensureInitialized();
+  try {
+    // Initialize date formatting
+    await initializeDateFormatting('id_ID', null);
 
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(800, 600),
-    center: true,
-    title: "POS Photorism App",
-    backgroundColor: Colors.transparent,
-    skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.normal,
-  );
+    // Initialize window manager
+    await windowManager.ensureInitialized();
 
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
+    const windowOptions = WindowOptions(
+      size: Size(800, 600),
+      center: true,
+      title: "POS Photorism App",
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.normal,
+    );
 
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+    // Initialize database
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
 
-  final dbPath = await getDatabasesPath();
-  final path = join(dbPath, 'app_database.db');
+    // For development only - remove in production
+    // final dbPath = await getDatabasesPath();
+    // final path = join(dbPath, 'app_database.db');
+    // if (await databaseFactoryFfi.databaseExists(path)) {
+    //   await databaseFactoryFfi.deleteDatabase(path);
+    // }
 
-  if (await databaseFactoryFfi.databaseExists(path)) {
-    await databaseFactoryFfi.deleteDatabase(path);
+    // Initialize database helper
+    final databaseHelper = DatabaseHelper.instance;
+    await databaseHelper.database;
+
+    // Initialize user repository and validators
+    final userRepository = UserRepository(databaseHelper);
+    Validators.initialize(userRepository);
+
+    // Show window
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+
+    runApp(const MyApp());
+
+    // Maximize window after app starts
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await Future.delayed(const Duration(milliseconds: 500));
+        await windowManager.maximize();
+      } catch (e) {
+        debugPrint('Failed to maximize window: $e');
+      }
+    });
+  } catch (e, stackTrace) {
+    debugPrint('Application initialization failed: $e');
+    debugPrint('Stack trace: $stackTrace');
+    // You might want to show an error dialog here
+    runApp(const ErrorApp());
   }
+}
 
-  final databaseHelper = DatabaseHelper.instance;
-  await databaseHelper.database;
+class ErrorApp extends StatelessWidget {
+  const ErrorApp({super.key});
 
-  final userRepository = UserRepository(databaseHelper);
-  Validators.initialize(userRepository);
-
-  runApp(const MyApp());
-
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    await Future.delayed(const Duration(milliseconds: 150));
-    await windowManager.maximize();
-  });
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('Application failed to initialize',
+              style: Theme.of(context).textTheme.headlineSmall),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
