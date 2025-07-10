@@ -41,6 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
   bool _showSidebar = true;
   String _selectedMenu = "Ringkasan";
   ContentState? _contentCurrentState;
+  int _ContentKey = 0;
 
   void _toggleSidebar() {
     setState(() {
@@ -113,6 +114,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       setState(() {
                         _selectedMenu = menu;
                         _contentCurrentState = null;
+                        _ContentKey++;
                       });
                     },
                   ),
@@ -146,7 +148,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         transactionRepository: widget.transactionRepository,
                         masterDataRepository: widget.masterDataRepository,
                         inventoryRepository: widget.inventoryRepository,
-                        inventoryLogRepository: widget.inventoryLogRepository),
+                        inventoryLogRepository: widget.inventoryLogRepository,
+                        contentKey: _ContentKey),
                   ),
                 ],
               ),
@@ -220,16 +223,19 @@ class DashboardContent extends StatelessWidget {
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
+  final int contentKey;
 
-  const DashboardContent(
-      {super.key,
-      required this.menu,
-      this.onContentStateChanged,
-      required this.userRepository,
-      required this.transactionRepository,
-      required this.masterDataRepository,
-      required this.inventoryRepository,
-      required this.inventoryLogRepository});
+  const DashboardContent({
+    super.key,
+    required this.menu,
+    this.onContentStateChanged,
+    required this.userRepository,
+    required this.transactionRepository,
+    required this.masterDataRepository,
+    required this.inventoryRepository,
+    required this.inventoryLogRepository,
+    this.contentKey = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -249,22 +255,26 @@ class DashboardContent extends StatelessWidget {
         return const PelangganContent();
       case 'Master Data':
         return MasterdataContent(
+          key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
-          masterDataRepository: masterDataRepository, // Teruskan repository
+          masterDataRepository: masterDataRepository,
         );
       case 'Inventori':
         return InventoryContent(
+          key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           inventoryRepository: inventoryRepository,
           inventoryLogRepository: inventoryLogRepository, // Teruskan repository
         );
       case 'Transaksi':
         return TransaksiContent(
+          key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           transactionRepository: transactionRepository, // Teruskan repository
         );
       case 'Pengguna':
         return PenggunaContent(
+          key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           userRepository: userRepository, // Teruskan repository
         );

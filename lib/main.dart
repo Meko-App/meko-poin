@@ -93,7 +93,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Login',
+      title: 'POS Photorism App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
