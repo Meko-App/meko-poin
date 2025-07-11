@@ -16,7 +16,7 @@ class ReportService {
     try {
       // 1. Create Excel workbook
       final excel.Excel excelWorkbook = excel.Excel.createExcel();
-      final excel.Sheet sheet = excelWorkbook['Sheet1'];
+      final excel.Sheet sheet = excelWorkbook['Laporan Penjualan'];
 
       // 2. Add title and date range
       final title = reportTitle;
