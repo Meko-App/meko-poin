@@ -240,7 +240,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                 ),
                 onPressed: () => ReportService.exportTransactionsToExcel(
                   transactions: widget.data,
-                  reportTitle: 'Laporan Transaksi',
+                  reportTitle: 'Laporan Penjualan',
                   startDate: _startDate,
                   endDate: _endDate,
                   context: context,

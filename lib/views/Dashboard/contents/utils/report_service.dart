@@ -141,12 +141,12 @@ class ReportService {
 
         sheet.cell(excel.CellIndex.indexByColumnRow(
             columnIndex: 4, rowIndex: rowIndex))
-          ..value = excel.TextCellValue(transaction.discountPrice.toString())
+          ..value = excel.TextCellValue(_formatPrice(transaction.discountPrice))
           ..cellStyle = numberStyle;
 
         sheet.cell(excel.CellIndex.indexByColumnRow(
             columnIndex: 5, rowIndex: rowIndex))
-          ..value = excel.TextCellValue(transaction.finalPrice.toString())
+          ..value = excel.TextCellValue(_formatPrice(transaction.finalPrice))
           ..cellStyle = numberStyle;
 
         sheet.cell(excel.CellIndex.indexByColumnRow(
@@ -158,7 +158,7 @@ class ReportService {
       // 6. Save and export file
       final directory = await getTemporaryDirectory();
       final fileName =
-          'Laporan_Transaksi_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+          'Laporan_Penjualan_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
       final filePath = '${directory.path}/$fileName';
       final file = File(filePath);
       final bytes = excelWorkbook.save();
@@ -198,4 +198,10 @@ class ReportService {
       }
     }
   }
+}
+
+String _formatPrice(int price) {
+  final formatter =
+      NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0);
+  return formatter.format(price);
 }

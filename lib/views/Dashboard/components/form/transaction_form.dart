@@ -8,6 +8,7 @@ import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TransactionForm extends StatefulWidget {
@@ -838,18 +839,32 @@ class _TransactionFormState extends State<TransactionForm> {
         discountNominal + (totalPrice * discountPercent ~/ 100);
     final finalPrice = totalPrice - discountPrice;
 
+    final cartItemsAsMaps = _cartItems.map((item) {
+      final masterData =
+          _masterDataItems.firstWhere((m) => m.id == item.masterDataId);
+      return {
+        'id': item.id,
+        'master_data_id': item.masterDataId,
+        'name': masterData.name,
+        'qty': item.qty,
+        'price': masterData.price,
+        'total_price': item.totalPrice,
+      };
+    }).toList();
+
     final transactionData = {
       'name': _nameController.text,
       'phone': _phoneController.text,
       'date': formattedDate,
       'invoice': invoiceNumber,
-      'discount_nominal':
-          discountNominal == 0 ? discountPrice : discountNominal,
+      'discount_nominal': discountNominal,
       'discount_percent': discountPercent,
+      'discount_price': discountPrice,
+      'total_price': totalPrice,
       'final_price': finalPrice,
       'payment_method': _selectedPaymentMethod,
       'note': _noteController.text,
-      'cart_items': _cartItems,
+      'cart_items': cartItemsAsMaps
     };
 
     _showReviewOrderModal(transactionData);
@@ -860,21 +875,41 @@ class _TransactionFormState extends State<TransactionForm> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          insetPadding: EdgeInsets.all(16.0),
+          insetPadding: const EdgeInsets.all(16.0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           child: ReviewOrderModal(
             onProcess: _processTransaction,
-            onCancel: () {
-              Navigator.of(context).pop(); // Close the modal
-            },
+            onCancel: () => Navigator.of(context).pop(),
             transactionData: transactionData,
+            customerPhone: _phoneController.text,
           ),
         );
       },
     );
   }
+
+  // void _showReviewOrderModal(Map<String, dynamic> transactionData) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return Dialog(
+  //         insetPadding: EdgeInsets.all(16.0),
+  //         shape: RoundedRectangleBorder(
+  //           borderRadius: BorderRadius.circular(12),
+  //         ),
+  //         child: ReviewOrderModal(
+  //           onProcess: _processTransaction,
+  //           onCancel: () {
+  //             Navigator.of(context).pop(); // Close the modal
+  //           },
+  //           transactionData: transactionData,
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -1900,12 +1935,14 @@ class ReviewOrderModal extends StatefulWidget {
   final Function(Map<String, dynamic>) onProcess;
   final VoidCallback onCancel;
   final Map<String, dynamic> transactionData;
+  final String customerPhone;
 
   const ReviewOrderModal({
     Key? key,
     required this.onProcess,
     required this.onCancel,
     required this.transactionData,
+    required this.customerPhone,
   }) : super(key: key);
 
   @override
@@ -1913,21 +1950,44 @@ class ReviewOrderModal extends StatefulWidget {
 }
 
 class _ReviewOrderModalState extends State<ReviewOrderModal> {
-  late final List<TransactionItem> _cartItems;
-  // final MasterDataService _masterDataService = MasterDataService();
+  bool _isProcessing = false;
+  bool _showReceiptOptions = false;
+  List<dynamic> _cartItems = [];
   Map<int, MasterData> _masterDataMap = {};
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _cartItems = widget.transactionData['cart_items'] as List<TransactionItem>;
+    _initializeCartItems();
     _fetchMasterData();
   }
 
+  void _initializeCartItems() {
+    final items = widget.transactionData['cart_items'];
+    if (items is List<TransactionItem>) {
+      _cartItems = items;
+    } else if (items is List<Map<String, dynamic>>) {
+      // Convert maps to TransactionItems if needed
+      _cartItems = items
+          .map((item) => TransactionItem(
+                id: item['id'],
+                masterDataId: item['master_data_id'],
+                qty: item['qty'],
+                totalPrice: item['total_price'],
+                createdAt:
+                    DateTime.now(), // You might need to handle this properly
+                updatedAt: DateTime.now(),
+              ))
+          .toList();
+    }
+    setState(() => _isLoading = false);
+  }
+
   Future<void> _fetchMasterData() async {
-    final Set<int> masterDataIds =
-        _cartItems.map((item) => item.masterDataId).toSet();
+    final Set<int> masterDataIds = _cartItems.map((item) {
+      return (item as TransactionItem).masterDataId;
+    }).toSet();
     final Map<int, MasterData> fetchedData = {};
 
     for (int id in masterDataIds) {
@@ -1945,171 +2005,135 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Future<void> _handleProcessTransaction() async {
+    setState(() => _isProcessing = true);
+    try {
+      await widget.onProcess(widget.transactionData);
+      setState(() => _showReceiptOptions = true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+  Widget _buildTransactionReview() {
     final name = widget.transactionData['name'] as String;
     final phone = widget.transactionData['phone'] as String;
     final date = widget.transactionData['date'] as String;
     final invoice = widget.transactionData['invoice'] as String;
     final paymentMethod =
         widget.transactionData['payment_method'] as String? ?? '-';
-    final totalPrice = _cartItems.fold(0, (sum, item) => sum + item.totalPrice);
+    final num totalPrice = _cartItems.fold(0.0, (sum, item) {
+      return sum + (item as TransactionItem).totalPrice;
+    });
     final discountNominal = widget.transactionData['discount_nominal'] as int;
     final discountPercent = widget.transactionData['discount_percent'] as int;
     final discountPrice =
         discountNominal + (totalPrice * discountPercent ~/ 100);
     final finalPrice = totalPrice - discountPrice;
 
-    return Container(
-      width: 400,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1.0),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInfoRow('Nama', name),
+        const SizedBox(height: 8),
+        _buildInfoRow('No. HP', phone),
+        const SizedBox(height: 8),
+        _buildInfoRow('Tanggal', date),
+        const SizedBox(height: 8),
+        _buildInfoRow('Invoice', invoice),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const SizedBox(height: 16),
+
+        // Order items
+        Column(
+          children: _cartItems.map((item) {
+            final masterData = _masterDataMap[item is TransactionItem
+                ? item.masterDataId
+                : item['master_data_id']];
+            final String itemName = masterData?.name ?? 'Unknown Item';
+            final int qty = item is TransactionItem ? item.qty : item['qty'];
+            final int totalPrice =
+                item is TransactionItem ? item.totalPrice : item['total_price'];
+
+            return _buildItemPesanan(
+              itemName,
+              qty.toString(),
+              _formatPrice(totalPrice),
+            );
+          }).toList(),
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const SizedBox(height: 16),
+
+        _buildPaymentRow('Diskon', _formatPrice(discountPrice)),
+        const SizedBox(height: 8),
+        _buildPaymentRow('Total', _formatPrice(finalPrice.toDouble().toInt())),
+        const SizedBox(height: 8),
+        _buildPaymentRow('Pembayaran', paymentMethod),
+      ],
+    );
+  }
+
+  Widget _buildTransactionActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        OutlinedButton(
+          onPressed: widget.onCancel,
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Tinjau Pesanan',
+          ),
+          child: const Text(
+            'Batal',
+            style: TextStyle(
+              color: Color(0xFF4B5675),
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton(
+          onPressed: _isProcessing ? null : _handleProcessTransaction,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1379F0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          child: _isProcessing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  'Proses',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111B37),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close,
-                      size: 20, color: Color(0xFF78829D)),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: widget.onCancel,
-                ),
-              ],
-            ),
-          ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoRow('Nama', name),
-                      const SizedBox(height: 8),
-                      _buildInfoRow('No. HP', phone),
-                      const SizedBox(height: 8),
-                      _buildInfoRow('Tanggal', date),
-                      const SizedBox(height: 8),
-                      _buildInfoRow('Invoice', invoice),
-
-                      const SizedBox(height: 16),
-                      const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                      const SizedBox(height: 16),
-
-                      // Order items
-                      Column(
-                        children: _cartItems.map((item) {
-                          final MasterData? masterData =
-                              _masterDataMap[item.masterDataId];
-                          final String itemName = masterData?.name ??
-                              'Unknown Item (ID: ${item.masterDataId})';
-
-                          return _buildItemPesanan(
-                            itemName,
-                            item.qty.toString(),
-                            _formatPrice(item.totalPrice),
-                          );
-                        }).toList(),
-                      ),
-
-                      const SizedBox(height: 16),
-                      const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                      const SizedBox(height: 16),
-
-                      _buildPaymentRow('Diskon', _formatPrice(discountPrice)),
-                      const SizedBox(height: 8),
-                      _buildPaymentRow('Total', _formatPrice(finalPrice)),
-                      const SizedBox(height: 8),
-                      _buildPaymentRow('Pembayaran', paymentMethod),
-                    ],
-                  ),
-          ),
-
-          // Footer buttons
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Colors.grey.shade200, width: 1.0),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: widget.onCancel,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: const Text(
-                    'Batal',
-                    style: TextStyle(
-                      color: Color(0xFF4B5675),
+                      color: Colors.white,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
+                      fontSize: 14),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    widget.onProcess(widget
-                        .transactionData); // Panggil dengan data transaksi
-                    widget.onCancel(); // Tutup dialog
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1379F0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: const Text(
-                    'Proses',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -2197,51 +2221,272 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
 
   Widget _buildItemPesanan(String name, String qty, String price) {
     return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF111B37),
+                height: 1.4,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 10,
+            child: Text(
+              qty,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF111B37),
+                height: 1.4,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 130,
+            child: Text(
+              price,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 14,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF111B37),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPrice(int price) {
+    final formatter = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    return formatter.format(price);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1.0),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _showReceiptOptions ? 'Cetak Struk' : 'Tinjau Pesanan',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111B37),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close,
+                      size: 20, color: Color(0xFF78829D)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: widget.onCancel,
+                ),
+              ],
+            ),
+          ),
+
+          // Content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: _showReceiptOptions
+                ? _buildReceiptOptions()
+                : _buildTransactionReview(),
+          ),
+
+          // Footer buttons
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade200, width: 1.0),
+              ),
+            ),
+            child: _showReceiptOptions
+                ? _buildReceiptActionButtons()
+                : _buildTransactionActionButtons(),
+          ),
+
+          // Container(
+          //   padding: const EdgeInsets.all(16),
+          //   decoration: BoxDecoration(
+          //     border: Border(
+          //       top: BorderSide(color: Colors.grey.shade200, width: 1.0),
+          //     ),
+          //   ),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.end,
+          //     children: [
+          //       OutlinedButton(
+          //         onPressed: widget.onCancel,
+          //         style: OutlinedButton.styleFrom(
+          //           side: const BorderSide(color: Color(0xFFE5E7EB)),
+          //           padding: const EdgeInsets.symmetric(
+          //               horizontal: 16, vertical: 10),
+          //           shape: RoundedRectangleBorder(
+          //             borderRadius: BorderRadius.circular(6),
+          //           ),
+          //         ),
+          //         child: const Text(
+          //           'Batal',
+          //           style: TextStyle(
+          //             color: Color(0xFF4B5675),
+          //             fontFamily: 'Inter',
+          //             fontWeight: FontWeight.w500,
+          //             fontSize: 14,
+          //           ),
+          //         ),
+          //       ),
+          //       const SizedBox(width: 12),
+          //       ElevatedButton(
+          //         onPressed: () {
+          //           widget.onProcess(widget
+          //               .transactionData); // Panggil dengan data transaksi
+          //           widget.onCancel(); // Tutup dialog
+          //         },
+          //         style: ElevatedButton.styleFrom(
+          //           backgroundColor: const Color(0xFF1379F0),
+          //           padding: const EdgeInsets.symmetric(
+          //               horizontal: 16, vertical: 10),
+          //           shape: RoundedRectangleBorder(
+          //             borderRadius: BorderRadius.circular(6),
+          //           ),
+          //         ),
+          //         child: const Text(
+          //           'Proses',
+          //           style: TextStyle(
+          //               color: Colors.white,
+          //               fontFamily: 'Inter',
+          //               fontWeight: FontWeight.w500,
+          //               fontSize: 14),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptOptions() {
+    return Column(
+      children: [
+        const Text(
+          'Pilih opsi struk:',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          alignment: WrapAlignment.center,
           children: [
-            Expanded(
-              flex: 3,
-              child: Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF111B37),
-                  height: 1.4,
-                ),
-              ),
+            _buildReceiptOptionButton(
+              icon: Icons.print,
+              label: 'Cetak',
+              onTap: () => ReceiptService.printReceipt(widget.transactionData),
             ),
-            SizedBox(
-              width: 10,
-              child: Text(
-                qty,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF111B37),
-                  height: 1.4,
-                ),
-              ),
+            _buildReceiptOptionButton(
+              icon: Icons.save_alt,
+              label: 'Simpan PDF',
+              onTap: () => ReceiptService.saveReceiptPdf(
+                  widget.transactionData, context),
             ),
-            SizedBox(
-              width: 130,
-              child: Text(
-                price,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF111B37),
-                  height: 1.4,
-                ),
+            _buildReceiptOptionButton(
+              icon: Icons.share,
+              label: 'Share ke WA',
+              onTap: () => ReceiptService.shareReceipt(
+                widget.transactionData,
+                widget.customerPhone,
               ),
             ),
           ],
-        ));
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReceiptOptionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 30, color: Colors.blue),
+            const SizedBox(height: 8),
+            Text(label),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceiptActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        ElevatedButton(
+          onPressed: widget.onCancel,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          child: const Text(
+            'Selesai',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
   }
 }
