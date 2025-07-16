@@ -37,11 +37,14 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (user != null && mounted) {
+        final initialMenu = user.roleId == 1 ? 'Ringkasan' : 'Transaksi';
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
               builder: (context) => DashboardPage(
                   user: user,
+                  initialMenu: initialMenu,
                   userRepository: UserRepository(DatabaseHelper.instance),
                   transactionRepository:
                       TransactionRepository(DatabaseHelper.instance),

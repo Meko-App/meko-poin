@@ -13,8 +13,14 @@ class AuthService {
     if (user != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('userId', user.id!);
+      await prefs.setString('userRole', user.roleId.toString());
     }
     return user;
+  }
+
+  Future<String?> getCurrentUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('userRole');
   }
 
   Future<void> logout() async {

@@ -18,6 +18,21 @@ class Sidebar extends StatefulWidget {
 
 class _SidebarState extends State<Sidebar> {
   final AuthService _authService = AuthService();
+  String? _userRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await _authService.getCurrentUserRole();
+    setState(() {
+      _userRole = role;
+    });
+  }
+
   final Map<String, bool> _expandedMenus = {
     "Dashboards": true,
     "Managements": false,
@@ -26,6 +41,10 @@ class _SidebarState extends State<Sidebar> {
 
   @override
   Widget build(BuildContext context) {
+    if (_userRole == null) {
+      return const CircularProgressIndicator(); // atau tampilan loading
+    }
+
     return Container(
       width: 280,
       height: double.infinity,
@@ -55,12 +74,23 @@ class _SidebarState extends State<Sidebar> {
             ),
             const SizedBox(height: 25),
 
-            _buildAccordionMenu("Dashboards", Icons.dashboard_outlined,
-                ["Ringkasan", "Pelanggan"]),
-            _buildAccordionMenu("Managements", Icons.layers_outlined,
-                ["Master Data", "Inventori", "Transaksi", "Pengguna"]),
-            _buildAccordionMenu(
-                "Settings", Icons.settings_outlined, ["Database", "Logout"]),
+            if (_userRole == '1')
+              _buildAccordionMenu("Dashboards", Icons.dashboard_outlined,
+                  ["Ringkasan", "Pelanggan"]),
+
+            if (_userRole == '1')
+              _buildAccordionMenu("Managements", Icons.layers_outlined,
+                  ["Master Data", "Inventori", "Transaksi", "Pengguna"])
+            else
+              _buildAccordionMenu(
+                  "Managements", Icons.layers_outlined, ["Transaksi"]),
+
+            if (_userRole == '1')
+              _buildAccordionMenu(
+                  "Settings", Icons.settings_outlined, ["Database", "Logout"])
+            else
+              _buildAccordionMenu(
+                  "Settings", Icons.settings_outlined, ["Logout"]),
           ],
         ),
       ),

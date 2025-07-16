@@ -25,17 +25,18 @@ class DashboardPage extends StatefulWidget {
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
   final CustomerRepository customerRepository;
+  final String? initialMenu;
 
-  const DashboardPage({
-    super.key,
-    required this.user,
-    required this.userRepository,
-    required this.transactionRepository,
-    required this.masterDataRepository,
-    required this.inventoryRepository,
-    required this.inventoryLogRepository,
-    required this.customerRepository,
-  });
+  const DashboardPage(
+      {super.key,
+      required this.user,
+      required this.userRepository,
+      required this.transactionRepository,
+      required this.masterDataRepository,
+      required this.inventoryRepository,
+      required this.inventoryLogRepository,
+      required this.customerRepository,
+      this.initialMenu});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -43,9 +44,15 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   bool _showSidebar = true;
-  String _selectedMenu = "Ringkasan";
+  late String _selectedMenu;
   ContentState? _contentCurrentState;
   int _ContentKey = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMenu = widget.initialMenu!;
+  }
 
   void _toggleSidebar() {
     setState(() {
