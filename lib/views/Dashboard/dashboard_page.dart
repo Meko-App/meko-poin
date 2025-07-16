@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
+import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
@@ -23,15 +24,18 @@ class DashboardPage extends StatefulWidget {
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
+  final CustomerRepository customerRepository;
 
-  const DashboardPage(
-      {super.key,
-      required this.user,
-      required this.userRepository,
-      required this.transactionRepository,
-      required this.masterDataRepository,
-      required this.inventoryRepository,
-      required this.inventoryLogRepository});
+  const DashboardPage({
+    super.key,
+    required this.user,
+    required this.userRepository,
+    required this.transactionRepository,
+    required this.masterDataRepository,
+    required this.inventoryRepository,
+    required this.inventoryLogRepository,
+    required this.customerRepository,
+  });
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -149,6 +153,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         masterDataRepository: widget.masterDataRepository,
                         inventoryRepository: widget.inventoryRepository,
                         inventoryLogRepository: widget.inventoryLogRepository,
+                        customerRepository: widget.customerRepository,
                         contentKey: _ContentKey),
                   ),
                 ],
@@ -223,6 +228,7 @@ class DashboardContent extends StatelessWidget {
   final MasterDataRepository masterDataRepository;
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
+  final CustomerRepository customerRepository;
   final int contentKey;
 
   const DashboardContent({
@@ -234,6 +240,7 @@ class DashboardContent extends StatelessWidget {
     required this.masterDataRepository,
     required this.inventoryRepository,
     required this.inventoryLogRepository,
+    required this.customerRepository,
     this.contentKey = 0,
   });
 
@@ -252,7 +259,9 @@ class DashboardContent extends StatelessWidget {
       case 'Ringkasan':
         return const RingkasanContent();
       case 'Pelanggan':
-        return const PelangganContent();
+        return PelangganContent(
+          customerRepository: customerRepository,
+        );
       case 'Master Data':
         return MasterdataContent(
           key: ValueKey(contentKey),
