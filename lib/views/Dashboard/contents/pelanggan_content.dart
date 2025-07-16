@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/table/customer_table/customer_table.dart';
-import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 
 class PelangganContent extends StatefulWidget {
   final CustomerRepository customerRepository;
@@ -13,7 +12,6 @@ class PelangganContent extends StatefulWidget {
 }
 
 class _PenggunaContentState extends State<PelangganContent> {
-  ContentState _currentState = ContentState.table;
   late final CustomerRepository customerRepository;
 
   @override
@@ -22,17 +20,9 @@ class _PenggunaContentState extends State<PelangganContent> {
     customerRepository = widget.customerRepository;
   }
 
-  void _showTable() {
-    setState(() {
-      _currentState = ContentState.table;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    double currentMaxHeight = _currentState == ContentState.table
-        ? MediaQuery.of(context).size.height * 0.77
-        : double.infinity;
+    double currentMaxHeight = MediaQuery.of(context).size.height * 0.77;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -41,13 +31,6 @@ class _PenggunaContentState extends State<PelangganContent> {
         children: [
           Row(
             children: [
-              if (_currentState == ContentState.form)
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: _showTable,
-                  color: Colors.grey.shade700,
-                ),
-              if (_currentState == ContentState.form) const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

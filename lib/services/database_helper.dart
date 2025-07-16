@@ -1,4 +1,8 @@
-// services/database_helper.dart
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/password_hasher.dart';
@@ -188,4 +192,97 @@ class DatabaseHelper {
   }
 
   authenticateUser(String email, String password) {}
+
+  Future<void> backupDatabase(BuildContext context) async {
+    try {
+      final dbPath = await getDatabasesPath();
+      final srcFile = File('$dbPath/app_database.db');
+
+      if (!await srcFile.exists()) {
+        throw Exception('File database tidak ditemukan');
+      }
+
+      // Gunakan waktu sekarang
+      final now = DateTime.now();
+
+      // Buka file manager
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Simpan Backup Database',
+        fileName:
+            'backup_database_meko_poin_${DateFormat('yyyyMMdd').format(now)}.db',
+        allowedExtensions: ['db'],
+        type: FileType.custom,
+      );
+
+      if (outputFile == null) return;
+
+      if (!outputFile.endsWith('.db')) {
+        outputFile += '.db';
+      }
+
+      // Salin file
+      final destFile = File(outputFile);
+      await srcFile.copy(destFile.path);
+
+      // Set timestamp ke waktu sekarang
+      await destFile.setLastModified(now);
+      await destFile.setLastAccessed(now);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Backup berhasil dibuat (${DateFormat('dd/MM/yyyy HH:mm').format(now)})'),
+            action: SnackBarAction(
+              label: 'Buka',
+              onPressed: () => OpenFile.open(destFile.path),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membuat backup: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> restoreDatabase(BuildContext context) async {
+    try {
+      // Buka file manager untuk memilih file backup
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['db'],
+        dialogTitle: 'Pilih File Backup Database',
+      );
+
+      if (result == null) return; // User membatalkan
+
+      final db = await instance.database;
+      final dbPath = await getDatabasesPath();
+      final destFile = File('$dbPath/app_database.db');
+
+      // Tutup database sebelum restore
+      await db.close();
+      _database = null;
+
+      // Salin file backup
+      final backupFile = File(result.files.single.path!);
+      await backupFile.copy(destFile.path);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Database berhasil dipulihkan')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memulihkan database: $e')),
+        );
+      }
+    }
+  }
 }
