@@ -1,19 +1,144 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/models/additional/favorite_product.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+class _ChartData {
+  final String label;
+  final double value;
+  final Color color;
+
+  _ChartData(this.label, this.value, this.color);
+}
+
 class CardProduk extends StatelessWidget {
-  const CardProduk({super.key});
+  final TransactionRepository transactionRepo;
+
+  const CardProduk({super.key, required this.transactionRepo});
 
   @override
   Widget build(BuildContext context) {
-    final List<_ChartData> chartData = [
-      _ChartData('Self Photo', 30, Colors.blue),
-      _ChartData('Self Photo', 25, Colors.orange),
-      _ChartData('Self Photo', 20, Colors.green),
-      _ChartData('Self Photo', 15, Colors.purple),
-      _ChartData('Self Photo', 10, Colors.yellow),
-    ];
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: transactionRepo.getFavoriteProducts(),
+      builder: (context, snapshot) {
+        // Tampilkan loading indicator saat data dimuat
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingState();
+        }
 
+        // Tampilkan error message jika terjadi error
+        if (snapshot.hasError) {
+          return _buildErrorState(snapshot.error.toString());
+        }
+
+        // Tampilkan empty state jika tidak ada data
+        if (snapshot.data == null || snapshot.data!.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        // Proses data untuk chart
+        final favoriteProducts =
+            snapshot.data!.map((e) => FavoriteProduct.fromMap(e)).toList();
+
+        // Siapkan warna untuk chart
+        final List<Color> colorPalette = [
+          Colors.blue,
+          Colors.orange,
+          Colors.green,
+          Colors.purple,
+          Colors.yellow,
+        ];
+
+        // Buat chart data
+        final List<_ChartData> chartData = [];
+        for (int i = 0; i < favoriteProducts.length; i++) {
+          chartData.add(
+            _ChartData(
+              favoriteProducts[i].name,
+              favoriteProducts[i].totalQty.toDouble(),
+              colorPalette[i % colorPalette.length],
+            ),
+          );
+        }
+
+        return _buildChart(chartData);
+      },
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 370,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 370,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Center(
+        child: Text(
+          'Error: $error',
+          style: const TextStyle(color: Colors.red),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 370,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          'Tidak ada transaksi hari ini',
+          style: TextStyle(color: Colors.grey),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChart(List<_ChartData> chartData) {
     return Container(
       padding: const EdgeInsets.all(16),
       height: 370,
@@ -63,9 +188,21 @@ class CardProduk extends StatelessWidget {
                         yValueMapper: (data, _) => data.value,
                         radius: '90%',
                         innerRadius: '60%',
+                        dataLabelMapper: (data, _) => '${data.value.toInt()}',
+                        dataLabelSettings: const DataLabelSettings(
+                          isVisible: false,
+                          textStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       )
                     ],
-                    tooltipBehavior: TooltipBehavior(enable: true),
+                    tooltipBehavior: TooltipBehavior(
+                      enable: true,
+                      format: 'point.x : point.y',
+                      header: 'Jumlah Terjual',
+                    ),
                   ),
                   const SizedBox(width: 24),
                   // Legend
@@ -108,12 +245,4 @@ class CardProduk extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ChartData {
-  final String label;
-  final double value;
-  final Color color;
-
-  _ChartData(this.label, this.value, this.color);
 }

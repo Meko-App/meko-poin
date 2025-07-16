@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/inventory_log_repository.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_gudang.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_pelanggan.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_penjualan.dart';
@@ -33,18 +36,30 @@ class RingkasanContent extends StatelessWidget {
                 return Column(
                   children: [
                     Row(
-                      children: const [
-                        Expanded(child: CardPelanggan()),
-                        SizedBox(width: 24),
-                        Expanded(child: CardPenjualan()),
+                      children: [
+                        Expanded(
+                            child: CardPelanggan(
+                          transactionRepo:
+                              TransactionRepository(DatabaseHelper.instance),
+                        )),
+                        const SizedBox(width: 24),
+                        const Expanded(child: CardPenjualan()),
                       ],
                     ),
                     const SizedBox(height: 24),
                     Row(
-                      children: const [
-                        Expanded(child: CardGudang()),
-                        SizedBox(width: 24),
-                        Expanded(child: CardProduk()),
+                      children: [
+                        Expanded(
+                            child: CardGudang(
+                          inventoryLogRepo:
+                              InventoryLogRepository(DatabaseHelper.instance),
+                        )),
+                        const SizedBox(width: 24),
+                        Expanded(
+                            child: CardProduk(
+                          transactionRepo:
+                              TransactionRepository(DatabaseHelper.instance),
+                        )),
                       ],
                     ),
                   ],
@@ -52,14 +67,23 @@ class RingkasanContent extends StatelessWidget {
               } else {
                 // Mobile layout (stack vertically)
                 return Column(
-                  children: const [
-                    CardPelanggan(),
-                    SizedBox(height: 16),
-                    CardPenjualan(),
-                    SizedBox(height: 16),
-                    CardGudang(),
-                    SizedBox(height: 16),
-                    CardProduk(),
+                  children: [
+                    CardPelanggan(
+                      transactionRepo:
+                          TransactionRepository(DatabaseHelper.instance),
+                    ),
+                    const SizedBox(height: 16),
+                    const CardPenjualan(),
+                    const SizedBox(height: 16),
+                    CardGudang(
+                      inventoryLogRepo:
+                          InventoryLogRepository(DatabaseHelper.instance),
+                    ),
+                    const SizedBox(height: 16),
+                    CardProduk(
+                      transactionRepo:
+                          TransactionRepository(DatabaseHelper.instance),
+                    ),
                   ],
                 );
               }

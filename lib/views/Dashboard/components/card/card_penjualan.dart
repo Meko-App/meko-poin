@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:meko_poin/models/transaction.dart';
+import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 class SalesData {
@@ -9,25 +13,76 @@ class SalesData {
   SalesData(this.time, this.sales, this.change);
 }
 
-class CardPenjualan extends StatelessWidget {
+class CardPenjualan extends StatefulWidget {
   const CardPenjualan({super.key});
 
   @override
+  State<CardPenjualan> createState() => _CardPenjualanState();
+}
+
+class _CardPenjualanState extends State<CardPenjualan> {
+  late final TransactionRepository transactionRepo;
+
+  @override
+  void initState() {
+    super.initState();
+    transactionRepo = TransactionRepository(DatabaseHelper.instance);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<SalesData> chartData = [
-      SalesData("00.00", 30000, 0),
-      SalesData("01.00", 22000, 0),
-      SalesData("02.00", 28000, 0),
-      SalesData("03.00", 18000, 0),
-      SalesData("04.00", 25000, 0),
-      SalesData("05.00", 20000, 0),
-      SalesData("06.00", 50000, 24),
-      SalesData("07.00", 45000, 0),
-      SalesData("08.00", 23000, 0),
-      SalesData("09.00", 17000, 0),
-      SalesData("10.00", 24000, 0),
-      SalesData("11.00", 20000, 0),
-    ];
+    return FutureBuilder<List<Transaction>>(
+      future: transactionRepo.getGraphTodayTransaction(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final transactions = snapshot.data ?? [];
+        return _buildChart(transactions);
+      },
+    );
+  }
+
+  Widget _buildChart(List<Transaction> transactions) {
+    // Group transactions by hour and calculate total sales for each hour
+    final Map<String, double> hourlySales = {};
+
+    for (final transaction in transactions) {
+      final hour = DateFormat('HH').format(transaction.createdAt);
+      final formattedHour = '${hour}.00';
+
+      hourlySales.update(
+        formattedHour,
+        (value) => value + transaction.finalPrice,
+        ifAbsent: () => transaction.finalPrice.toDouble(),
+      );
+    }
+
+    // Fill all 24 hours with data
+    final List<SalesData> chartData = [];
+    for (int i = 0; i < 24; i++) {
+      final hour = i.toString().padLeft(2, '0');
+      final formattedHour = '${hour}.00';
+      final currentSales = hourlySales[formattedHour] ?? 0.0;
+
+      double change = 0.0;
+      if (i > 0) {
+        final prevHour = (i - 1).toString().padLeft(2, '0');
+        final prevFormattedHour = '${prevHour}.00';
+        final prevSales = hourlySales[prevFormattedHour] ?? 0.0;
+
+        if (prevSales > 0) {
+          change = ((currentSales - prevSales) / prevSales) * 100;
+        }
+      }
+
+      chartData.add(SalesData(formattedHour, currentSales, change));
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -86,7 +141,7 @@ class CardPenjualan extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "${sales.time}, Sales",
+                          "Penjualan pada ${sales.time}",
                           style:
                               const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
@@ -96,7 +151,7 @@ class CardPenjualan extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                "Rp${sales.sales.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}",
+                                "Rp ${sales.sales.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}",
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
@@ -134,6 +189,7 @@ class CardPenjualan extends StatelessWidget {
               ),
               primaryXAxis: CategoryAxis(
                 majorGridLines: const MajorGridLines(width: 0),
+                interval: 3,
               ),
               primaryYAxis: NumericAxis(
                 labelFormat: '{value}k',
