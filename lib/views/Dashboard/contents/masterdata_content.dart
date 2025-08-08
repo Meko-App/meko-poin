@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/components/table/master_data_table/master_data_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/form/master_data_form.dart';
@@ -137,7 +138,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade900,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -146,7 +147,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Colors.grey.shade700,
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
                 ],

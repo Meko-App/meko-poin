@@ -4,6 +4,7 @@ import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class InventoryForm extends StatefulWidget {
   final VoidCallback onCancel;
@@ -43,9 +44,9 @@ class _InventoryFormState extends State<InventoryForm> {
     if (widget.initialData != null) {
       _stockController.text = widget.initialData!['stock']?.toString() ?? '';
       _notesController.text = widget.initialData!['notes'] ?? '';
-      _selectedItem = widget.initialData!['master_data_id'] ?? 0;
+      _selectedItem = widget.initialData!['master_data_id'] ?? '';
     } else {
-      _selectedItem = 0;
+      _selectedItem = null;
     }
     _masterDataRepository = MasterDataRepository(DatabaseHelper.instance);
     _inventoryRepository = InventoryRepository(DatabaseHelper.instance);
@@ -72,7 +73,7 @@ class _InventoryFormState extends State<InventoryForm> {
 
   void _saveInventory() {
     // Validasi barang
-    if (_selectedItem == 0) {
+    if (_selectedItem == null) {
       setState(() {
         _selectedError = 'Barang wajib dipilih';
       });
@@ -101,8 +102,8 @@ class _InventoryFormState extends State<InventoryForm> {
     return Container(
       padding: const EdgeInsets.all(0),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -138,10 +139,10 @@ class _InventoryFormState extends State<InventoryForm> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: CustomColors.cardColor,
               border: Border(
                 top: BorderSide(
-                  color: Colors.grey.shade200,
+                  color: CustomColors.borderCardColor,
                   width: 1.0,
                 ),
               ),
@@ -157,7 +158,7 @@ class _InventoryFormState extends State<InventoryForm> {
                     child: Text(
                       'Batal',
                       style: TextStyle(
-                        color: Color(0xFF4B5675),
+                        color: CustomColors.fontSubColor,
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
@@ -199,7 +200,7 @@ class _InventoryFormState extends State<InventoryForm> {
         fontSize: 14,
         fontFamily: 'Inter',
         fontWeight: FontWeight.w400,
-        color: Color(0xFF111B37),
+        color: Colors.white,
       ),
     );
   }
@@ -225,25 +226,19 @@ class _InventoryFormState extends State<InventoryForm> {
             : masterDataList.where(
                 (masterItem) => !_existingInventoryIds.contains(masterItem.id));
 
-        final dropdownItems = <DropdownMenuItem<int?>>[
-          const DropdownMenuItem<int?>(
-            value: 0,
-            child: Text('Pilih Barang'),
-          ),
-          ...availableItems
-              .map((item) => DropdownMenuItem<int?>(
-                    value: item.id,
-                    child: Text(
-                      item.name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF111B37),
-                      ),
+        final dropdownItems = availableItems
+            .map((item) => DropdownMenuItem<int?>(
+                  value: item.id,
+                  child: Text(
+                    item.name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white,
                     ),
-                  ))
-              .toList(),
-        ];
+                  ),
+                ))
+            .toList();
 
         // Handle initial selection
         final validSelection =
@@ -266,7 +261,7 @@ class _InventoryFormState extends State<InventoryForm> {
                     borderSide: BorderSide(
                       color: _selectedError != null
                           ? Colors.red
-                          : Colors.grey.shade300,
+                          : CustomColors.borderInputColor,
                       width: 1.0,
                     ),
                   ),
@@ -280,11 +275,20 @@ class _InventoryFormState extends State<InventoryForm> {
                     ),
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: CustomColors.inputColor,
                 ),
-                dropdownColor: Colors.white,
+                hint: const Text(
+                  'Pilih Barang',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: CustomColors.fontSubColor,
+                  ),
+                ),
+                dropdownColor: CustomColors.inputColor,
                 elevation: 2,
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    color: CustomColors.fontSubColor),
                 iconSize: 20,
                 isExpanded: true,
                 items: dropdownItems,
@@ -299,7 +303,7 @@ class _InventoryFormState extends State<InventoryForm> {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
-                  color: Color(0xFF111B37),
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -337,7 +341,7 @@ class _InventoryFormState extends State<InventoryForm> {
                     fontSize: 13,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Jumlah Stok',
@@ -345,7 +349,7 @@ class _InventoryFormState extends State<InventoryForm> {
                       fontSize: 13,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF78829D),
+                      color: CustomColors.fontSubColor,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 11, horizontal: 12),
@@ -357,7 +361,7 @@ class _InventoryFormState extends State<InventoryForm> {
                       borderSide: BorderSide(
                           color: _stockError != null
                               ? Colors.red
-                              : Colors.grey.shade300,
+                              : CustomColors.borderInputColor,
                           width: 1.0),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -372,7 +376,7 @@ class _InventoryFormState extends State<InventoryForm> {
                           width: 1.0),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: CustomColors.inputColor,
                   ),
                 ),
               ),
@@ -384,24 +388,24 @@ class _InventoryFormState extends State<InventoryForm> {
                     top: BorderSide(
                         color: _stockError != null
                             ? Colors.red
-                            : Colors.grey.shade300,
+                            : CustomColors.borderInputColor,
                         width: 1.0),
                     right: BorderSide(
                         color: _stockError != null
                             ? Colors.red
-                            : Colors.grey.shade300,
+                            : CustomColors.borderInputColor,
                         width: 1.0),
                     bottom: BorderSide(
                         color: _stockError != null
                             ? Colors.red
-                            : Colors.grey.shade300,
+                            : CustomColors.borderInputColor,
                         width: 1.0),
                   ),
                   borderRadius: BorderRadius.only(
                     topRight: Radius.circular(8),
                     bottomRight: Radius.circular(8),
                   ),
-                  color: Colors.grey.shade50,
+                  color: CustomColors.inputColor,
                 ),
                 child: Column(
                   children: [
@@ -419,14 +423,14 @@ class _InventoryFormState extends State<InventoryForm> {
                         child: Icon(
                           Icons.keyboard_arrow_up,
                           size: 18,
-                          color: Colors.grey.shade600,
+                          color: CustomColors.fontSubColor,
                         ),
                       ),
                     ),
                     // Divider
                     Container(
                       height: 1,
-                      color: Colors.grey.shade300,
+                      color: CustomColors.borderInputColor,
                     ),
                     // Down button
                     Expanded(
@@ -444,7 +448,7 @@ class _InventoryFormState extends State<InventoryForm> {
                         child: Icon(
                           Icons.keyboard_arrow_down,
                           size: 18,
-                          color: Colors.grey.shade600,
+                          color: CustomColors.fontSubColor,
                         ),
                       ),
                     ),
@@ -482,7 +486,7 @@ class _InventoryFormState extends State<InventoryForm> {
               fontSize: 13,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w400,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
             decoration: InputDecoration(
               hintText: 'Masukkan Catatan',
@@ -490,15 +494,16 @@ class _InventoryFormState extends State<InventoryForm> {
                 fontSize: 13,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF78829D),
+                color: CustomColors.fontSubColor,
               ),
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
-                    color:
-                        _notesError != null ? Colors.red : Colors.grey.shade300,
+                    color: _notesError != null
+                        ? Colors.red
+                        : CustomColors.borderInputColor,
                     width: 1.0),
               ),
               focusedBorder: OutlineInputBorder(
@@ -508,7 +513,7 @@ class _InventoryFormState extends State<InventoryForm> {
                     width: 1.0),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: CustomColors.inputColor,
             ),
           ),
         ),

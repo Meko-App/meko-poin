@@ -4,6 +4,7 @@ import 'package:meko_poin/models/transaction.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class SalesData {
   final String time;
@@ -88,9 +89,9 @@ class _CardPenjualanState extends State<CardPenjualan> {
       padding: const EdgeInsets.all(16),
       height: 367,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CustomColors.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: CustomColors.borderCardColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -109,7 +110,7 @@ class _CardPenjualanState extends State<CardPenjualan> {
                 fontSize: 16,
                 height: 1.0,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF111B37),
+                color: Colors.white,
                 fontFamily: 'Inter',
               ),
             ),
@@ -195,7 +196,8 @@ class _CardPenjualanState extends State<CardPenjualan> {
                 labelFormat: '{value}k',
                 axisLine: const AxisLine(width: 0),
                 majorTickLines: const MajorTickLines(size: 0),
-                majorGridLines: MajorGridLines(color: Colors.grey.shade200),
+                majorGridLines:
+                    MajorGridLines(color: CustomColors.borderInputColor),
               ),
               series: <ChartSeries>[
                 SplineSeries<SalesData, String>(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class CustomerTableRow extends StatelessWidget {
   final String name;
@@ -22,7 +23,7 @@ class CustomerTableRow extends StatelessWidget {
         minHeight: 55, // Tinggi minimum row
       ),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: CustomColors.borderCardColor)),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -38,7 +39,8 @@ class CustomerTableRow extends StatelessWidget {
                 side: const BorderSide(width: 0.4, color: Colors.grey),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -49,13 +51,14 @@ class CustomerTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.2,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -66,13 +69,14 @@ class CustomerTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -83,7 +87,7 @@ class CustomerTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),

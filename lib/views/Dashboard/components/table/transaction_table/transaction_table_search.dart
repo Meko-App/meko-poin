@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/report_service.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class TransactionTableSearch extends StatefulWidget {
   final List<dynamic> currentPageData;
@@ -131,7 +132,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
               fontSize: 14,
               height: 1.0,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF111B37),
+              color: Colors.white,
               fontFamily: 'Inter',
             ),
           ),
@@ -147,7 +148,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                     width: 240,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFD1D5DB)),
+                      border: Border.all(color: CustomColors.borderCardColor),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
@@ -162,7 +163,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
                             fontFamily: 'Inter',
-                            color: Colors.black,
+                            color: CustomColors.fontSubColor,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -171,7 +172,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                               ? Icons.keyboard_arrow_up
                               : Icons.keyboard_arrow_down,
                           size: 16,
-                          color: const Color(0xFFA4ABBF),
+                          color: CustomColors.fontSubColor,
                         ),
                       ],
                     ),
@@ -234,7 +235,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
-                    side: const BorderSide(color: Color(0xFFD1D5DB)),
+                    side: const BorderSide(color: Color(0xFF0BC33F)),
                   ),
                   minimumSize: const Size(108, 40),
                 ),

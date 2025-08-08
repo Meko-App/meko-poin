@@ -6,6 +6,7 @@ import 'master_data_table_header.dart';
 import 'master_data_table_row.dart';
 import 'master_data_table_pagination.dart';
 import 'master_data_table_search.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class MasterDataTable extends StatefulWidget {
   final VoidCallback onAddNew;
@@ -134,12 +135,13 @@ class _MasterDataTableState extends State<MasterDataTable> {
       return const Icon(
         Icons.unfold_more,
         size: 14,
-        color: Color(0xFF4B5675),
+        color: CustomColors.fontSubColor,
       );
     }
     return Icon(
       isAscending ? Icons.arrow_upward : Icons.arrow_downward,
       size: 14,
+      color: CustomColors.fontSubColor,
     );
   }
 
@@ -153,8 +155,8 @@ class _MasterDataTableState extends State<MasterDataTable> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

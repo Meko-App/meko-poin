@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/user_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/components/table/user_table/user_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/form/user_form.dart';
@@ -139,7 +140,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade900,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -148,7 +149,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Colors.grey.shade700,
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
                 ],

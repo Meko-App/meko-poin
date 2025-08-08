@@ -8,6 +8,7 @@ import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -725,7 +726,7 @@ class _TransactionFormState extends State<TransactionForm> {
               hintStyle: const TextStyle(
                 fontSize: 14,
                 fontFamily: 'Inter',
-                color: Color(0xFF78829D),
+                color: CustomColors.fontSubColor,
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -734,7 +735,7 @@ class _TransactionFormState extends State<TransactionForm> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
-                  color: Colors.grey.shade300,
+                  color: CustomColors.borderInputColor,
                   width: 1.0,
                 ),
               ),
@@ -746,12 +747,12 @@ class _TransactionFormState extends State<TransactionForm> {
                 ),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: CustomColors.inputColor,
               isDense: true,
             ),
             style: const TextStyle(
               fontSize: 14,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
           ),
         ),
@@ -774,8 +775,7 @@ class _TransactionFormState extends State<TransactionForm> {
             hintStyle: TextStyle(
               fontSize: 14,
               fontFamily: 'Inter',
-              color:
-                  _isNameEnabled ? const Color(0xFF78829D) : Colors.grey[400],
+              color: CustomColors.fontSubColor,
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -784,14 +784,14 @@ class _TransactionFormState extends State<TransactionForm> {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                color: Colors.grey.shade300,
+                color: CustomColors.borderInputColor,
                 width: 1.0,
               ),
             ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                color: Colors.grey.shade300,
+                color: CustomColors.borderInputColor,
                 width: 1.0,
               ),
             ),
@@ -803,12 +803,14 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
             ),
             filled: true,
-            fillColor: _isNameEnabled ? Colors.white : Colors.grey.shade100,
+            fillColor: _isNameEnabled
+                ? CustomColors.inputColor
+                : CustomColors.borderCardColor,
             isDense: true,
           ),
           style: TextStyle(
             fontSize: 14,
-            color: _isNameEnabled ? const Color(0xFF111B37) : Colors.grey[600],
+            color: _isNameEnabled ? Colors.white : CustomColors.fontSubColor,
           ),
         ),
       ],
@@ -991,7 +993,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                 fontSize: 14,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1003,14 +1005,15 @@ class _TransactionFormState extends State<TransactionForm> {
                                 hintText: 'Masukkan diskon nominal',
                                 hintStyle: const TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF78829D),
+                                  color: CustomColors.fontSubColor,
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 10),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
-                                      color: Colors.grey.shade300, width: 1.0),
+                                      color: CustomColors.borderInputColor,
+                                      width: 1.0),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -1018,12 +1021,12 @@ class _TransactionFormState extends State<TransactionForm> {
                                       color: Color(0xFF1379F0), width: 1.0),
                                 ),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: CustomColors.inputColor,
                                 isDense: true,
                               ),
                               style: const TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                               onChanged: (value) {
                                 String digitsOnly =
@@ -1081,7 +1084,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                 fontSize: 14,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1093,14 +1096,15 @@ class _TransactionFormState extends State<TransactionForm> {
                                 hintText: 'Masukkan diskon persen',
                                 hintStyle: const TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF78829D),
+                                  color: CustomColors.fontSubColor,
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 10),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
-                                      color: Colors.grey.shade300, width: 1.0),
+                                      color: CustomColors.borderInputColor,
+                                      width: 1.0),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -1108,12 +1112,12 @@ class _TransactionFormState extends State<TransactionForm> {
                                       color: Color(0xFF1379F0), width: 1.0),
                                 ),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: CustomColors.inputColor,
                                 isDense: true,
                               ),
                               style: const TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                               onChanged: (value) {
                                 setState(() {
@@ -1136,7 +1140,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                 fontSize: 16,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1147,7 +1151,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                 fontSize: 20,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -1159,7 +1163,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                 fontSize: 14,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1173,7 +1177,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                 fontSize: 14,
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF111B37),
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1194,7 +1198,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                       'Batal',
                                       style: TextStyle(
                                         fontFamily: 'Inter',
-                                        color: Color(0xFF4B5675),
+                                        color: CustomColors.fontSubColor,
                                         fontWeight: FontWeight.w500,
                                         fontSize: 12,
                                       ),
@@ -1244,10 +1248,10 @@ class _TransactionFormState extends State<TransactionForm> {
   Widget _buildSectionCard({required String title, required Widget content}) {
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: CustomColors.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade300, width: 1),
+        side: BorderSide(color: CustomColors.borderCardColor, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1262,10 +1266,10 @@ class _TransactionFormState extends State<TransactionForm> {
                 topRight: Radius.circular(8),
               ),
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
+                top: BorderSide(color: CustomColors.borderCardColor),
                 bottom: title == 'Keranjang'
                     ? BorderSide.none
-                    : BorderSide(color: Colors.grey.shade300),
+                    : BorderSide(color: CustomColors.borderCardColor),
               ),
             ),
             child: Text(
@@ -1274,7 +1278,7 @@ class _TransactionFormState extends State<TransactionForm> {
                 fontSize: 14,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF111B37),
+                color: Colors.white,
               ),
             ),
           ),
@@ -1297,7 +1301,7 @@ class _TransactionFormState extends State<TransactionForm> {
         fontSize: 14,
         fontFamily: 'Inter',
         fontWeight: FontWeight.w400,
-        color: Color(0xFF111B37),
+        color: Colors.white,
       ),
     );
   }
@@ -1317,7 +1321,7 @@ class _TransactionFormState extends State<TransactionForm> {
           fontSize: 14,
           fontFamily: 'Inter',
           fontWeight: FontWeight.w400,
-          color: Color(0xFF111B37),
+          color: Colors.white,
         ),
         decoration: InputDecoration(
           hintText: hintText,
@@ -1325,13 +1329,13 @@ class _TransactionFormState extends State<TransactionForm> {
             fontSize: 14,
             fontFamily: 'Inter',
             fontWeight: FontWeight.w400,
-            color: Color(0xFF78829D),
+            color: CustomColors.fontSubColor,
           ),
           contentPadding: const EdgeInsets.all(12),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(
-              color: Colors.grey.shade300,
+              color: CustomColors.borderInputColor,
               width: 1.0,
             ),
           ),
@@ -1343,7 +1347,7 @@ class _TransactionFormState extends State<TransactionForm> {
             ),
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: CustomColors.inputColor,
           alignLabelWithHint: isNoteField, // Better alignment for multiline
         ),
       ),
@@ -1366,24 +1370,26 @@ class _TransactionFormState extends State<TransactionForm> {
             fontSize: 13,
             fontFamily: 'Inter',
             fontWeight: FontWeight.w400,
-            color: Color(0xFF78829D),
+            color: CustomColors.fontSubColor,
           ),
           contentPadding:
               const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+            borderSide:
+                BorderSide(color: CustomColors.borderInputColor, width: 1.0),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: CustomColors.inputColor,
         ),
-        dropdownColor: Colors.white,
+        dropdownColor: CustomColors.inputColor,
         elevation: 2,
-        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+        icon: const Icon(Icons.keyboard_arrow_down,
+            color: CustomColors.fontSubColor),
         iconSize: 20,
         isExpanded: true,
         items: items.map<DropdownMenuItem<String>>((String itemValue) {
@@ -1395,7 +1401,7 @@ class _TransactionFormState extends State<TransactionForm> {
                 fontSize: 13,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF111B37),
+                color: Colors.white,
               ),
             ),
           );
@@ -1405,7 +1411,7 @@ class _TransactionFormState extends State<TransactionForm> {
           fontSize: 13,
           fontFamily: 'Inter',
           fontWeight: FontWeight.w400,
-          color: Color(0xFF111B37),
+          color: Colors.white,
         ),
       ),
     );
@@ -1423,7 +1429,7 @@ class _TransactionFormState extends State<TransactionForm> {
           fontFamily: 'Inter',
           fontSize: 14,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF78829D),
+          color: CustomColors.fontSubColor,
         ),
         overflow: TextOverflow.ellipsis,
       ),
@@ -1435,7 +1441,7 @@ class _TransactionFormState extends State<TransactionForm> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 14,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
           ),
         );
@@ -1452,22 +1458,23 @@ class _TransactionFormState extends State<TransactionForm> {
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+          borderSide:
+              BorderSide(color: CustomColors.borderInputColor, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: CustomColors.inputColor,
         isDense: true,
       ),
       style: const TextStyle(
         fontSize: 14,
-        color: Color(0xFF111B37),
+        color: Colors.white,
       ),
       icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-      dropdownColor: Colors.white,
+      dropdownColor: CustomColors.inputColor,
       borderRadius: BorderRadius.circular(8),
     );
   }
@@ -1484,7 +1491,7 @@ class _TransactionFormState extends State<TransactionForm> {
           fontSize: 14,
           fontFamily: 'Inter',
           fontWeight: FontWeight.w400,
-          color: Color(0xFF78829D),
+          color: CustomColors.fontSubColor,
           overflow: TextOverflow.ellipsis, // Tambahkan ini
         ),
       ),
@@ -1496,6 +1503,10 @@ class _TransactionFormState extends State<TransactionForm> {
                 child: Text(
                   item.name,
                   overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
                 ),
               );
             }).toList(),
@@ -1511,7 +1522,8 @@ class _TransactionFormState extends State<TransactionForm> {
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+          borderSide:
+              BorderSide(color: CustomColors.borderInputColor, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -1519,15 +1531,16 @@ class _TransactionFormState extends State<TransactionForm> {
         ),
         filled: true,
         fillColor: _filteredMasterDataItems.isEmpty
-            ? Colors.grey.shade100
-            : Colors.white,
+            ? CustomColors.borderCardColor
+            : CustomColors.inputColor,
         isDense: true,
       ),
       style: const TextStyle(
         fontSize: 14,
-        color: Color(0xFF111B37),
+        color: Colors.white,
       ),
       icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+      dropdownColor: CustomColors.inputColor,
     );
   }
 
@@ -1580,7 +1593,7 @@ class _TransactionFormState extends State<TransactionForm> {
                     fontSize: 14,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                     height: 1.0,
                   ),
                   decoration: InputDecoration(
@@ -1589,7 +1602,7 @@ class _TransactionFormState extends State<TransactionForm> {
                       fontSize: 14,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF9AA4B8),
+                      color: CustomColors.fontSubColor,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1598,14 +1611,14 @@ class _TransactionFormState extends State<TransactionForm> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Colors.grey.shade300,
+                        color: CustomColors.borderInputColor,
                         width: 1.0,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Colors.grey.shade300,
+                        color: CustomColors.borderInputColor,
                         width: 1.0,
                       ),
                     ),
@@ -1617,7 +1630,7 @@ class _TransactionFormState extends State<TransactionForm> {
                       ),
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: CustomColors.inputColor,
                     suffixIcon: SizedBox(
                       width: 24,
                       child: Column(
@@ -1644,7 +1657,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                   child: Icon(
                                     Icons.keyboard_arrow_up,
                                     size: 16,
-                                    color: Color(0xFF6B7280),
+                                    color: CustomColors.fontSubColor,
                                   ),
                                 ),
                               ),
@@ -1654,7 +1667,7 @@ class _TransactionFormState extends State<TransactionForm> {
                           Container(
                             height: 1,
                             width: 16,
-                            color: Colors.grey.shade200,
+                            color: CustomColors.borderInputColor,
                           ),
                           // Down Button
                           SizedBox(
@@ -1679,7 +1692,7 @@ class _TransactionFormState extends State<TransactionForm> {
                                   child: Icon(
                                     Icons.keyboard_arrow_down,
                                     size: 16,
-                                    color: Color(0xFF6B7280),
+                                    color: CustomColors.fontSubColor,
                                   ),
                                 ),
                               ),
@@ -1767,8 +1780,8 @@ class _TransactionFormState extends State<TransactionForm> {
   Widget _buildCartTable() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1776,10 +1789,10 @@ class _TransactionFormState extends State<TransactionForm> {
           // Table Header
           Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: CustomColors.cardColor,
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
-                bottom: BorderSide(color: Colors.grey.shade300),
+                top: BorderSide(color: CustomColors.borderCardColor),
+                bottom: BorderSide(color: CustomColors.borderCardColor),
               ),
             ),
             child: IntrinsicHeight(
@@ -1801,7 +1814,7 @@ class _TransactionFormState extends State<TransactionForm> {
               child: const Center(
                 child: Text(
                   'Keranjang kosong',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: CustomColors.fontSubColor),
                 ),
               ),
             )
@@ -1825,12 +1838,13 @@ class _TransactionFormState extends State<TransactionForm> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: _selectedCartItem?.id == item.id
-                            ? Colors.blue.shade50
+                            ? CustomColors.borderInputColor
                             : _hoveredCartItem?.id == item.id
-                                ? Colors.grey.shade100
-                                : Colors.white,
+                                ? CustomColors.borderCardColor
+                                : CustomColors.cardColor,
                         border: const Border(
-                            bottom: BorderSide(color: Color(0xFFE5E7EB))),
+                            bottom: BorderSide(
+                                color: CustomColors.borderCardColor)),
                       ),
                       child: IntrinsicHeight(
                         child: Row(
@@ -1839,17 +1853,17 @@ class _TransactionFormState extends State<TransactionForm> {
                             VerticalDivider(
                                 thickness: 1,
                                 width: 1,
-                                color: Colors.grey[300]),
+                                color: CustomColors.borderCardColor),
                             _buildTableCell(masterData.name, 3),
                             VerticalDivider(
                                 thickness: 1,
                                 width: 1,
-                                color: Colors.grey[300]),
+                                color: CustomColors.borderCardColor),
                             _buildTableCell(item.qty.toString(), 1),
                             VerticalDivider(
                                 thickness: 1,
                                 width: 1,
-                                color: Colors.grey[300]),
+                                color: CustomColors.borderCardColor),
                             _buildTableCell(_formatPrice(item.totalPrice), 2),
                           ],
                         ),
@@ -1870,7 +1884,7 @@ class _TransactionFormState extends State<TransactionForm> {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            right: BorderSide(color: Colors.grey.shade300),
+            right: BorderSide(color: CustomColors.borderCardColor),
           ),
         ),
         child: Center(
@@ -1880,7 +1894,7 @@ class _TransactionFormState extends State<TransactionForm> {
               fontSize: 13,
               height: 1.5,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF4B5675),
+              color: CustomColors.fontSubColor,
               fontFamily: 'Inter',
             ),
           ),
@@ -1900,7 +1914,7 @@ class _TransactionFormState extends State<TransactionForm> {
             fontSize: 13,
             height: 1.2,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF111B37),
+            color: Colors.white,
             fontFamily: 'Inter',
           ),
         ),

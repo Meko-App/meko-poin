@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class Header extends StatelessWidget {
   final String currentPage;
@@ -24,9 +25,9 @@ class Header extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(left: 40, right: 40, top: 20, bottom: 20),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: CustomColors.background,
         border: Border(
-          bottom: BorderSide(color: Color(0xFFF1F3F9), width: 1.0),
+          bottom: BorderSide(color: CustomColors.borderCardColor, width: 1.0),
         ),
       ),
       child: Row(
@@ -36,7 +37,7 @@ class Header extends StatelessWidget {
             children: [
               Text(
                 currentModulPage,
-                style: TextStyle(color: Color(0xFF4b5675), fontSize: 14),
+                style: TextStyle(color: Color(0xFF9A9CAE), fontSize: 14),
               ),
               const SizedBox(width: 8),
               const Icon(Icons.chevron_right,
@@ -47,7 +48,7 @@ class Header extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: currentPageFontWeight,
                   fontSize: 14,
-                  color: const Color(0xFF111B37),
+                  color: const Color(0xFFDBDCE4),
                 ),
               ),
               if (currentPage2 != null) ...[
@@ -60,7 +61,7 @@ class Header extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
-                    color: Color(0xFF111B37),
+                    color: Color(0xFFDBDCE4),
                   ),
                 ),
               ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class InventoryTableSearch extends StatelessWidget {
   final List<dynamic> currentPageData;
@@ -27,7 +28,7 @@ class InventoryTableSearch extends StatelessWidget {
               fontSize: 14,
               height: 1.0,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF111B37),
+              color: Colors.white,
               fontFamily: 'Inter',
             ),
           ),
@@ -43,7 +44,7 @@ class InventoryTableSearch extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w400,
                       fontFamily: 'Inter',
-                      color: Colors.black,
+                      color: Colors.white,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Cari Nama',
@@ -51,12 +52,12 @@ class InventoryTableSearch extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w400,
                         fontFamily: 'Inter',
-                        color: Color(0xFF78829D),
+                        color: CustomColors.fontSubColor,
                       ),
                       prefixIcon: const Icon(
                         Icons.search,
                         size: 14,
-                        color: Color(0xFFA4ABBF),
+                        color: Colors.white,
                       ),
                       prefixIconConstraints: const BoxConstraints(
                         minWidth: 30,
@@ -66,11 +67,15 @@ class InventoryTableSearch extends StatelessWidget {
                           vertical: 12, horizontal: 8),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                          color: CustomColors.borderCardColor,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                          color: CustomColors.borderCardColor,
+                        ),
                       ),
                     ),
                   ),

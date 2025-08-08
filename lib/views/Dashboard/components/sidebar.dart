@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/auth_service.dart';
 import 'package:meko_poin/views/auth/login_page.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class Sidebar extends StatefulWidget {
   final Function(String) onMenuSelected;
@@ -50,9 +51,9 @@ class _SidebarState extends State<Sidebar> {
       height: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 25),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CustomColors.background,
         border: Border(
-          right: BorderSide(color: Colors.grey.shade200, width: 1.0),
+          right: BorderSide(color: CustomColors.borderCardColor, width: 1.0),
         ),
       ),
       child: SingleChildScrollView(
@@ -65,7 +66,7 @@ class _SidebarState extends State<Sidebar> {
               child: Row(
                 children: [
                   Image.asset(
-                    'assets/logo.png',
+                    'assets/logo-photorism.png',
                     width: 204,
                     height: 37.36,
                   ),
@@ -114,16 +115,16 @@ class _SidebarState extends State<Sidebar> {
         trailing: Icon(
           isExpanded ? Icons.remove : Icons.add,
           size: 16,
-          color: Colors.grey.shade400,
+          color: Colors.white,
         ),
         title: Row(
           children: [
-            Icon(icon, size: 22, color: Colors.grey.shade400),
+            Icon(icon, size: 22, color: Colors.white),
             const SizedBox(width: 10),
             Text(
               title,
               style: TextStyle(
-                color: Colors.grey.shade800,
+                color: Colors.white,
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
               ),
@@ -175,9 +176,9 @@ class SidebarMenuItem extends StatelessWidget {
       curve: Curves.easeInOut,
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
       decoration: BoxDecoration(
-        color: active
-            ? const Color(0xFFF9F9F9)
-            : const Color.fromARGB(0, 255, 255, 255),
+        // color: active
+        //     ? const Color(0xFFFFFFFF)
+        //     : const Color.fromARGB(0, 255, 255, 255),
         borderRadius: BorderRadius.circular(8),
       ),
       child: InkWell(
@@ -196,17 +197,17 @@ class SidebarMenuItem extends StatelessWidget {
                         Container(
                           width: 1.5,
                           height: 16,
-                          color: Colors.grey.shade200,
+                          color: Colors.grey.shade800,
                         ),
                         Container(
                           width: 1.5,
                           height: 16,
-                          color: Colors.grey.shade200,
+                          color: Colors.grey.shade800,
                         ),
                         Container(
                           width: 1.5,
                           height: 16,
-                          color: Colors.grey.shade200,
+                          color: Colors.grey.shade800,
                         )
                       ],
                     ),
@@ -216,8 +217,7 @@ class SidebarMenuItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
-                          color:
-                              active ? Color(0xFF1379F0) : Colors.grey.shade800,
+                          color: active ? Color(0xFF1379F0) : Colors.white,
                         ),
                       ),
                     ),

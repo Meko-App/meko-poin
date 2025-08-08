@@ -16,6 +16,7 @@ import 'package:meko_poin/views/Dashboard/contents/transaksi_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pengguna_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/database_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class DashboardPage extends StatefulWidget {
   final User user;
@@ -181,15 +182,15 @@ class _DashboardPageState extends State<DashboardPage> {
               child: IconButton(
                 icon: const Icon(Icons.keyboard_tab),
                 onPressed: _toggleSidebar,
-                color: Colors.grey.shade500,
+                color: Colors.white,
                 iconSize: 18,
                 style: ButtonStyle(
                     backgroundColor:
-                        WidgetStateProperty.all(const Color(0xFFFFFFFF)),
+                        WidgetStateProperty.all(CustomColors.inputColor),
                     shape: WidgetStateProperty.all(
                       RoundedRectangleBorder(
                         side: BorderSide(
-                          color: Colors.grey.shade200,
+                          color: CustomColors.borderInputColor,
                           width: 1.0,
                           style: BorderStyle.solid,
                         ),
@@ -202,14 +203,14 @@ class _DashboardPageState extends State<DashboardPage> {
               icon: const Icon(Icons.keyboard_tab),
               onPressed: _toggleSidebar,
               iconSize: 18,
-              color: Colors.grey.shade500,
+              color: Colors.white,
               style: ButtonStyle(
                   backgroundColor:
-                      WidgetStateProperty.all(const Color(0xFFFFFFFF)),
+                      WidgetStateProperty.all(CustomColors.inputColor),
                   shape: WidgetStateProperty.all(
                     RoundedRectangleBorder(
                       side: BorderSide(
-                        color: Colors.grey.shade200,
+                        color: CustomColors.borderInputColor,
                         width: 1.0,
                         style: BorderStyle.solid,
                       ),
@@ -254,7 +255,7 @@ class DashboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: CustomColors.background,
       padding: const EdgeInsets.only(left: 40, right: 40, top: 20, bottom: 20),
       width: double.infinity,
       child: _buildContentForMenu(),

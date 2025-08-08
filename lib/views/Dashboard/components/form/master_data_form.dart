@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/utils/validators.dart';
 
 class MasterDataForm extends StatefulWidget {
@@ -37,9 +38,9 @@ class _MasterDataFormState extends State<MasterDataForm> {
       } else {
         _priceController.text = '';
       }
-      _selectedCategory = widget.initialData!['category'] ?? 'Pilih Kategori';
+      _selectedCategory = widget.initialData!['category'] ?? '';
     } else {
-      _selectedCategory = 'Pilih Kategori';
+      _selectedCategory = null;
     }
   }
 
@@ -58,7 +59,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
     });
 
     // Validasi kategori
-    if (_selectedCategory == 'Pilih Kategori') {
+    if (_selectedCategory == null) {
       setState(() {
         _selectedError = 'Category wajib diisi';
       });
@@ -72,9 +73,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
       _priceError = priceError;
     });
 
-    if (nameError != null ||
-        priceError != null ||
-        _selectedCategory == 'Pilih Kategori') {
+    if (nameError != null || priceError != null || _selectedCategory == null) {
       return;
     }
 
@@ -94,8 +93,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
     return Container(
       padding: const EdgeInsets.all(0),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -132,10 +131,10 @@ class _MasterDataFormState extends State<MasterDataForm> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: CustomColors.cardColor,
               border: Border(
                 top: BorderSide(
-                  color: Colors.grey.shade200,
+                  color: CustomColors.borderCardColor,
                   width: 1.0,
                 ),
               ),
@@ -151,7 +150,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     child: Text(
                       'Batal',
                       style: TextStyle(
-                        color: Color(0xFF4B5675),
+                        color: CustomColors.fontSubColor,
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
@@ -193,7 +192,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
         fontSize: 14,
         fontFamily: 'Inter',
         fontWeight: FontWeight.w400,
-        color: Color(0xFF111B37),
+        color: Colors.white,
       ),
     );
   }
@@ -213,7 +212,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
               fontSize: 13,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w400,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
             decoration: InputDecoration(
               hintText: hintText,
@@ -221,15 +220,16 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 fontSize: 13,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF78829D),
+                color: CustomColors.fontSubColor,
               ),
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
-                    color:
-                        errorText != null ? Colors.red : Colors.grey.shade300,
+                    color: errorText != null
+                        ? Colors.red
+                        : CustomColors.borderInputColor,
                     width: 1.0),
               ),
               focusedBorder: OutlineInputBorder(
@@ -239,7 +239,9 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     width: 1.0),
               ),
               filled: true,
-              fillColor: enabled ? Colors.white : Colors.grey.shade100,
+              fillColor: enabled
+                  ? CustomColors.inputColor
+                  : CustomColors.borderInputColor,
             ),
           ),
         ),
@@ -274,7 +276,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 borderSide: BorderSide(
                     color: _selectedError != null
                         ? Colors.red
-                        : Colors.grey.shade300,
+                        : CustomColors.borderInputColor,
                     width: 1.0),
               ),
               focusedBorder: OutlineInputBorder(
@@ -285,20 +287,26 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     width: 1.0),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: CustomColors.inputColor,
             ),
-            dropdownColor: Colors.white,
+            hint: const Text(
+              'Pilih kategori',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: CustomColors.fontSubColor,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            dropdownColor: CustomColors.inputColor,
             elevation: 2,
-            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+            icon: const Icon(Icons.keyboard_arrow_down,
+                color: CustomColors.fontSubColor),
             iconSize: 20,
             isExpanded: true,
-            items: <String>[
-              'Pilih Kategori',
-              'Product',
-              'Paper',
-              'Packaging',
-              'Additional'
-            ].map<DropdownMenuItem<String>>((String value) {
+            items: <String>['Product', 'Paper', 'Packaging', 'Additional']
+                .map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Text(
@@ -306,7 +314,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                   ),
                 ),
               );
@@ -319,7 +327,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
           ),
         ),
@@ -347,10 +355,12 @@ class _MasterDataFormState extends State<MasterDataForm> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: _priceError != null ? Colors.red : Colors.grey.shade300,
+              color: _priceError != null
+                  ? Colors.red
+                  : CustomColors.borderInputColor,
               width: 1.0,
             ),
-            color: Colors.white,
+            color: CustomColors.inputColor,
           ),
           child: Row(
             children: [
@@ -358,7 +368,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.center,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFE3F2FD),
+                  color: Color(0xFF0A1726),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(7),
                     bottomLeft: Radius.circular(7),
@@ -382,7 +392,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     fontSize: 13,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                   ),
                   textAlignVertical: TextAlignVertical.top,
                   decoration: const InputDecoration(
@@ -391,7 +401,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                       fontSize: 13,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF78829D),
+                      color: CustomColors.fontSubColor,
                     ),
                     contentPadding: EdgeInsets.only(left: 12),
                     isDense: true,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class InventoryTableRow extends StatelessWidget {
   final String name;
@@ -27,7 +28,10 @@ class InventoryTableRow extends StatelessWidget {
         minHeight: 55,
       ),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(
+            bottom: BorderSide(
+          color: CustomColors.borderCardColor,
+        )),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -43,7 +47,8 @@ class InventoryTableRow extends StatelessWidget {
                 side: const BorderSide(width: 0.4, color: Colors.grey),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -54,13 +59,14 @@ class InventoryTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.2,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -71,13 +77,14 @@ class InventoryTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -88,13 +95,14 @@ class InventoryTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -105,13 +113,14 @@ class InventoryTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             SizedBox(
               width: 60,
               child: Center(

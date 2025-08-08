@@ -8,6 +8,7 @@ import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
+import '../../utils/custom_colors.dart';
 import '../Dashboard/dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -83,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color(0xFFF7F9FC),
+        backgroundColor: CustomColors.cardColor,
         body: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
@@ -98,9 +99,9 @@ class _LoginPageState extends State<LoginPage> {
                 width: 500,
                 padding: const EdgeInsets.all(58.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: CustomColors.cardColor,
                   borderRadius: BorderRadius.circular(16.0),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  border: Border.all(color: CustomColors.borderCardColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -121,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
                             fontFamily: 'Inter',
                             fontSize: 30,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -132,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
                           fontFamily: 'Inter',
                           fontSize: 18,
                           fontWeight: FontWeight.w400,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -142,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
                           fontFamily: 'Inter',
                           fontSize: 16,
                           fontWeight: FontWeight.w400,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                         decoration: InputDecoration(
                           hintText: 'email@email.com',
@@ -153,16 +154,18 @@ class _LoginPageState extends State<LoginPage> {
                             fontWeight: FontWeight.normal,
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF9FAFB),
+                          fillColor: CustomColors.inputColor,
                           border: const OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.all(Radius.circular(8.0)),
-                            borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: BorderSide(
+                                color: CustomColors.borderInputColor),
                           ),
                           enabledBorder: const OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.all(Radius.circular(8.0)),
-                            borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: BorderSide(
+                                color: CustomColors.borderInputColor),
                           ),
                           focusedBorder: const OutlineInputBorder(
                               borderRadius:
@@ -185,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 18,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -196,7 +199,7 @@ class _LoginPageState extends State<LoginPage> {
                           fontFamily: 'Inter',
                           fontSize: 16,
                           fontWeight: FontWeight.w400,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Enter Password',
@@ -207,16 +210,18 @@ class _LoginPageState extends State<LoginPage> {
                             fontWeight: FontWeight.normal,
                           ),
                           filled: true,
-                          fillColor: Color(0xFFF9FAFB),
+                          fillColor: CustomColors.inputColor,
                           border: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.all(Radius.circular(8.0)),
-                            borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: BorderSide(
+                                color: CustomColors.borderInputColor),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.all(Radius.circular(8.0)),
-                            borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide: BorderSide(
+                                color: CustomColors.borderInputColor),
                           ),
                           focusedBorder: OutlineInputBorder(
                               borderRadius:

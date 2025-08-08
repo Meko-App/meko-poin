@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/utils/validators.dart';
 
 class UserForm extends StatefulWidget {
@@ -114,8 +115,8 @@ class _UserFormState extends State<UserForm> {
     return Container(
       padding: const EdgeInsets.all(0),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -165,10 +166,10 @@ class _UserFormState extends State<UserForm> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: CustomColors.cardColor,
               border: Border(
                 top: BorderSide(
-                  color: Colors.grey.shade200,
+                  color: CustomColors.borderCardColor,
                   width: 1.0,
                 ),
               ),
@@ -184,7 +185,7 @@ class _UserFormState extends State<UserForm> {
                     child: Text(
                       'Batal',
                       style: TextStyle(
-                        color: Color(0xFF4B5675),
+                        color: CustomColors.fontSubColor,
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
@@ -226,7 +227,7 @@ class _UserFormState extends State<UserForm> {
         fontSize: 14,
         fontFamily: 'Inter',
         fontWeight: FontWeight.w400,
-        color: Color(0xFF111B37),
+        color: Colors.white,
       ),
     );
   }
@@ -246,7 +247,7 @@ class _UserFormState extends State<UserForm> {
               fontSize: 13,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w400,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
             decoration: InputDecoration(
               hintText: hintText,
@@ -254,15 +255,16 @@ class _UserFormState extends State<UserForm> {
                 fontSize: 13,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF78829D),
+                color: CustomColors.fontSubColor,
               ),
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
-                    color:
-                        errorText != null ? Colors.red : Colors.grey.shade300,
+                    color: errorText != null
+                        ? Colors.red
+                        : CustomColors.borderInputColor,
                     width: 1.0),
               ),
               focusedBorder: OutlineInputBorder(
@@ -272,7 +274,9 @@ class _UserFormState extends State<UserForm> {
                     width: 1.0),
               ),
               filled: true,
-              fillColor: enabled ? Colors.white : Colors.grey.shade100,
+              fillColor: enabled
+                  ? CustomColors.inputColor
+                  : CustomColors.borderInputColor,
             ),
           ),
         ),
@@ -301,18 +305,20 @@ class _UserFormState extends State<UserForm> {
               const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+            borderSide:
+                BorderSide(color: CustomColors.borderInputColor, width: 1.0),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: CustomColors.inputColor,
         ),
-        dropdownColor: Colors.white,
+        dropdownColor: CustomColors.inputColor,
         elevation: 2,
-        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+        icon: const Icon(Icons.keyboard_arrow_down,
+            color: CustomColors.fontSubColor),
         iconSize: 20,
         isExpanded: true,
         items: <String>['Operator', 'Admin']
@@ -324,7 +330,7 @@ class _UserFormState extends State<UserForm> {
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF111B37),
+                color: Colors.white,
               ),
             ),
           );
@@ -337,7 +343,7 @@ class _UserFormState extends State<UserForm> {
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF111B37),
+          color: Colors.white,
         ),
       ),
     );

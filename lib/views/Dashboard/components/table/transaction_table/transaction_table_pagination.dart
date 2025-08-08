@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class TransactionTablePagination extends StatelessWidget {
   final int currentPage;
@@ -36,7 +37,7 @@ class TransactionTablePagination extends StatelessWidget {
                 'Tampil',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF4B5675),
+                  color: CustomColors.fontSubColor,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w400,
                 ),
@@ -46,8 +47,9 @@ class TransactionTablePagination extends StatelessWidget {
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: const Color(0xFFD1D5DB), width: 1),
+                  color: CustomColors.inputColor,
+                  border: Border.all(
+                      color: CustomColors.borderInputColor, width: 1),
                   borderRadius: BorderRadius.circular(6),
                   boxShadow: [
                     BoxShadow(
@@ -62,13 +64,13 @@ class TransactionTablePagination extends StatelessWidget {
                     value: itemsPerPage,
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF4B5675),
+                      color: Colors.white,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w500,
                     ),
                     icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 16, color: Color(0xFF4B5675)),
-                    dropdownColor: Colors.white,
+                        size: 16, color: CustomColors.fontSubColor),
+                    dropdownColor: CustomColors.inputColor,
                     borderRadius: BorderRadius.circular(8),
                     elevation: 4,
                     onChanged: (value) {
@@ -82,9 +84,7 @@ class TransactionTablePagination extends StatelessWidget {
                           child: Text(
                             '$value',
                             style: TextStyle(
-                              color: itemsPerPage == value
-                                  ? const Color(0xFF4B5675)
-                                  : const Color(0xFF6B7280),
+                              color: Colors.white,
                               fontWeight: itemsPerPage == value
                                   ? FontWeight.w600
                                   : FontWeight.w400,
@@ -101,7 +101,7 @@ class TransactionTablePagination extends StatelessWidget {
                 'per halaman',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF4B5675),
+                  color: CustomColors.fontSubColor,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w400,
                 ),
@@ -114,7 +114,7 @@ class TransactionTablePagination extends StatelessWidget {
                 '$startItem-$endItem dari $totalItems',
                 style: const TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF4B5675),
+                  color: CustomColors.fontSubColor,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.w400,
                 ),
@@ -126,9 +126,12 @@ class TransactionTablePagination extends StatelessWidget {
                     : null,
                 icon: Transform.rotate(
                   angle: 3.1416,
-                  child: const Icon(Icons.arrow_right_alt, size: 18),
+                  child: Icon(Icons.arrow_right_alt,
+                      size: 18,
+                      color: currentPage > 1
+                          ? Colors.white
+                          : CustomColors.fontSubColor),
                 ),
-                color: currentPage > 1 ? Colors.black : Colors.grey.shade400,
               ),
               ...List.generate(totalPages, (index) {
                 final page = index + 1;
@@ -141,18 +144,20 @@ class TransactionTablePagination extends StatelessWidget {
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? const Color(0xFFE6E8F0)
+                          ? CustomColors.borderCardColor
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '$page',
                       style: TextStyle(
-                        fontWeight:
-                            isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 14,
-                        fontFamily: 'Inter',
-                      ),
+                          fontWeight:
+                              isActive ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 14,
+                          fontFamily: 'Inter',
+                          color: isActive
+                              ? Colors.white
+                              : CustomColors.fontSubColor),
                     ),
                   ),
                 );
@@ -161,10 +166,11 @@ class TransactionTablePagination extends StatelessWidget {
                 onPressed: currentPage < totalPages
                     ? () => onPageChanged(currentPage + 1)
                     : null,
-                icon: const Icon(Icons.arrow_right_alt, size: 18),
-                color: currentPage < totalPages
-                    ? Colors.black
-                    : Colors.grey.shade400,
+                icon: Icon(Icons.arrow_right_alt,
+                    size: 18,
+                    color: currentPage < totalPages
+                        ? Colors.white
+                        : CustomColors.fontSubColor),
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/table/customer_table/customer_table.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class PelangganContent extends StatefulWidget {
   final CustomerRepository customerRepository;
@@ -39,7 +40,7 @@ class _PenggunaContentState extends State<PelangganContent> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade900,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -48,7 +49,7 @@ class _PenggunaContentState extends State<PelangganContent> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Colors.grey.shade700,
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
                 ],

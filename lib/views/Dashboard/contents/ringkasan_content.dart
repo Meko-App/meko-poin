@@ -21,13 +21,13 @@ class RingkasanContent extends StatelessWidget {
               style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade900)),
+                  color: Colors.white)),
           const SizedBox(height: 4),
           Text("Data ringkasan berdasarkan hari ini",
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: Colors.grey.shade700)),
+                  color: Color(0xFF9A9CAE))),
           const SizedBox(height: 24),
           LayoutBuilder(
             builder: (context, constraints) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
 import 'package:meko_poin/services/user_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'user_table_header.dart';
 import 'user_table_row.dart';
 import 'user_table_pagination.dart';
@@ -129,12 +130,13 @@ class _UserTableState extends State<UserTable> {
       return const Icon(
         Icons.unfold_more,
         size: 14,
-        color: Color(0xFF4B5675),
+        color: CustomColors.fontSubColor,
       );
     }
     return Icon(
       isAscending ? Icons.arrow_upward : Icons.arrow_downward,
       size: 14,
+      color: CustomColors.fontSubColor,
     );
   }
 
@@ -159,8 +161,8 @@ class _UserTableState extends State<UserTable> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

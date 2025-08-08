@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meko_poin/models/additional/log_inventory_with_master_data.dart';
 // import 'package:meko_poin/models/inventory_log.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class CardGudang extends StatefulWidget {
   final InventoryLogRepository inventoryLogRepo;
@@ -95,12 +96,13 @@ class _CardGudangState extends State<CardGudang> {
       return const Icon(
         Icons.unfold_more,
         size: 14,
-        color: Color(0xFF4B5675),
+        color: CustomColors.fontSubColor,
       );
     }
     return Icon(
       isAscending ? Icons.arrow_upward : Icons.arrow_downward,
       size: 14,
+      color: CustomColors.fontSubColor,
     );
   }
 
@@ -124,8 +126,8 @@ class _CardGudangState extends State<CardGudang> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       constraints: BoxConstraints(
@@ -140,7 +142,7 @@ class _CardGudangState extends State<CardGudang> {
               fontSize: 16,
               height: 1.0,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF111B37),
+              color: Colors.white,
               fontFamily: 'Inter',
             ),
           ),
@@ -149,10 +151,10 @@ class _CardGudangState extends State<CardGudang> {
           // Table Header
           Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: CustomColors.cardColor,
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
-                bottom: BorderSide(color: Colors.grey.shade300),
+                top: BorderSide(color: CustomColors.borderCardColor),
+                bottom: BorderSide(color: CustomColors.borderCardColor),
               ),
             ),
             child: IntrinsicHeight(
@@ -167,7 +169,8 @@ class _CardGudangState extends State<CardGudang> {
                             horizontal: 18, vertical: 12),
                         decoration: BoxDecoration(
                           border: Border(
-                              right: BorderSide(color: Colors.grey.shade300)),
+                              right: BorderSide(
+                                  color: CustomColors.borderCardColor)),
                         ),
                         child: Center(
                           child: Row(
@@ -178,7 +181,7 @@ class _CardGudangState extends State<CardGudang> {
                                     fontSize: 13,
                                     height: 1.5,
                                     fontWeight: FontWeight.w400,
-                                    color: Color(0xFF4B5675),
+                                    color: CustomColors.fontSubColor,
                                     fontFamily: 'Inter',
                                   )),
                               const SizedBox(width: 4),
@@ -199,7 +202,8 @@ class _CardGudangState extends State<CardGudang> {
                             horizontal: 18, vertical: 12),
                         decoration: BoxDecoration(
                           border: Border(
-                              right: BorderSide(color: Colors.grey.shade300)),
+                              right: BorderSide(
+                                  color: CustomColors.borderCardColor)),
                         ),
                         child: Center(
                           child: Row(
@@ -211,7 +215,7 @@ class _CardGudangState extends State<CardGudang> {
                                   fontSize: 13,
                                   height: 1.5,
                                   fontWeight: FontWeight.w400,
-                                  color: Color(0xFF4B5675),
+                                  color: CustomColors.fontSubColor,
                                   fontFamily: 'Inter',
                                 ),
                               ),
@@ -241,7 +245,7 @@ class _CardGudangState extends State<CardGudang> {
                                   fontSize: 13,
                                   height: 1.5,
                                   fontWeight: FontWeight.w400,
-                                  color: Color(0xFF4B5675),
+                                  color: CustomColors.fontSubColor,
                                   fontFamily: 'Inter',
                                 ),
                               ),
@@ -266,7 +270,7 @@ class _CardGudangState extends State<CardGudang> {
                   'Tidak ada data update stok hari ini',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey,
+                    color: CustomColors.fontSubColor,
                   ),
                 ),
               ),
@@ -274,8 +278,9 @@ class _CardGudangState extends State<CardGudang> {
           else
             ...currentPageData.map((log) => Container(
                   decoration: const BoxDecoration(
-                    border:
-                        Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+                    border: Border(
+                        bottom:
+                            BorderSide(color: CustomColors.borderCardColor)),
                   ),
                   child: IntrinsicHeight(
                     child: Row(
@@ -291,14 +296,16 @@ class _CardGudangState extends State<CardGudang> {
                                 fontSize: 14,
                                 height: 1.1,
                                 fontWeight: FontWeight.w400,
-                                color: Color(0xFF27314B),
+                                color: Colors.white,
                                 fontFamily: 'Inter',
                               ),
                             ),
                           ),
                         ),
                         VerticalDivider(
-                            thickness: 1, width: 1, color: Colors.grey[300]),
+                            thickness: 1,
+                            width: 1,
+                            color: CustomColors.borderCardColor),
 
                         // Kolom Deskripsi
                         Expanded(
@@ -311,14 +318,16 @@ class _CardGudangState extends State<CardGudang> {
                                 fontSize: 14,
                                 height: 1.1,
                                 fontWeight: FontWeight.w400,
-                                color: Color(0xFF27314B),
+                                color: Colors.white,
                                 fontFamily: 'Inter',
                               ),
                             ),
                           ),
                         ),
                         VerticalDivider(
-                            thickness: 1, width: 1, color: Colors.grey[300]),
+                            thickness: 1,
+                            width: 1,
+                            color: CustomColors.borderCardColor),
 
                         // Kolom Perubahan
                         Expanded(
@@ -328,10 +337,10 @@ class _CardGudangState extends State<CardGudang> {
                             child: Row(
                               children: [
                                 Icon(
-                                  log.inventoryLog.type == 'increase'
+                                  log.inventoryLog.type == 'increment'
                                       ? Icons.arrow_upward
                                       : Icons.arrow_downward,
-                                  color: log.inventoryLog.type == 'increase'
+                                  color: log.inventoryLog.type == 'increment'
                                       ? Colors.green
                                       : Colors.red,
                                   size: 16,
@@ -343,7 +352,7 @@ class _CardGudangState extends State<CardGudang> {
                                       height: 1.1,
                                       fontWeight: FontWeight.w400,
                                       fontFamily: 'Inter',
-                                      color: Color(0xFF27314B),
+                                      color: Colors.white,
                                     )),
                               ],
                             ),
@@ -366,7 +375,7 @@ class _CardGudangState extends State<CardGudang> {
                     style: TextStyle(
                         fontSize: 13,
                         height: 14 / 13,
-                        color: Color(0xFF4B5675),
+                        color: CustomColors.fontSubColor,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w400),
                   ),
@@ -379,14 +388,12 @@ class _CardGudangState extends State<CardGudang> {
                             : null,
                         icon: Transform.rotate(
                           angle: 3.1416,
-                          child: const Icon(
-                            Icons.arrow_right_alt,
-                            size: 18,
-                          ),
+                          child: Icon(Icons.arrow_right_alt,
+                              size: 18,
+                              color: currentPage > 1
+                                  ? Colors.white
+                                  : CustomColors.fontSubColor),
                         ),
-                        color: currentPage > 1
-                            ? Colors.black
-                            : Colors.grey.shade400,
                       ),
                       ...List.generate(totalPages, (index) {
                         final page = index + 1;
@@ -401,7 +408,7 @@ class _CardGudangState extends State<CardGudang> {
                                   horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? Color(0xFFE6E8F0)
+                                    ? CustomColors.borderCardColor
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(6),
                               ),
@@ -413,6 +420,9 @@ class _CardGudangState extends State<CardGudang> {
                                       : FontWeight.normal,
                                   fontSize: 14,
                                   fontFamily: 'Inter',
+                                  color: isActive
+                                      ? Colors.white
+                                      : CustomColors.fontSubColor,
                                 ),
                               ),
                             ),
@@ -423,13 +433,11 @@ class _CardGudangState extends State<CardGudang> {
                         onPressed: currentPage < totalPages
                             ? () => setState(() => currentPage++)
                             : null,
-                        icon: const Icon(
-                          Icons.arrow_right_alt,
-                          size: 18,
-                        ),
-                        color: currentPage < totalPages
-                            ? Colors.black
-                            : Colors.grey.shade400,
+                        icon: Icon(Icons.arrow_right_alt,
+                            size: 18,
+                            color: currentPage < totalPages
+                                ? Colors.white
+                                : CustomColors.fontSubColor),
                       ),
                     ],
                   ),

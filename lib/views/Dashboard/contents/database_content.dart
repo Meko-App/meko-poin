@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class DatabaseContent extends StatelessWidget {
   const DatabaseContent({super.key});
@@ -23,7 +24,7 @@ class DatabaseContent extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade900,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -32,7 +33,7 @@ class DatabaseContent extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Colors.grey.shade700,
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
                 ],
@@ -58,7 +59,7 @@ class DatabaseContent extends StatelessWidget {
                                 .restoreDatabase(context);
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Color(0xFF4B5675),
+                            foregroundColor: Colors.white,
                             side: BorderSide(color: Colors.grey[300]!),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
@@ -72,7 +73,7 @@ class DatabaseContent extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.cloud_sync,
-                                  color: Color(0xFF4B5675), size: 18),
+                                  color: Colors.white, size: 18),
                               const SizedBox(width: 8),
                               const Text(
                                 'Pulihkan',

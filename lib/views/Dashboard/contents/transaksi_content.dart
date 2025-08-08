@@ -4,6 +4,7 @@ import 'package:meko_poin/views/Dashboard/components/detail/transaction_detail.d
 import 'package:meko_poin/views/Dashboard/components/form/transaction_form.dart';
 import 'package:meko_poin/views/Dashboard/components/table/transaction_table/transaction_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class TransaksiContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
@@ -99,7 +100,7 @@ class _TransaksiContentState extends State<TransaksiContent> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade900,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -112,7 +113,7 @@ class _TransaksiContentState extends State<TransaksiContent> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Colors.grey.shade700,
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
                 ],

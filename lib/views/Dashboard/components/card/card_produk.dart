@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meko_poin/models/additional/favorite_product.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class _ChartData {
   final String label;
@@ -118,34 +119,9 @@ class CardProduk extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       height: 370,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CustomColors.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: const Center(
-        child: Text(
-          'Tidak ada transaksi hari ini',
-          style: TextStyle(color: Colors.grey),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChart(List<_ChartData> chartData) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      height: 370,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: CustomColors.borderCardColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -163,7 +139,51 @@ class CardProduk extends StatelessWidget {
                 fontSize: 16,
                 height: 1.0,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF111B37),
+                color: Colors.white,
+                fontFamily: 'Inter',
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Divider(),
+          const SizedBox(height: 10),
+          Center(
+            child: Text(
+              'Tidak ada transaksi hari ini',
+              style: TextStyle(color: CustomColors.fontSubColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChart(List<_ChartData> chartData) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 370,
+      decoration: BoxDecoration(
+        color: CustomColors.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: CustomColors.borderCardColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          const Center(
+            child: Text(
+              'Produk Terfavorit',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.0,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
                 fontFamily: 'Inter',
               ),
             ),
@@ -229,7 +249,7 @@ class CardProduk extends StatelessWidget {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
                                 fontFamily: 'Inter',
-                                color: Colors.black87,
+                                color: Colors.white,
                               ),
                             ),
                           ],
