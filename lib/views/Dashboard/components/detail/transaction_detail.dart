@@ -4,6 +4,7 @@ import 'package:meko_poin/models/additional/transaction_with_customer_user.dart'
 import 'package:meko_poin/models/transaction_item.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
 
 class TransactionDetail extends StatelessWidget {
   final int transactionId;
@@ -21,6 +22,69 @@ class TransactionDetail extends StatelessWidget {
     final formatter =
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     return formatter.format(price);
+  }
+
+  void _showPrintOptions(
+      BuildContext context,
+      TransactionWithCustomerUser transactionData,
+      List<TransactionItem> items) async {
+    // Konversi data ke format yang sesuai untuk receipt service
+    final transaction = transactionData.transaction;
+
+    final masterDataItems = await Future.wait(
+      items.map(
+          (item) => transactionRepository.getItemDetails(item.masterDataId)),
+    );
+
+    final formattedData = {
+      'name': transactionData.customerName,
+      'phone': transactionData.customerPhone,
+      'date': DateFormat('d MMM y, HH:mm:ss').format(transaction.createdAt),
+      'invoice': '#${transaction.id}',
+      'discount_nominal': transaction.discountPrice ?? 0,
+      'discount_percent': 0, // Sesuaikan jika ada diskon persen
+      'discount_price': transaction.discountPrice ?? 0,
+      'total_price': transaction.finalPrice + (transaction.discountPrice ?? 0),
+      'final_price': transaction.finalPrice,
+      'payment_method': transaction.paymentMethod,
+      'note': transaction.notes,
+      'cart_items': items.map((item) {
+        final masterData = masterDataItems.firstWhere(
+          (m) => m['id'] == item.masterDataId,
+          orElse: () => {
+            'name': 'Unknown Item',
+            'price': item.totalPrice ~/ item.qty,
+          },
+        );
+        return {
+          'id': item.id,
+          'master_data_id': item.masterDataId,
+          'name': masterData['name'],
+          'qty': item.qty,
+          'price': masterData['price'],
+          'total_price': item.totalPrice,
+        };
+      }).toList(),
+    };
+
+    print(formattedData);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: _PrintOptionsDialog(
+            transactionData: formattedData,
+            customerPhone: transactionData.customerPhone,
+            onClose: () => Navigator.of(context).pop(),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -263,8 +327,11 @@ class TransactionDetail extends StatelessWidget {
                                                   10), // Add spacing between buttons
                                           ElevatedButton(
                                             onPressed: () {
-                                              // Add your print functionality here
-                                              // _printTransaction(transaction);
+                                              _showPrintOptions(
+                                                context,
+                                                snapshot.data!,
+                                                itemsSnapshot.data!,
+                                              );
                                             },
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors
@@ -475,7 +542,7 @@ class TransactionDetail extends StatelessWidget {
     );
   }
 
-// Helper methods for table cells
+  // Helper methods for table cells
   Widget _buildTableHeaderCell(String text, int flex) {
     return Expanded(
       flex: flex,
@@ -516,6 +583,167 @@ class TransactionDetail extends StatelessWidget {
             color: Colors.white,
             fontFamily: 'Inter',
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrintOptionsDialog extends StatelessWidget {
+  final Map<String, dynamic> transactionData;
+  final String customerPhone;
+  final VoidCallback onClose;
+
+  const _PrintOptionsDialog({
+    required this.transactionData,
+    required this.customerPhone,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1.0),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Cetak Struk',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111B37)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close,
+                      size: 20, color: Color(0xFF78829D)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: onClose,
+                ),
+              ],
+            ),
+          ),
+
+          // Content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Column(
+              children: [
+                const Text(
+                  'Pilih opsi struk:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _buildReceiptOptionButton(
+                      icon: Icons.print,
+                      label: 'Cetak',
+                      onTap: () {
+                        ReceiptService.printReceipt(transactionData);
+                        onClose();
+                      },
+                    ),
+                    _buildReceiptOptionButton(
+                      icon: Icons.save_alt,
+                      label: 'Simpan PDF',
+                      onTap: () {
+                        ReceiptService.saveReceiptPdf(transactionData, context);
+                        onClose();
+                      },
+                    ),
+                    _buildReceiptOptionButton(
+                      icon: Icons.share,
+                      label: 'Share ke WA',
+                      onTap: () {
+                        ReceiptService.shareReceipt(
+                          transactionData,
+                          customerPhone,
+                        );
+                        onClose();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Footer buttons
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade200, width: 1.0),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: onClose,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  child: const Text(
+                    'Selesai',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptOptionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 30, color: Colors.blue),
+            const SizedBox(height: 8),
+            Text(label),
+          ],
         ),
       ),
     );
