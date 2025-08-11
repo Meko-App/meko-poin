@@ -9,6 +9,8 @@ class InventoryTableRow extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onViewLog;
+  final bool isSelected;
+  final Function(bool?) onSelectChanged;
 
   const InventoryTableRow({
     super.key,
@@ -19,6 +21,8 @@ class InventoryTableRow extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onViewLog,
+    required this.isSelected,
+    required this.onSelectChanged,
   });
 
   @override
@@ -39,8 +43,8 @@ class InventoryTableRow extends StatelessWidget {
             SizedBox(
               width: 59,
               child: Checkbox(
-                value: false,
-                onChanged: (_) {},
+                value: isSelected,
+                onChanged: onSelectChanged,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
                 activeColor: Colors.blue.shade400,

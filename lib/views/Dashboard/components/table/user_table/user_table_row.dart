@@ -7,6 +7,8 @@ class UserTableRow extends StatelessWidget {
   final String role;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isSelected;
+  final Function(bool?) onSelectChanged;
 
   const UserTableRow({
     super.key,
@@ -15,6 +17,8 @@ class UserTableRow extends StatelessWidget {
     required this.role,
     required this.onEdit,
     required this.onDelete,
+    required this.isSelected,
+    required this.onSelectChanged,
   });
 
   @override
@@ -32,8 +36,8 @@ class UserTableRow extends StatelessWidget {
             SizedBox(
               width: 59,
               child: Checkbox(
-                value: false,
-                onChanged: (_) {},
+                value: isSelected,
+                onChanged: onSelectChanged,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
                 activeColor: Colors.blue.shade400,

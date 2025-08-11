@@ -10,6 +10,8 @@ class TransactionTableRow extends StatelessWidget {
   final String discountDisplay;
   final String addedBy;
   final VoidCallback onViewDetail;
+  final bool isSelected;
+  final Function(bool?) onSelectChanged;
 
   const TransactionTableRow({
     super.key,
@@ -19,6 +21,8 @@ class TransactionTableRow extends StatelessWidget {
     required this.discountDisplay,
     required this.addedBy,
     required this.onViewDetail,
+    required this.isSelected,
+    required this.onSelectChanged,
   });
 
   @override
@@ -37,8 +41,8 @@ class TransactionTableRow extends StatelessWidget {
             SizedBox(
               width: 59,
               child: Checkbox(
-                value: false,
-                onChanged: (_) {},
+                value: isSelected,
+                onChanged: onSelectChanged,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
                 activeColor: Colors.blue.shade400,

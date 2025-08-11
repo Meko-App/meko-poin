@@ -30,18 +30,43 @@ class _MasterDataTableState extends State<MasterDataTable> {
   final ScrollController _scrollController = ScrollController();
   int currentPage = 1;
   int itemsPerPage = 10;
-  bool isAllSelected = false;
-  Set<int> selectedRows = {};
   List<MasterDataWithUser> _masterDataList = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String sortBy = 'name';
   bool isAscending = true;
 
+  Set<int> selectedTransactionIds = {};
+  bool get isAllSelected =>
+      selectedTransactionIds.length == currentPageData.length &&
+      currentPageData.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _loadMasterData();
+  }
+
+  void toggleSelectAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds
+            .addAll(currentPageData.map((data) => data.masterData.id!));
+      } else {
+        selectedTransactionIds
+            .removeAll(currentPageData.map((data) => data.masterData.id));
+      }
+    });
+  }
+
+  void toggleSelectOne(int masterDataId, bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.add(masterDataId);
+      } else {
+        selectedTransactionIds.remove(masterDataId);
+      }
+    });
   }
 
   Future<void> _loadMasterData() async {
@@ -180,6 +205,8 @@ class _MasterDataTableState extends State<MasterDataTable> {
             isAscending: isAscending,
             onSort: onSort,
             sortIcon: _sortIcon,
+            isAllSelected: isAllSelected,
+            onSelectAllChanged: toggleSelectAll,
           ),
 
           // Body
@@ -202,6 +229,11 @@ class _MasterDataTableState extends State<MasterDataTable> {
                                       price: data.masterData.price ?? 0,
                                       addedBy: data.addedBy,
                                       key: ValueKey(data.masterData.id),
+                                      isSelected: selectedTransactionIds
+                                          .contains(data.masterData.id),
+                                      onSelectChanged: (value) =>
+                                          toggleSelectOne(
+                                              data.masterData.id!, value),
                                       onEdit: () => widget
                                           .onEditMasterData(data.masterData),
                                       onDelete: () => widget

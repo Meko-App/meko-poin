@@ -36,10 +36,37 @@ class _TransactionTableState extends State<TransactionTable> {
   String sortBy = 'createdAt';
   bool isAscending = false;
 
+  Set<int> selectedTransactionIds = {};
+  bool get isAllSelected =>
+      selectedTransactionIds.length == currentPageData.length &&
+      currentPageData.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _loadTransactions();
+  }
+
+  void toggleSelectAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds
+            .addAll(currentPageData.map((t) => t.transaction.id));
+      } else {
+        selectedTransactionIds
+            .removeAll(currentPageData.map((t) => t.transaction.id));
+      }
+    });
+  }
+
+  void toggleSelectOne(int transactionId, bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.add(transactionId);
+      } else {
+        selectedTransactionIds.remove(transactionId);
+      }
+    });
   }
 
   Future<void> _loadTransactions() async {
@@ -172,6 +199,8 @@ class _TransactionTableState extends State<TransactionTable> {
             isAscending: isAscending,
             onSort: onSort,
             sortIcon: _sortIcon,
+            isAllSelected: isAllSelected,
+            onSelectAllChanged: toggleSelectAll,
           ),
 
           // Body
@@ -195,6 +224,11 @@ class _TransactionTableState extends State<TransactionTable> {
                                       discountDisplay: t.discountDisplay,
                                       addedBy: t.addedBy,
                                       key: ValueKey(t.transaction.id),
+                                      isSelected: selectedTransactionIds
+                                          .contains(t.transaction.id),
+                                      onSelectChanged: (value) =>
+                                          toggleSelectOne(
+                                              t.transaction.id, value),
                                       onViewDetail: () =>
                                           widget.onViewDetail(t.transaction.id),
                                     ))

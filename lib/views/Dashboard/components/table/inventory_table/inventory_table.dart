@@ -32,18 +32,43 @@ class _InventoryTableState extends State<InventoryTable> {
   final ScrollController _scrollController = ScrollController();
   int currentPage = 1;
   int itemsPerPage = 10;
-  bool isAllSelected = false;
-  Set<int> selectedRows = {};
   List<InventoryWithUserMasterData> _inventoryList = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String sortBy = 'name';
   bool isAscending = true;
 
+  Set<int> selectedTransactionIds = {};
+  bool get isAllSelected =>
+      selectedTransactionIds.length == currentPageData.length &&
+      currentPageData.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _loadMasterData();
+  }
+
+  void toggleSelectAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds
+            .addAll(currentPageData.map((data) => data.inventoryData.id!));
+      } else {
+        selectedTransactionIds
+            .removeAll(currentPageData.map((data) => data.inventoryData.id));
+      }
+    });
+  }
+
+  void toggleSelectOne(int inventoryId, bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.add(inventoryId);
+      } else {
+        selectedTransactionIds.remove(inventoryId);
+      }
+    });
   }
 
   Future<void> _loadMasterData() async {
@@ -183,6 +208,8 @@ class _InventoryTableState extends State<InventoryTable> {
             isAscending: isAscending,
             onSort: onSort,
             sortIcon: _sortIcon,
+            isAllSelected: isAllSelected,
+            onSelectAllChanged: toggleSelectAll,
           ),
 
           // Body
@@ -205,6 +232,11 @@ class _InventoryTableState extends State<InventoryTable> {
                                       notes: data.inventoryData.notes,
                                       addedBy: data.addedBy,
                                       key: ValueKey(data.inventoryData.id),
+                                      isSelected: selectedTransactionIds
+                                          .contains(data.inventoryData.id),
+                                      onSelectChanged: (value) =>
+                                          toggleSelectOne(
+                                              data.inventoryData.id!, value),
                                       onEdit: () => widget
                                           .onEditInventory(data.inventoryData),
                                       onDelete: () => widget.onDeleteInventory(

@@ -6,6 +6,8 @@ class CustomerTableHeader extends StatelessWidget {
   final bool isAscending;
   final Function(String) onSort;
   final Icon Function(String) sortIcon;
+  final bool isAllSelected;
+  final Function(bool?) onSelectAllChanged;
 
   const CustomerTableHeader({
     super.key,
@@ -13,6 +15,8 @@ class CustomerTableHeader extends StatelessWidget {
     required this.isAscending,
     required this.onSort,
     required this.sortIcon,
+    required this.isAllSelected,
+    required this.onSelectAllChanged,
   });
 
   @override
@@ -40,8 +44,8 @@ class CustomerTableHeader extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Checkbox(
-                  value: false,
-                  onChanged: (_) {},
+                  value: isAllSelected,
+                  onChanged: onSelectAllChanged,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                   activeColor: Colors.blue.shade400,

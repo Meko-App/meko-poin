@@ -6,12 +6,16 @@ class CustomerTableRow extends StatelessWidget {
   final String name;
   final String phone;
   final DateTime createdAt;
+  final bool isSelected;
+  final Function(bool?) onSelectChanged;
 
   const CustomerTableRow({
     super.key,
     required this.name,
     required this.phone,
     required this.createdAt,
+    required this.isSelected,
+    required this.onSelectChanged,
   });
 
   @override
@@ -31,8 +35,8 @@ class CustomerTableRow extends StatelessWidget {
             SizedBox(
               width: 59,
               child: Checkbox(
-                value: false,
-                onChanged: (_) {},
+                value: isSelected,
+                onChanged: onSelectChanged,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
                 activeColor: Colors.blue.shade400,

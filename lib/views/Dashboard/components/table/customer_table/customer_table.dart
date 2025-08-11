@@ -23,18 +23,42 @@ class _CustomerTableState extends State<CustomerTable> {
   final ScrollController _scrollController = ScrollController();
   int currentPage = 1;
   int itemsPerPage = 10;
-  bool isAllSelected = false;
-  Set<int> selectedRows = {};
   List<Customer> _customers = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String sortBy = 'name';
   bool isAscending = true;
 
+  Set<int> selectedTransactionIds = {};
+  bool get isAllSelected =>
+      selectedTransactionIds.length == currentPageData.length &&
+      currentPageData.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _loadCustomers();
+  }
+
+  void toggleSelectAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.addAll(currentPageData.map((user) => user.id!));
+      } else {
+        selectedTransactionIds
+            .removeAll(currentPageData.map((user) => user.id));
+      }
+    });
+  }
+
+  void toggleSelectOne(int customerId, bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.add(customerId);
+      } else {
+        selectedTransactionIds.remove(customerId);
+      }
+    });
   }
 
   Future<void> _loadCustomers() async {
@@ -167,6 +191,8 @@ class _CustomerTableState extends State<CustomerTable> {
             isAscending: isAscending,
             onSort: onSort,
             sortIcon: _sortIcon,
+            isAllSelected: isAllSelected,
+            onSelectAllChanged: toggleSelectAll,
           ),
 
           // Body
@@ -188,6 +214,10 @@ class _CustomerTableState extends State<CustomerTable> {
                                       phone: user.phone,
                                       createdAt: user.createdAt,
                                       key: ValueKey(user.id),
+                                      isSelected: selectedTransactionIds
+                                          .contains(user.id),
+                                      onSelectChanged: (value) =>
+                                          toggleSelectOne(user.id!, value),
                                     ))
                                 .toList(),
                           ),

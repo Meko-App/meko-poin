@@ -29,18 +29,42 @@ class _UserTableState extends State<UserTable> {
   final ScrollController _scrollController = ScrollController();
   int currentPage = 1;
   int itemsPerPage = 10;
-  bool isAllSelected = false;
-  Set<int> selectedRows = {};
   List<User> _users = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String sortBy = 'name';
   bool isAscending = true;
 
+  Set<int> selectedTransactionIds = {};
+  bool get isAllSelected =>
+      selectedTransactionIds.length == currentPageData.length &&
+      currentPageData.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _loadUsers();
+  }
+
+  void toggleSelectAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.addAll(currentPageData.map((user) => user.id!));
+      } else {
+        selectedTransactionIds
+            .removeAll(currentPageData.map((user) => user.id));
+      }
+    });
+  }
+
+  void toggleSelectOne(int userId, bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.add(userId);
+      } else {
+        selectedTransactionIds.remove(userId);
+      }
+    });
   }
 
   Future<void> _loadUsers() async {
@@ -186,6 +210,8 @@ class _UserTableState extends State<UserTable> {
             isAscending: isAscending,
             onSort: onSort,
             sortIcon: _sortIcon,
+            isAllSelected: isAllSelected,
+            onSelectAllChanged: toggleSelectAll,
           ),
 
           // Body
@@ -207,6 +233,10 @@ class _UserTableState extends State<UserTable> {
                                       email: user.email,
                                       role: _getRoleName(user.roleId),
                                       key: ValueKey(user.id),
+                                      isSelected: selectedTransactionIds
+                                          .contains(user.id),
+                                      onSelectChanged: (value) =>
+                                          toggleSelectOne(user.id!, value),
                                       onEdit: () => widget.onEditUser(user),
                                       onDelete: () => widget.onDeleteUser(user),
                                     ))

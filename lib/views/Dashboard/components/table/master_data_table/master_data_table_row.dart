@@ -9,6 +9,8 @@ class MasterDataTableRow extends StatelessWidget {
   final String addedBy;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isSelected;
+  final Function(bool?) onSelectChanged;
 
   const MasterDataTableRow({
     super.key,
@@ -18,6 +20,8 @@ class MasterDataTableRow extends StatelessWidget {
     required this.addedBy,
     required this.onEdit,
     required this.onDelete,
+    required this.isSelected,
+    required this.onSelectChanged,
   });
 
   String _formatPrice(int price) {
@@ -41,8 +45,8 @@ class MasterDataTableRow extends StatelessWidget {
             SizedBox(
               width: 59,
               child: Checkbox(
-                value: false,
-                onChanged: (_) {},
+                value: isSelected,
+                onChanged: onSelectChanged,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
                 activeColor: Colors.blue.shade400,

@@ -258,6 +258,34 @@ class TransactionDetail extends StatelessWidget {
                                                   fontWeight: FontWeight.w400),
                                             ),
                                           ),
+                                          const SizedBox(
+                                              width:
+                                                  10), // Add spacing between buttons
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              // Add your print functionality here
+                                              // _printTransaction(transaction);
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors
+                                                  .green, // Different color for print button
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 10),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Cetak',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ],
