@@ -25,17 +25,21 @@ class TransactionRepository {
       getAllTransactionsWithCustomerUser() async {
     final db = await dbHelper.database;
 
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+
     final result = await db.rawQuery('''
-      SELECT 
-        t.*,
-        c.name AS customer_name,
-        c.phone AS customer_phone,
-        u.name AS user_name
-      FROM Data_Transaction t
-      LEFT JOIN Data_Customer c ON t.customer_id = c.id
-      LEFT JOIN Data_User u ON t.user_id = u.id
-      ORDER BY t.created_at DESC
-    ''');
+    SELECT 
+      t.*,
+      c.name AS customer_name,
+      c.phone AS customer_phone,
+      u.name AS user_name
+    FROM Data_Transaction t
+    LEFT JOIN Data_Customer c ON t.customer_id = c.id
+    LEFT JOIN Data_User u ON t.user_id = u.id
+    WHERE t.created_at >= ?
+    ORDER BY t.created_at DESC
+  ''', [firstDayOfMonth.millisecondsSinceEpoch]);
 
     return result
         .map((row) => TransactionWithCustomerUser.fromMap(row))
