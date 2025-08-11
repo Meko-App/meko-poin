@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -15,6 +16,10 @@ class ReceiptService {
       Map<String, dynamic> transactionData) async {
     final pdf = pw.Document();
 
+    final logoImage = await rootBundle.load('assets/logo-photorism-hitam.png');
+    final logoImageBytes = logoImage.buffer.asUint8List();
+    final logo = pw.MemoryImage(logoImageBytes);
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
@@ -22,12 +27,19 @@ class ReceiptService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('MEKO POIN',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              pw.Text('Jl. Contoh No. 123, Kota Anda',
-                  style: pw.TextStyle(fontSize: 10)),
+              pw.Center(
+                child: pw.Image(
+                  logo,
+                  height: 40,
+                  width: 120,
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                  child: pw.Text(
+                      'Gg. Gandasoli I No.36A, RT.1/RW.6, Kab. Bandung',
+                      style: pw.TextStyle(fontSize: 10))),
               pw.SizedBox(height: 8),
               pw.Divider(thickness: 1),
               pw.SizedBox(height: 8),
@@ -115,6 +127,10 @@ class ReceiptService {
               pw.SizedBox(height: 16),
               pw.Center(
                   child: pw.Text('Terima Kasih Telah Berkunjung',
+                      style: pw.TextStyle(fontSize: 10))),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                  child: pw.Text('IG: @photorismstudio',
                       style: pw.TextStyle(fontSize: 10))),
             ],
           );
