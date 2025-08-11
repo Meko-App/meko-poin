@@ -26,7 +26,7 @@ class InventoryLogTableSearch extends StatelessWidget {
               fontSize: 14,
               height: 1.0,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF111B37),
+              color: Colors.white,
               fontFamily: 'Inter',
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/inventory_log.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/components/table/inventory_log_table/inventory_log_table_header.dart';
 import 'package:meko_poin/views/Dashboard/components/table/inventory_log_table/inventory_log_table_pagination.dart';
 import 'package:meko_poin/views/Dashboard/components/table/inventory_log_table/inventory_log_table_row.dart';
@@ -147,12 +148,13 @@ class _InventoryLogTableState extends State<InventoryLogTable> {
       return const Icon(
         Icons.unfold_more,
         size: 14,
-        color: Color(0xFF4B5675),
+        color: CustomColors.fontSubColor,
       );
     }
     return Icon(
       isAscending ? Icons.arrow_upward : Icons.arrow_downward,
       size: 14,
+      color: CustomColors.fontSubColor,
     );
   }
 
@@ -166,8 +168,8 @@ class _InventoryLogTableState extends State<InventoryLogTable> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class InventoryLogTableHeader extends StatelessWidget {
   final String sortBy;
@@ -18,10 +19,10 @@ class InventoryLogTableHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: CustomColors.cardColor,
         border: Border(
-          top: BorderSide(color: Colors.grey.shade300),
-          bottom: BorderSide(color: Colors.grey.shade300),
+          top: BorderSide(color: CustomColors.borderCardColor),
+          bottom: BorderSide(color: CustomColors.borderCardColor),
         ),
       ),
       child: IntrinsicHeight(
@@ -37,7 +38,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: Colors.grey.shade300),
+                      right: BorderSide(color: CustomColors.borderCardColor),
                     ),
                   ),
                   child: Center(
@@ -50,7 +51,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                             fontSize: 13,
                             height: 1.5,
                             fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
+                            color: CustomColors.fontSubColor,
                             fontFamily: 'Inter',
                           ),
                         ),
@@ -73,7 +74,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: Colors.grey.shade300),
+                      right: BorderSide(color: CustomColors.borderCardColor),
                     ),
                   ),
                   child: Center(
@@ -86,7 +87,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                             fontSize: 13,
                             height: 1.5,
                             fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
+                            color: CustomColors.fontSubColor,
                             fontFamily: 'Inter',
                           ),
                         ),
@@ -109,7 +110,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: Colors.grey.shade300),
+                      right: BorderSide(color: CustomColors.borderCardColor),
                     ),
                   ),
                   child: Center(
@@ -122,7 +123,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                             fontSize: 13,
                             height: 1.5,
                             fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
+                            color: CustomColors.fontSubColor,
                             fontFamily: 'Inter',
                           ),
                         ),
@@ -145,7 +146,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   decoration: BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: Colors.grey.shade300),
+                      right: BorderSide(color: CustomColors.borderCardColor),
                     ),
                   ),
                   child: Center(
@@ -158,7 +159,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                             fontSize: 13,
                             height: 1.5,
                             fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
+                            color: CustomColors.fontSubColor,
                             fontFamily: 'Inter',
                           ),
                         ),
@@ -190,7 +191,7 @@ class InventoryLogTableHeader extends StatelessWidget {
                             fontSize: 13,
                             height: 1.5,
                             fontWeight: FontWeight.w400,
-                            color: Color(0xFF4B5675),
+                            color: CustomColors.fontSubColor,
                             fontFamily: 'Inter',
                           ),
                         ),

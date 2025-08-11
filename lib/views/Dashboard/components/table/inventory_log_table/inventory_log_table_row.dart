@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class InventoryLogTableRow extends StatelessWidget {
   final DateTime createdAt;
@@ -26,8 +27,10 @@ class InventoryLogTableRow extends StatelessWidget {
         minHeight: 55,
       ),
       decoration: BoxDecoration(
-        color: type == 'increment' ? Colors.green.shade50 : Colors.red.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: type == 'increment'
+            ? CustomColors.increaseColor
+            : CustomColors.decreaseColor,
+        border: Border(bottom: BorderSide(color: CustomColors.borderCardColor)),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -45,13 +48,14 @@ class InventoryLogTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.2,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
 
             // Notes
             Expanded(
@@ -65,13 +69,14 @@ class InventoryLogTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
 
             // Initial Stock
             Expanded(
@@ -85,13 +90,14 @@ class InventoryLogTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
 
             // Current Stock
             Expanded(
@@ -105,13 +111,14 @@ class InventoryLogTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),
               ),
             ),
-            VerticalDivider(thickness: 1, width: 1, color: Colors.grey[300]),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
 
             // Difference
             Expanded(
@@ -125,7 +132,7 @@ class InventoryLogTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.0,
                     fontWeight: FontWeight.w400,
-                    color: Color(0xFF27314B),
+                    color: Colors.white,
                     fontFamily: 'Inter',
                   ),
                 ),

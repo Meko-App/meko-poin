@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 
 class TransactionDetail extends StatelessWidget {
   final int transactionId;
@@ -56,7 +57,7 @@ class TransactionDetail extends StatelessWidget {
 
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: CustomColors.cardColor,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -141,7 +142,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w400,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 5),
@@ -153,7 +154,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 20),
@@ -166,7 +167,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w400,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 5),
@@ -177,7 +178,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 20,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 20),
@@ -189,7 +190,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w400,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 5),
@@ -200,7 +201,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 20),
@@ -212,7 +213,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w400,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 5),
@@ -225,7 +226,7 @@ class TransactionDetail extends StatelessWidget {
                                           fontSize: 14,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF111B37),
+                                          color: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(height: 16),
@@ -281,10 +282,10 @@ class TransactionDetail extends StatelessWidget {
   Widget _buildSectionCard({required String title, required Widget content}) {
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: CustomColors.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade300, width: 1),
+        side: BorderSide(color: CustomColors.borderCardColor, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,10 +300,10 @@ class TransactionDetail extends StatelessWidget {
                 topRight: Radius.circular(8),
               ),
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
+                top: BorderSide(color: CustomColors.borderCardColor),
                 bottom: title == 'Pesanan'
                     ? BorderSide.none
-                    : BorderSide(color: Colors.grey.shade300),
+                    : BorderSide(color: CustomColors.borderCardColor),
               ),
             ),
             child: Text(
@@ -311,7 +312,7 @@ class TransactionDetail extends StatelessWidget {
                 fontSize: 14,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF111B37),
+                color: Colors.white,
               ),
             ),
           ),
@@ -337,7 +338,7 @@ class TransactionDetail extends StatelessWidget {
             fontSize: 14,
             fontFamily: 'Inter',
             fontWeight: FontWeight.w400,
-            color: Color(0xFF111B37),
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 5),
@@ -347,7 +348,7 @@ class TransactionDetail extends StatelessWidget {
             fontSize: 14,
             fontFamily: 'Inter',
             fontWeight: FontWeight.w600,
-            color: Color(0xFF111B37),
+            color: Colors.white,
           ),
         ),
       ],
@@ -357,8 +358,8 @@ class TransactionDetail extends StatelessWidget {
   Widget _buildOrderTable(List<TransactionItem> transactionItems) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade200),
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -366,10 +367,10 @@ class TransactionDetail extends StatelessWidget {
           // Table Header
           Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: CustomColors.cardColor,
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
-                bottom: BorderSide(color: Colors.grey.shade300),
+                top: BorderSide(color: CustomColors.borderCardColor),
+                bottom: BorderSide(color: CustomColors.borderCardColor),
               ),
             ),
             child: IntrinsicHeight(
@@ -391,55 +392,56 @@ class TransactionDetail extends StatelessWidget {
               child: const Center(
                 child: Text(
                   'Tidak ada data pesanan',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: CustomColors.fontSubColor),
                 ),
               ),
             )
           else
-            ...transactionItems.map((item) =>
-                FutureBuilder<Map<String, dynamic>>(
-                  future:
-                      transactionRepository.getItemDetails(item.masterDataId),
-                  builder: (context, detailsSnapshot) {
-                    final itemDetails = detailsSnapshot.hasData
-                        ? detailsSnapshot.data!
-                        : {
-                            'category': 'Uncategorized',
-                            'name': 'Item #${item.masterDataId}',
-                            'price': item.totalPrice ~/ item.qty
-                          };
+            ...transactionItems
+                .map((item) => FutureBuilder<Map<String, dynamic>>(
+                      future: transactionRepository
+                          .getItemDetails(item.masterDataId),
+                      builder: (context, detailsSnapshot) {
+                        final itemDetails = detailsSnapshot.hasData
+                            ? detailsSnapshot.data!
+                            : {
+                                'category': 'Uncategorized',
+                                'name': 'Item #${item.masterDataId}',
+                                'price': item.totalPrice ~/ item.qty
+                              };
 
-                    return Container(
-                      decoration: BoxDecoration(
-                          border: Border(
-                              bottom: BorderSide(color: Colors.grey.shade200))),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            _buildTableCell(itemDetails['category'], 2),
-                            VerticalDivider(
-                                thickness: 1,
-                                width: 1,
-                                color: Colors.grey[300]),
-                            _buildTableCell(itemDetails['name'], 3),
-                            VerticalDivider(
-                                thickness: 1,
-                                width: 1,
-                                color: Colors.grey[300]),
-                            _buildTableCell(item.qty.toString(), 1),
-                            VerticalDivider(
-                                thickness: 1,
-                                width: 1,
-                                color: Colors.grey[300]),
-                            _buildTableCell(
-                                'Rp ${NumberFormat('#,###').format(itemDetails['price'])}',
-                                2),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                )),
+                        return Container(
+                          decoration: BoxDecoration(
+                              border: Border(
+                                  bottom: BorderSide(
+                                      color: CustomColors.borderCardColor))),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                _buildTableCell(itemDetails['category'], 2),
+                                VerticalDivider(
+                                    thickness: 1,
+                                    width: 1,
+                                    color: CustomColors.borderCardColor),
+                                _buildTableCell(itemDetails['name'], 3),
+                                VerticalDivider(
+                                    thickness: 1,
+                                    width: 1,
+                                    color: CustomColors.borderCardColor),
+                                _buildTableCell(item.qty.toString(), 1),
+                                VerticalDivider(
+                                    thickness: 1,
+                                    width: 1,
+                                    color: CustomColors.borderCardColor),
+                                _buildTableCell(
+                                    'Rp ${NumberFormat('#,###').format(itemDetails['price'])}',
+                                    2),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )),
         ],
       ),
     );
@@ -453,7 +455,7 @@ class TransactionDetail extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            right: BorderSide(color: Colors.grey.shade300),
+            right: BorderSide(color: CustomColors.borderCardColor),
           ),
         ),
         child: Center(
@@ -463,7 +465,7 @@ class TransactionDetail extends StatelessWidget {
               fontSize: 13,
               height: 1.5,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF4B5675),
+              color: Colors.white,
               fontFamily: 'Inter',
             ),
           ),
@@ -483,7 +485,7 @@ class TransactionDetail extends StatelessWidget {
             fontSize: 14,
             height: 2,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF111B37),
+            color: Colors.white,
             fontFamily: 'Inter',
           ),
         ),
