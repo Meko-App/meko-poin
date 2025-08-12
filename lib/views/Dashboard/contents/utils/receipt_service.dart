@@ -150,61 +150,43 @@ class ReceiptService {
 
   static Future<void> saveReceiptPdf(
     Map<String, dynamic> transactionData,
-    BuildContext context, // <--- Pass BuildContext here if you want SnackBar
+    BuildContext? context,
   ) async {
     try {
-      // 1. Generate the PDF bytes
       final pdfBytes = await generateReceiptPdf(transactionData);
-
-      // 2. Create a temporary file to hold the PDF bytes
-      //    file_picker often works best by picking a destination for an existing file.
       final tempDir = await getTemporaryDirectory();
-      final tempFilePath = '${tempDir.path}/${transactionData['invoice']}.pdf';
-      final tempFile = File(tempFilePath);
+      final tempFile =
+          File('${tempDir.path}/${transactionData['invoice']}.pdf');
       await tempFile.writeAsBytes(pdfBytes);
 
-      // 3. Open the file picker for saving
-      final String? selectedDirectory = await FilePicker.platform.saveFile(
+      final String? savedPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Simpan Struk PDF',
         fileName: '${transactionData['invoice']}.pdf',
-        // By default, it suggests a name. If the user picks a folder,
-        // it combines the chosen folder with this fileName.
         type: FileType.custom,
-        allowedExtensions: ['pdf'], // Filter for PDF files
+        allowedExtensions: ['pdf'],
       );
 
-      // 4. Handle the user's selection
-      if (selectedDirectory != null) {
-        // User selected a directory and confirmed save
-        final File newFile = File(selectedDirectory);
-
-        // Copy the temporary file content to the new location
-        await tempFile.copy(newFile.path);
-
-        // Clean up the temporary file
+      if (savedPath != null) {
+        await tempFile.copy(savedPath);
         await tempFile.delete();
 
-        // Show SnackBar (requires valid context)
-        if (context != null) {
-          // Only show if context is provided and valid
+        // Tampilkan SnackBar HANYA jika context valid dan mounted
+        if (context != null && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Struk disimpan di: ${newFile.path}')),
+            SnackBar(content: Text('Struk disimpan di: $savedPath')),
           );
         }
-        print('Struk disimpan di: ${newFile.path}');
       } else {
-        // User cancelled the file picker
-        print('Penyimpanan struk dibatalkan.');
-        await tempFile.delete(); // Clean up temporary file
+        await tempFile.delete();
       }
     } catch (e) {
-      print('Error saving PDF: $e');
-      if (context != null) {
-        // Show an error SnackBar
+      // Error handling dengan cek context
+      if (context != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal menyimpan struk: $e')),
         );
       }
+      rethrow; // Optional: Lempar kembali error untuk handling tambahan
     }
   }
 

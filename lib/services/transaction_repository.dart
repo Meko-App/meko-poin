@@ -27,6 +27,7 @@ class TransactionRepository {
 
     final now = DateTime.now();
     final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    final firstDayString = firstDayOfMonth.toIso8601String();
 
     final result = await db.rawQuery('''
     SELECT 
@@ -39,7 +40,7 @@ class TransactionRepository {
     LEFT JOIN Data_User u ON t.user_id = u.id
     WHERE t.created_at >= ?
     ORDER BY t.created_at DESC
-  ''', [firstDayOfMonth.millisecondsSinceEpoch]);
+  ''', [firstDayString]);
 
     return result
         .map((row) => TransactionWithCustomerUser.fromMap(row))
@@ -209,6 +210,7 @@ class TransactionRepository {
 
     if (result.isNotEmpty) {
       return {
+        'id': result.first['id'] ?? 0,
         'category': result.first['category'] ?? 'Produk',
         'name': result.first['name'] ?? 'Unknown Item',
         'price': result.first['price'] ?? 0

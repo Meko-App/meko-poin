@@ -67,8 +67,6 @@ class TransactionDetail extends StatelessWidget {
       }).toList(),
     };
 
-    print(formattedData);
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -668,9 +666,18 @@ class _PrintOptionsDialog extends StatelessWidget {
                     _buildReceiptOptionButton(
                       icon: Icons.save_alt,
                       label: 'Simpan PDF',
-                      onTap: () {
-                        ReceiptService.saveReceiptPdf(transactionData, context);
-                        onClose();
+                      onTap: () async {
+                        try {
+                          await ReceiptService.saveReceiptPdf(
+                              transactionData, context);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Gagal menyimpan PDF: $e')),
+                            );
+                          }
+                        }
                       },
                     ),
                     _buildReceiptOptionButton(
