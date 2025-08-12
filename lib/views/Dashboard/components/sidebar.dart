@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/auth_service.dart';
+import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/views/auth/login_page.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 
@@ -149,11 +150,106 @@ class _SidebarState extends State<Sidebar> {
   }
 
   Future<void> _logout(BuildContext context) async {
-    await _authService.logout();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
+    final navigator = Navigator.of(context, rootNavigator: true);
+
+    bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Peringatan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Sebelum logout, pastikan Anda sudah melakukan backup data.'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                await DatabaseHelper.instance.backupDatabase(dialogContext);
+                navigator.pop(false); // Tutup dialog peringatan
+                await _showLogoutConfirmation(
+                    context); // <<< pakai context utama
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1379F0),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.backup, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Backup Sekarang',
+                    style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => navigator.pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => navigator.pop(true),
+            child: const Text('Logout Tanpa Backup'),
+          ),
+        ],
+      ),
     );
+
+    if (shouldLogout ?? false) {
+      await _authService.logout();
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
+    }
+  }
+
+  Future<void> _showLogoutConfirmation(BuildContext context) async {
+    final navigator = Navigator.of(context, rootNavigator: true);
+
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Konfirmasi Logout'),
+        content: const Text('Backup selesai. Apakah Anda yakin ingin logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => navigator.pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => navigator.pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm ?? false) {
+      await _authService.logout();
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
+    }
   }
 }
 
