@@ -71,7 +71,7 @@ class _InventoryFormState extends State<InventoryForm> {
     super.dispose();
   }
 
-  void _saveInventory() {
+  void _saveInventory() async {
     // Validasi barang
     if (_selectedItem == null) {
       setState(() {
@@ -88,13 +88,29 @@ class _InventoryFormState extends State<InventoryForm> {
       return;
     }
 
-    final Map<String, dynamic> inventoryData = {
-      'master_data_id': _selectedItem,
-      'stock': int.tryParse(_stockController.text),
-      'notes': _notesController.text,
-    };
+    try {
+      final masterData =
+          await _masterDataRepository.getMasterDataById(_selectedItem!);
 
-    widget.onSubmit(inventoryData);
+      int stock = int.tryParse(_stockController.text) ?? 0;
+
+      if (masterData?.category.toLowerCase() == 'paper') {
+        stock = stock * 20;
+      }
+
+      final Map<String, dynamic> inventoryData = {
+        'master_data_id': _selectedItem,
+        'stock': stock,
+        'notes': _notesController.text,
+      };
+
+      widget.onSubmit(inventoryData);
+    } catch (e) {
+      setState(() {
+        _selectedError = 'Gagal memvalidasi data barang';
+      });
+      return;
+    }
   }
 
   @override
