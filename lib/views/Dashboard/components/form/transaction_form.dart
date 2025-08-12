@@ -1354,69 +1354,6 @@ class _TransactionFormState extends State<TransactionForm> {
     );
   }
 
-  Widget _buildDropdownField({
-    required String? value,
-    required String hint,
-    required Function(String?) onChanged,
-    required List<String> items,
-  }) {
-    return SizedBox(
-      height: 34,
-      child: DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(
-            fontSize: 13,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w400,
-            color: CustomColors.fontSubColor,
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide:
-                BorderSide(color: CustomColors.borderInputColor, width: 1.0),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
-          ),
-          filled: true,
-          fillColor: CustomColors.inputColor,
-        ),
-        dropdownColor: CustomColors.inputColor,
-        elevation: 2,
-        icon: const Icon(Icons.keyboard_arrow_down,
-            color: CustomColors.fontSubColor),
-        iconSize: 20,
-        isExpanded: true,
-        items: items.map<DropdownMenuItem<String>>((String itemValue) {
-          return DropdownMenuItem<String>(
-            value: itemValue,
-            child: Text(
-              itemValue,
-              style: const TextStyle(
-                fontSize: 13,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w400,
-                color: Colors.white,
-              ),
-            ),
-          );
-        }).toList(),
-        onChanged: onChanged,
-        style: const TextStyle(
-          fontSize: 13,
-          fontFamily: 'Inter',
-          fontWeight: FontWeight.w400,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-
   Widget _buildCategoryDropdown() {
     final categories = _masterDataItems.map((e) => e.category).toSet().toList();
 
@@ -1765,15 +1702,60 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Widget _buildPaymentMethodDropdown() {
-    return _buildDropdownField(
+    return DropdownButtonFormField<String>(
       value: _selectedPaymentMethod,
-      hint: 'Pilih metode pembayaran',
+      isExpanded: true,
+      hint: const Text(
+        'Pilih metode pembayaran',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: CustomColors.fontSubColor,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      items: const ['Cash', 'QRIS'].map((method) {
+        return DropdownMenuItem<String>(
+          value: method,
+          child: Text(
+            method,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white,
+            ),
+          ),
+        );
+      }).toList(),
       onChanged: (newValue) {
         setState(() {
           _selectedPaymentMethod = newValue;
         });
       },
-      items: const ['Cash', 'QRIS'],
+      decoration: InputDecoration(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide:
+              BorderSide(color: CustomColors.borderInputColor, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+        ),
+        filled: true,
+        fillColor: CustomColors.inputColor,
+        isDense: true,
+      ),
+      style: const TextStyle(
+        fontSize: 14,
+        color: Colors.white,
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+      dropdownColor: CustomColors.inputColor,
+      borderRadius: BorderRadius.circular(8),
     );
   }
 
@@ -1968,7 +1950,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
   bool _showReceiptOptions = false;
   List<dynamic> _cartItems = [];
   Map<int, MasterData> _masterDataMap = {};
-  bool _isLoading = true;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -1995,7 +1977,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
               ))
           .toList();
     }
-    setState(() => _isLoading = false);
+    setState(() => isLoading = false);
   }
 
   Future<void> _fetchMasterData() async {
@@ -2015,7 +1997,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
 
     setState(() {
       _masterDataMap = fetchedData;
-      _isLoading = false;
+      isLoading = false;
     });
   }
 
