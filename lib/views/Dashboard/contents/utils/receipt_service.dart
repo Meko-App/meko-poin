@@ -36,10 +36,11 @@ class ReceiptService {
                 ),
               ),
               pw.SizedBox(height: 8),
-              pw.Center(
-                  child: pw.Text(
-                      'Gg. Gandasoli I No.36A, RT.1/RW.6, Kab. Bandung',
-                      style: pw.TextStyle(fontSize: 10))),
+              pw.Text(
+                'Gg. Gandasoli I No.36A, RT.1/RW.6, Kab. Bandung',
+                style: pw.TextStyle(fontSize: 10),
+                textAlign: pw.TextAlign.center,
+              ),
               pw.SizedBox(height: 8),
               pw.Divider(thickness: 1),
               pw.SizedBox(height: 8),
