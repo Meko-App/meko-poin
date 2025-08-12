@@ -9,6 +9,7 @@ class TransactionTableSearch extends StatefulWidget {
   final Function(DateTime?, DateTime?) onDateRangeSelected;
   final VoidCallback onAddNew;
   final VoidCallback onPrintReport;
+  final Function(String) onSearch;
 
   const TransactionTableSearch({
     super.key,
@@ -17,6 +18,7 @@ class TransactionTableSearch extends StatefulWidget {
     required this.onDateRangeSelected,
     required this.onAddNew,
     required this.onPrintReport,
+    required this.onSearch,
   });
 
   @override
@@ -139,6 +141,50 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              SizedBox(
+                width: 250,
+                height: 34,
+                child: TextField(
+                  onChanged: widget.onSearch,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Cari Nama',
+                    hintStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      fontFamily: 'Inter',
+                      color: CustomColors.fontSubColor,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 30,
+                      minHeight: 20,
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide:
+                          BorderSide(color: CustomColors.borderCardColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide:
+                          BorderSide(color: CustomColors.borderCardColor),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
               CompositedTransformTarget(
                 link: _layerLink,
                 child: InkWell(

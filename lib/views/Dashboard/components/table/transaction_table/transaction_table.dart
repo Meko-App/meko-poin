@@ -35,6 +35,7 @@ class _TransactionTableState extends State<TransactionTable> {
   DateTime? _endDate;
   String sortBy = 'createdAt';
   bool isAscending = false;
+  String _searchQuery = '';
 
   Set<int> selectedTransactionIds = {};
   bool get isAllSelected =>
@@ -94,8 +95,17 @@ class _TransactionTableState extends State<TransactionTable> {
     _loadTransactions();
   }
 
+  List<TransactionWithCustomerUser> get filteredTransactions {
+    if (_searchQuery.isEmpty) return _transactionList;
+    return _transactionList.where((t) {
+      final customerName = t.customerName.toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return customerName.contains(query);
+    }).toList();
+  }
+
   List<TransactionWithCustomerUser> get sortedTransactionData {
-    List<TransactionWithCustomerUser> sorted = List.from(_transactionList);
+    List<TransactionWithCustomerUser> sorted = List.from(filteredTransactions);
     sorted.sort((a, b) {
       dynamic valueA;
       dynamic valueB;
@@ -191,6 +201,12 @@ class _TransactionTableState extends State<TransactionTable> {
             onDateRangeSelected: _handleDateRangeSelected,
             onAddNew: widget.onAddNew,
             onPrintReport: widget.onPrintReport,
+            onSearch: (query) {
+              setState(() {
+                _searchQuery = query;
+                currentPage = 1;
+              });
+            },
           ),
 
           // Header
