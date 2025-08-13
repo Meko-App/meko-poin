@@ -151,63 +151,142 @@ class _SidebarState extends State<Sidebar> {
 
   Future<void> _logout(BuildContext context) async {
     final navigator = Navigator.of(context, rootNavigator: true);
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     bool? shouldLogout = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Peringatan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'Sebelum logout, pastikan Anda sudah melakukan backup data.'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                await DatabaseHelper.instance.backupDatabase(dialogContext);
-                navigator.pop(false); // Tutup dialog peringatan
-                await _showLogoutConfirmation(
-                    context); // <<< pakai context utama
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1379F0),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-              ),
-              child: const Row(
+      builder: (BuildContext dialogContext) => Center(
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(maxWidth: 400), // Control width here
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.backup, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
+                  // Header with icon and title
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color:
+                            isDarkMode ? Colors.amber[300] : Colors.amber[700],
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Peringatan Logout',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Content text
                   Text(
-                    'Backup Sekarang',
-                    style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500),
+                    'Sebelum logout, pastikan Anda sudah melakukan backup data.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Backup Button - full width but constrained by parent
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await DatabaseHelper.instance
+                            .backupDatabase(dialogContext);
+                        navigator.pop(false);
+                        await _showLogoutConfirmation(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1379F0),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.backup,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Backup Sekarang',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Divider
+                  Divider(
+                    height: 1,
+                    color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Footer Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => navigator.pop(false),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => navigator.pop(true),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              isDarkMode ? Colors.red[300] : Colors.red[600],
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Logout Tanpa Backup'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => navigator.pop(false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => navigator.pop(true),
-            child: const Text('Logout Tanpa Backup'),
-          ),
-        ],
       ),
     );
 
@@ -223,22 +302,98 @@ class _SidebarState extends State<Sidebar> {
 
   Future<void> _showLogoutConfirmation(BuildContext context) async {
     final navigator = Navigator.of(context, rootNavigator: true);
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Backup selesai. Apakah Anda yakin ingin logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => navigator.pop(false),
-            child: const Text('Batal'),
+      builder: (BuildContext dialogContext) => Center(
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(maxWidth: 400), // Same width control
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with icon
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.logout_rounded,
+                        color: isDarkMode ? Colors.blue[300] : Colors.blue[600],
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Konfirmasi Logout',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Content text
+                  Text(
+                    'Backup selesai. Apakah Anda yakin ingin logout?',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Footer Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => navigator.pop(false),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => navigator.pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isDarkMode ? Colors.blue[800] : Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: () => navigator.pop(true),
-            child: const Text('Logout'),
-          ),
-        ],
+        ),
       ),
     );
 
