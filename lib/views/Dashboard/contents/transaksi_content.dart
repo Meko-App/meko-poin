@@ -8,11 +8,13 @@ import 'package:meko_poin/utils/custom_colors.dart';
 
 class TransaksiContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
+  final String? menu;
   final TransactionRepository transactionRepository;
 
   const TransaksiContent({
     super.key,
     required this.onStateChanged,
+    this.menu,
     required this.transactionRepository,
   });
 
@@ -29,6 +31,12 @@ class _TransaksiContentState extends State<TransaksiContent> {
   void initState() {
     super.initState();
     transactionRepository = widget.transactionRepository;
+
+    // Jika dari sidebar dipilih "Tambah Transaksi", langsung tampilkan form
+    if (widget.menu == 'Tambah Transaksi') {
+      _currentState = ContentState.form;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onStateChanged(_currentState);
     });

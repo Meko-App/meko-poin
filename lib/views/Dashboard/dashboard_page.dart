@@ -52,7 +52,11 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _selectedMenu = widget.initialMenu!;
+    _selectedMenu =
+        widget.initialMenu ?? 'Ringkasan'; // Tambahkan fallback value
+    if (widget.user.roleId != 1) {
+      _contentCurrentState = ContentState.form; // Langsung tampilkan form
+    }
   }
 
   void _toggleSidebar() {
@@ -75,6 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
       } else if (menu == 'Master Data' ||
           menu == 'Inventori' ||
           menu == 'Transaksi' ||
+          menu == 'Tambah Transaksi' ||
           menu == 'Pengguna') {
         return 'Managements';
       } else if (menu == 'Database') {
@@ -288,6 +293,13 @@ class DashboardContent extends StatelessWidget {
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           transactionRepository: transactionRepository, // Teruskan repository
+        );
+      case 'Tambah Transaksi':
+        return TransaksiContent(
+          key: ValueKey(contentKey),
+          menu: 'Tambah Transaksi',
+          onStateChanged: onContentStateChanged!,
+          transactionRepository: transactionRepository,
         );
       case 'Pengguna':
         return PenggunaContent(

@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (user != null && mounted) {
-        final initialMenu = user.roleId == 1 ? 'Ringkasan' : 'Transaksi';
+        final initialMenu = user.roleId == 1 ? 'Ringkasan' : 'Tambah Transaksi';
 
         Navigator.pushReplacement(
           context,
