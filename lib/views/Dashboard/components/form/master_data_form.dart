@@ -305,8 +305,13 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 color: CustomColors.fontSubColor),
             iconSize: 20,
             isExpanded: true,
-            items: <String>['Product', 'Paper', 'Packaging', 'Additional']
-                .map<DropdownMenuItem<String>>((String value) {
+            items: <String>[
+              'Product',
+              'Paper',
+              'Packaging',
+              'Additional',
+              'Background'
+            ].map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Text(

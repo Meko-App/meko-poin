@@ -147,9 +147,13 @@ class _TransaksiContentState extends State<TransaksiContent> {
                         onBackPressed: _showTable, // Tambahkan ini
                       )
                     : TransactionForm(
-                        onCancel: _showTable,
+                        onCancel: widget.menu == 'Tambah Transaksi'
+                            ? _showForm
+                            : _showTable,
                         onSubmit: (p0) {},
-                        onSuccess: _showTable,
+                        onSuccess: widget.menu == 'Tambah Transaksi'
+                            ? _showForm
+                            : _showTable,
                       ),
           ),
         ],

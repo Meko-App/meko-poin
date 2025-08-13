@@ -70,7 +70,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         name TEXT,
-        category TEXT CHECK(category IN ('Product', 'Paper', 'Packaging', 'Additional')),
+        category TEXT CHECK(category IN ('Product', 'Paper', 'Packaging', 'Additional', 'Background')),
         price INTEGER,
         created_at DATETIME,
         updated_at DATETIME,
