@@ -87,6 +87,7 @@ class DatabaseHelper {
         user_id INTEGER,
         master_data_id INTEGER,
         stock INTEGER,
+        stock_reject INTEGER,
         notes TEXT,
         created_at DATETIME,
         updated_at DATETIME,

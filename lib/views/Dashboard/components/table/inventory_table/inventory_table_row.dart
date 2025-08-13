@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_table/add_reject_dialog.dart';
 
 class InventoryTableRow extends StatelessWidget {
   final String name;
   final int stock;
+  final int stockReject;
   final String notes;
   final String addedBy;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onViewLog;
+  final Function(int) onAddReject;
   final bool isSelected;
   final Function(bool?) onSelectChanged;
 
@@ -16,11 +19,13 @@ class InventoryTableRow extends StatelessWidget {
     super.key,
     required this.name,
     required this.stock,
+    required this.stockReject,
     required this.notes,
     required this.addedBy,
     required this.onEdit,
     required this.onDelete,
     required this.onViewLog,
+    required this.onAddReject,
     required this.isSelected,
     required this.onSelectChanged,
   });
@@ -129,21 +134,23 @@ class InventoryTableRow extends StatelessWidget {
               width: 60,
               child: Center(
                 child: PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      onEdit();
-                    } else if (value == 'delete') {
-                      onDelete();
-                    } else if (value == 'log') {
-                      onViewLog();
-                    }
-                  },
+                  onSelected: (value) => _handleMenuSelection(value, context),
                   offset: const Offset(0, 30),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   color: Colors.white,
                   itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'reject',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.block, color: Colors.orange, size: 16),
+                          SizedBox(width: 8),
+                          Text('Tambah Reject', style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
                     PopupMenuItem(
                       value: 'edit',
                       child: Row(
@@ -182,6 +189,36 @@ class InventoryTableRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _handleMenuSelection(String value, BuildContext context) {
+    switch (value) {
+      case 'edit':
+        onEdit();
+        break;
+      case 'delete':
+        onDelete();
+        break;
+      case 'log':
+        onViewLog();
+        break;
+      case 'reject':
+        _showAddRejectDialog(context);
+        break;
+    }
+  }
+
+  void _showAddRejectDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AddRejectDialog(
+        itemName: name,
+        currentRejectStock: stockReject,
+        onRejectAdded: (rejectAmount) {
+          onAddReject(rejectAmount);
+        },
       ),
     );
   }

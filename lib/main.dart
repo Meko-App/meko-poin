@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:path/path.dart';
 // import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'views/auth/login_page.dart';
@@ -32,11 +33,11 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
 
     // For development only - remove in production
-    // final dbPath = await getDatabasesPath();
-    // final path = join(dbPath, 'app_database.db');
-    // if (await databaseFactoryFfi.databaseExists(path)) {
-    //   await databaseFactoryFfi.deleteDatabase(path);
-    // }
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'app_database.db');
+    if (await databaseFactoryFfi.databaseExists(path)) {
+      await databaseFactoryFfi.deleteDatabase(path);
+    }
 
     // Initialize database helper
     final databaseHelper = DatabaseHelper.instance;

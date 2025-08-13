@@ -17,6 +17,7 @@ class InventoryRepository {
 
     final dataToInsert = inventory.toMap()
       ..addAll({
+        'stock_reject': 0,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       });
@@ -67,6 +68,8 @@ class InventoryRepository {
     WHERE i.deleted_at is NULL
   ''');
 
+    print(result);
+
     return result
         .map((row) => InventoryWithUserMasterData(
               inventoryData: Inventory(
@@ -74,6 +77,7 @@ class InventoryRepository {
                 userId: row['user_id'] as int,
                 masterDataId: row['master_data_id'] as int,
                 stock: row['stock'] as int,
+                stockReject: row['stock_reject'] as int,
                 notes: row['notes'] as String,
                 createdAt: DateTime.parse(row['created_at'] as String),
                 updatedAt: DateTime.parse(row['updated_at'] as String),
@@ -157,10 +161,12 @@ class InventoryRepository {
     );
 
     int oldStock = 0;
+    int oldRejectStock = 0;
     var type = '';
     int difference = 0;
     if (oldInventoryMap.isNotEmpty) {
       oldStock = oldInventoryMap.first['stock'] as int;
+      oldRejectStock = oldInventoryMap.first['stock_reject'] as int;
     }
 
     if (inventory.stock > oldStock) {
@@ -173,6 +179,7 @@ class InventoryRepository {
 
     final data = inventory.toMap()
       ..remove('created_at')
+      ..['stock_reject'] = oldRejectStock
       ..['updated_at'] = DateTime.now().toIso8601String();
 
     final rowsAffected = await db.update(
@@ -194,6 +201,54 @@ class InventoryRepository {
             ? 'Penambahan stok sebesar $difference'
             : 'Pengurangan stok sebesar $difference',
         difference: difference,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await _inventoryLogRepository.insertInventoryLog(log);
+
+      // await _inventoryLogRepository.printAllInventoryLogs();
+    }
+    return rowsAffected;
+  }
+
+  Future<int> addReject(Inventory inventory, int reject) async {
+    final db = await dbHelper.database;
+
+    final oldInventoryMap = await db.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventory.id],
+      limit: 1,
+    );
+
+    int oldStock = 0;
+    var type = 'decrement';
+
+    if (oldInventoryMap.isNotEmpty) {
+      oldStock = oldInventoryMap.first['stock'] as int;
+    }
+
+    final data = inventory.toMap()
+      ..remove('created_at')
+      ..['updated_at'] = DateTime.now().toIso8601String();
+
+    final rowsAffected = await db.update(
+      'Data_Inventory',
+      data,
+      where: 'id = ?',
+      whereArgs: [inventory.id],
+    );
+
+    if (rowsAffected > 0) {
+      final log = InventoryLog(
+        id: null,
+        inventoryId: inventory.id!,
+        userId: inventory.userId,
+        type: type,
+        initialStock: oldStock,
+        currentStock: inventory.stock,
+        notes: 'Pengurangan stok karena reject sebesar $reject',
+        difference: reject,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

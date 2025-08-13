@@ -46,7 +46,7 @@ class _InventoryTableState extends State<InventoryTable> {
   @override
   void initState() {
     super.initState();
-    _loadMasterData();
+    _loadInventoryData();
   }
 
   void toggleSelectAll(bool? value) {
@@ -71,23 +71,48 @@ class _InventoryTableState extends State<InventoryTable> {
     });
   }
 
-  Future<void> _loadMasterData() async {
+  Future<void> _loadInventoryData() async {
     setState(() => _isLoading = true);
     try {
       final allData =
           await widget.inventoryRepository.getAllInventoryWithUserMasterData();
       setState(() => _inventoryList = allData);
     } catch (e) {
-      debugPrint('Error loading master data: $e');
+      debugPrint('Error loading inventory data: $e');
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _addRejectStock(
+      InventoryWithUserMasterData inventory, int rejectAmount) async {
+    try {
+      final updatedInventory = inventory.inventoryData.copyWith(
+        stock: inventory.inventoryData.stock - rejectAmount,
+        stockReject: inventory.inventoryData.stockReject! + rejectAmount,
+        updatedAt: DateTime.now(),
+      );
+
+      final rowsAffected = await widget.inventoryRepository
+          .addReject(updatedInventory, rejectAmount);
+
+      if (rowsAffected > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Stock reject berhasil ditambahkan')),
+        );
+        _loadInventoryData();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menambahkan stock reject: $e')),
+      );
     }
   }
 
   @override
   void didUpdateWidget(covariant InventoryTable oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _loadMasterData();
+    _loadInventoryData();
   }
 
   @override
@@ -229,6 +254,8 @@ class _InventoryTableState extends State<InventoryTable> {
                                 .map((data) => InventoryTableRow(
                                       name: data.name,
                                       stock: data.inventoryData.stock,
+                                      stockReject:
+                                          data.inventoryData.stockReject!,
                                       notes: data.inventoryData.notes,
                                       addedBy: data.addedBy,
                                       key: ValueKey(data.inventoryData.id),
@@ -243,6 +270,8 @@ class _InventoryTableState extends State<InventoryTable> {
                                           data.inventoryData),
                                       onViewLog: () => widget
                                           .onViewLog(data.inventoryData.id!),
+                                      onAddReject: (rejectAmount) =>
+                                          _addRejectStock(data, rejectAmount),
                                     ))
                                 .toList(),
                           ),

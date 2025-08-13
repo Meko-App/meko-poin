@@ -50,6 +50,7 @@ class _InventoryContentState extends State<InventoryContent> {
               'id': data.id,
               'id_user': data.userId,
               'master_data_id': data.masterDataId,
+              'stock_reject': data.stockReject,
               'stock': data.stock,
               'notes': data.notes,
             }
