@@ -716,6 +716,9 @@ class _TransactionFormState extends State<TransactionForm> {
           child: TextField(
             controller: _phoneController,
             focusNode: _phoneFocusNode,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
             onTap: () {
               if (_phoneController.text.length >= 3) {
                 _showOverlay();
