@@ -168,22 +168,45 @@ class TransactionTableRow extends StatelessWidget {
                   offset: const Offset(0, 30),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(
+                      color: CustomColors.borderCardColor,
+                      width: 1,
+                    ),
                   ),
-                  color: Colors.white,
+                  color: CustomColors.cardColor, // tema gelap
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'detail',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.remove_red_eye_outlined,
-                              color: Colors.blue, size: 16),
-                          SizedBox(width: 8),
-                          Text('Lihat Detail', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor, // efek hover
+                        onTap: () => Navigator.pop(context, 'detail'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.remove_red_eye_outlined,
+                                  color: Color(0xFF60A5FA),
+                                  size: 16), // warna biru konsisten
+                              SizedBox(width: 8),
+                              Text(
+                                'Lihat Detail',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
-                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: CustomColors.fontSubColor,
+                  ),
                 ),
               ),
             ),

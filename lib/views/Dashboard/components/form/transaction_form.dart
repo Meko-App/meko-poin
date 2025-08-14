@@ -2046,7 +2046,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
         _buildInfoRow('Invoice', invoice),
 
         const SizedBox(height: 16),
-        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const Divider(height: 1, color: CustomColors.borderCardColor),
         const SizedBox(height: 16),
 
         // Order items
@@ -2069,7 +2069,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
         ),
 
         const SizedBox(height: 16),
-        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const Divider(height: 1, color: CustomColors.borderCardColor),
         const SizedBox(height: 16),
 
         _buildPaymentRow('Diskon', _formatPrice(discountPrice)),
@@ -2088,7 +2088,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
         OutlinedButton(
           onPressed: widget.onCancel,
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            side: const BorderSide(color: CustomColors.cardColor),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(6),
@@ -2097,7 +2097,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
           child: const Text(
             'Batal',
             style: TextStyle(
-              color: Color(0xFF4B5675),
+              color: CustomColors.fontSubColor,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w500,
               fontSize: 14,
@@ -2148,7 +2148,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
               fontSize: 14,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w400,
-              color: Color(0xFF4B5675),
+              color: Colors.white,
             ),
           ),
         ),
@@ -2158,7 +2158,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
             fontSize: 14,
             fontFamily: 'Inter',
             fontWeight: FontWeight.w400,
-            color: Color(0xFF4B5675),
+            color: Colors.white,
           ),
         ),
         Expanded(
@@ -2169,7 +2169,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
               fontSize: 14,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w500,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
           ),
         ),
@@ -2189,7 +2189,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
               fontSize: 14,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w600,
-              color: Color(0xFF4B5675),
+              color: Colors.white,
             ),
           ),
         ),
@@ -2199,7 +2199,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
             fontSize: 14,
             fontFamily: 'Inter',
             fontWeight: FontWeight.w400,
-            color: Color(0xFF4B5675),
+            color: Colors.white,
           ),
         ),
         const SizedBox(width: 20),
@@ -2210,7 +2210,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
               fontSize: 14,
               fontFamily: 'Inter',
               fontWeight: FontWeight.w500,
-              color: Color(0xFF111B37),
+              color: Colors.white,
             ),
           ),
         ),
@@ -2231,7 +2231,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                 fontSize: 14,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF111B37),
+                color: Colors.white,
                 height: 1.4,
               ),
             ),
@@ -2245,7 +2245,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                 fontSize: 14,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF111B37),
+                color: Colors.white,
                 height: 1.4,
               ),
             ),
@@ -2259,7 +2259,7 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                 fontSize: 14,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF111B37),
+                color: Colors.white,
                 height: 1.4,
               ),
             ),
@@ -2283,9 +2283,9 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
     return Container(
       width: 400,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: CustomColors.cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: CustomColors.borderCardColor)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2295,7 +2295,8 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
             padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1.0),
+                bottom:
+                    BorderSide(color: CustomColors.borderCardColor, width: 1.0),
               ),
             ),
             child: Row(
@@ -2307,12 +2308,12 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
                     fontSize: 16,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF111B37),
+                    color: Colors.white,
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close,
-                      size: 20, color: Color(0xFF78829D)),
+                      size: 20, color: CustomColors.fontSubColor),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: widget.onCancel,
@@ -2334,7 +2335,8 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Colors.grey.shade200, width: 1.0),
+                top:
+                    BorderSide(color: CustomColors.borderCardColor, width: 1.0),
               ),
             ),
             child: _showReceiptOptions
@@ -2409,7 +2411,8 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
       children: [
         const Text(
           'Pilih opsi struk:',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
         ),
         const SizedBox(height: 20),
         Wrap(
@@ -2453,14 +2456,17 @@ class _ReviewOrderModalState extends State<ReviewOrderModal> {
         width: 100,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: CustomColors.borderInputColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 30, color: Colors.blue),
+            Icon(icon, size: 30, color: Colors.white),
             const SizedBox(height: 8),
-            Text(label),
+            Text(
+              label,
+              style: TextStyle(color: Colors.white),
+            ),
           ],
         ),
       ),

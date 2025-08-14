@@ -114,32 +114,72 @@ class UserTableRow extends StatelessWidget {
                   offset: const Offset(0, 30),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(
+                      color: CustomColors.borderCardColor,
+                      width: 1,
+                    ),
                   ),
-                  color: Colors.white,
+                  color: CustomColors.cardColor,
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'edit',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.edit, color: Color(0xFF3B82F6), size: 16),
-                          SizedBox(width: 8),
-                          Text('Edit', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'edit'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit,
+                                  color: Color(0xFF60A5FA).withOpacity(0.9),
+                                  size: 16),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Edit',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                     PopupMenuItem(
                       value: 'delete',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.delete_outline,
-                              color: Colors.red, size: 16),
-                          SizedBox(width: 8),
-                          Text('Hapus', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'delete'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline,
+                                  color: Colors.redAccent.withOpacity(0.9),
+                                  size: 16),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Hapus',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
-                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: CustomColors.fontSubColor,
+                  ),
                 ),
               ),
             ),

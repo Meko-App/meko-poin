@@ -138,52 +138,124 @@ class InventoryTableRow extends StatelessWidget {
                   offset: const Offset(0, 30),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(
+                      color: CustomColors.borderCardColor,
+                      width: 1,
+                    ),
                   ),
-                  color: Colors.white,
+                  color: CustomColors.cardColor, // tema gelap
                   itemBuilder: (context) => [
+                    // Tambah Reject
                     PopupMenuItem(
                       value: 'reject',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.block, color: Colors.orange, size: 16),
-                          SizedBox(width: 8),
-                          Text('Tambah Reject', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'reject'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.block, color: Colors.orange, size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'Tambah Reject',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
+                    // Edit
                     PopupMenuItem(
                       value: 'edit',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.edit, color: Colors.green, size: 16),
-                          SizedBox(width: 8),
-                          Text('Edit', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'edit'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.edit, color: Colors.green, size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'Edit',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
+                    // Hapus
                     PopupMenuItem(
                       value: 'delete',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.delete_outline,
-                              color: Colors.red, size: 16),
-                          SizedBox(width: 8),
-                          Text('Hapus', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'delete'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.delete_outline,
+                                  color: Colors.redAccent, size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'Hapus',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
+                    // Log Aktivitas
                     PopupMenuItem(
                       value: 'log',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.access_time, color: Colors.blue, size: 16),
-                          SizedBox(width: 8),
-                          Text('Log Aktivitas', style: TextStyle(fontSize: 14)),
-                        ],
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'log'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.access_time,
+                                  color: Colors.blue, size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'Log Aktivitas',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
-                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: CustomColors.fontSubColor,
+                  ),
                 ),
               ),
             ),

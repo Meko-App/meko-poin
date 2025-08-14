@@ -151,8 +151,6 @@ class _SidebarState extends State<Sidebar> {
 
   Future<void> _logout(BuildContext context) async {
     final navigator = Navigator.of(context, rootNavigator: true);
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
 
     bool? shouldLogout = await showDialog<bool>(
       context: context,
@@ -164,7 +162,7 @@ class _SidebarState extends State<Sidebar> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+            backgroundColor: CustomColors.cardColor,
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -176,29 +174,32 @@ class _SidebarState extends State<Sidebar> {
                     children: [
                       Icon(
                         Icons.warning_amber_rounded,
-                        color:
-                            isDarkMode ? Colors.amber[300] : Colors.amber[700],
+                        color: CustomColors.fontSubColor,
                         size: 24,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Peringatan Logout',
-                          style: theme.textTheme.titleLarge?.copyWith(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: isDarkMode ? Colors.white : Colors.black87,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
+                  const SizedBox(height: 10),
+                  Divider(
+                    height: 1,
+                    color: CustomColors.borderCardColor,
+                  ),
+                  const SizedBox(height: 10),
                   // Content text
                   Text(
                     'Sebelum logout, pastikan Anda sudah melakukan backup data.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    style: TextStyle(
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -247,7 +248,7 @@ class _SidebarState extends State<Sidebar> {
                   // Divider
                   Divider(
                     height: 1,
-                    color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                    color: CustomColors.borderCardColor,
                   ),
                   const SizedBox(height: 16),
 
@@ -258,8 +259,7 @@ class _SidebarState extends State<Sidebar> {
                       TextButton(
                         onPressed: () => navigator.pop(false),
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                          foregroundColor: CustomColors.fontSubColor,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
@@ -271,8 +271,7 @@ class _SidebarState extends State<Sidebar> {
                       TextButton(
                         onPressed: () => navigator.pop(true),
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              isDarkMode ? Colors.red[300] : Colors.red[600],
+                          foregroundColor: Colors.red[300],
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
@@ -302,8 +301,6 @@ class _SidebarState extends State<Sidebar> {
 
   Future<void> _showLogoutConfirmation(BuildContext context) async {
     final navigator = Navigator.of(context, rootNavigator: true);
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
 
     bool? confirm = await showDialog<bool>(
       context: context,
@@ -315,7 +312,7 @@ class _SidebarState extends State<Sidebar> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+            backgroundColor: CustomColors.cardColor,
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -327,31 +324,40 @@ class _SidebarState extends State<Sidebar> {
                     children: [
                       Icon(
                         Icons.logout_rounded,
-                        color: isDarkMode ? Colors.blue[300] : Colors.blue[600],
+                        color: Color(0xFF1379F0),
                         size: 24,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Konfirmasi Logout',
-                          style: theme.textTheme.titleLarge?.copyWith(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: isDarkMode ? Colors.white : Colors.black87,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
+                  const SizedBox(height: 10),
+                  Divider(
+                    height: 1,
+                    color: CustomColors.borderCardColor,
+                  ),
+                  const SizedBox(height: 10),
                   // Content text
                   Text(
                     'Backup selesai. Apakah Anda yakin ingin logout?',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    style: TextStyle(
+                      color: CustomColors.fontSubColor,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
+                  Divider(
+                    height: 1,
+                    color: CustomColors.borderCardColor,
+                  ),
+                  const SizedBox(height: 12),
 
                   // Footer Buttons
                   Row(
@@ -360,8 +366,7 @@ class _SidebarState extends State<Sidebar> {
                       TextButton(
                         onPressed: () => navigator.pop(false),
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                          foregroundColor: CustomColors.fontSubColor,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
@@ -373,8 +378,7 @@ class _SidebarState extends State<Sidebar> {
                       ElevatedButton(
                         onPressed: () => navigator.pop(true),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isDarkMode ? Colors.blue[800] : Colors.blue[600],
+                          backgroundColor: Color(0xFF1379F0),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),

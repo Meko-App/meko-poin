@@ -89,7 +89,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
       // 2. Baca file yang dipilih
       final filePath = result.files.single.path!;
-      final fileName = 'avatar_${widget.user.id}${path.extension(filePath)}';
+      final fileName =
+          'avatar_${widget.user.id}_${DateTime.now().millisecondsSinceEpoch}${path.extension(filePath)}';
 
       // 3. Dapatkan direktori dokumen aplikasi
       final appDir = await getApplicationDocumentsDirectory();
@@ -116,91 +117,94 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _handleAvatarClick() async {
-    final savedPath = await _pickAndSaveAvatar();
-    if (savedPath == null || !mounted) return;
-
-    // Tampilkan preview
-    final confirmed = await showDialog<bool>(
+    await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E), // dark background
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text(
-          'Konfirmasi Avatar',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                File(savedPath),
-                height: 150,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Gunakan gambar ini sebagai avatar?',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: CustomColors.fontSubColor,
-            ),
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF1379F0),
-              foregroundColor: Colors.white,
+      builder: (context) {
+        String? currentImagePath; // simpan di dalam builder
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E1E1E),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(16),
               ),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Gunakan'),
-          ),
-        ],
-      ),
+              title: const Text(
+                'Konfirmasi Avatar',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: 350,
+                  maxWidth: 400,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (currentImagePath != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(currentImagePath!),
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    else
+                      const Text(
+                        'Pilih gambar terlebih dahulu',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () async {
+                        final path = await _pickAndSaveAvatar();
+                        if (path != null) {
+                          setDialogState(() {
+                            currentImagePath = path;
+                          });
+                        }
+                      },
+                      child: const Text('Pilih Gambar Baru'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey,
+                  ),
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF1379F0),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, currentImagePath),
+                  child: const Text('Gunakan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
-
-    if (confirmed == true && mounted) {
-      try {
-        await widget.userRepository
-            .updateUserAvatar(widget.user.id!, savedPath);
-        setState(() {
-          _avatarPath = savedPath;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Avatar berhasil diperbarui')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal memperbarui avatar: $e')),
-          );
-        }
-      }
-    }
   }
 
   Widget _buildAvatar() {
