@@ -57,7 +57,7 @@ class Header extends StatelessWidget {
                     size: 16, color: Color(0xFFA4ABBF)),
                 const SizedBox(width: 8),
                 Text(
-                  currentPage2!, // Gunakan '!' karena sudah kita cek tidak null
+                  currentPage2!,
                   style: const TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
@@ -67,11 +67,7 @@ class Header extends StatelessWidget {
               ],
             ],
           ),
-          trailing ??
-              const CircleAvatar(
-                radius: 18,
-                backgroundImage: AssetImage('assets/user.png'),
-              ),
+          trailing ?? const SizedBox.shrink(),
         ],
       ),
     );

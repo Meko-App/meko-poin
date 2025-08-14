@@ -59,6 +59,7 @@ class DatabaseHelper {
         email TEXT UNIQUE,
         password TEXT,
         role_id INTEGER,
+        avatar_path TEXT,
         deleted_at TEXT
       )
     ''');
@@ -171,6 +172,7 @@ class DatabaseHelper {
       'name': 'Admin',
       'email': 'admin@example.com',
       'password': PasswordHasher.hashPassword('admin123'),
+      'avatar_path': 'assets/user.png',
       'role_id': 1,
     });
   }

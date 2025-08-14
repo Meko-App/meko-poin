@@ -97,6 +97,16 @@ class UserRepository {
     );
   }
 
+  Future<int> updateUserAvatar(int userId, String avatarPath) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_User',
+      {'avatar_path': avatarPath},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
   Future<int> deleteUser(int id) async {
     final db = await dbHelper.database;
     return await db.delete(

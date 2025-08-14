@@ -4,6 +4,7 @@ class User {
   final String email;
   final String password;
   final int roleId;
+  final String? avatarPath;
   final DateTime? deletedAt;
 
   User({
@@ -12,6 +13,7 @@ class User {
     required this.email,
     required this.password,
     required this.roleId,
+    this.avatarPath,
     this.deletedAt,
   });
 
@@ -22,6 +24,7 @@ class User {
       email: map['email'],
       password: map['password'],
       roleId: map['role_id'],
+      avatarPath: map['avatar_path'],
       deletedAt:
           map['deleted_at'] != null ? DateTime.parse(map['deleted_at']) : null,
     );
@@ -34,6 +37,7 @@ class User {
       'email': email,
       'password': password,
       'role_id': roleId,
+      'avatar_path': avatarPath,
       'deleted_at': deletedAt?.toIso8601String(),
     };
   }
@@ -45,6 +49,7 @@ class User {
       email: email,
       password: password,
       roleId: roleId,
+      avatarPath: avatarPath,
       deletedAt: DateTime.now(),
     );
   }
@@ -56,6 +61,7 @@ class User {
       email: email,
       password: password,
       roleId: roleId,
+      avatarPath: avatarPath,
       deletedAt: null,
     );
   }

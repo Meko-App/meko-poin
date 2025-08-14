@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/user.dart';
 import 'package:meko_poin/services/customer_repository.dart';
@@ -48,12 +52,14 @@ class _DashboardPageState extends State<DashboardPage> {
   late String _selectedMenu;
   ContentState? _contentCurrentState;
   int _ContentKey = 0;
+  String? _avatarPath;
 
   @override
   void initState() {
     super.initState();
     _selectedMenu =
         widget.initialMenu ?? 'Ringkasan'; // Tambahkan fallback value
+    _avatarPath = widget.user.avatarPath;
     if (widget.user.roleId != 1) {
       _contentCurrentState = ContentState.form; // Langsung tampilkan form
     }
@@ -69,6 +75,150 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {
       _contentCurrentState = state;
     });
+  }
+
+  Future<String?> _pickAndSaveAvatar() async {
+    try {
+      // 1. Pilih file dari sistem
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result == null) return null;
+
+      // 2. Baca file yang dipilih
+      final filePath = result.files.single.path!;
+      final fileName = 'avatar_${widget.user.id}${path.extension(filePath)}';
+
+      // 3. Dapatkan direktori dokumen aplikasi
+      final appDir = await getApplicationDocumentsDirectory();
+      final avatarDir = Directory('${appDir.path}/photorism-app/avatars');
+
+      // 4. Buat folder jika belum ada
+      if (!await avatarDir.exists()) {
+        await avatarDir.create(recursive: true);
+      }
+
+      // 5. Salin file ke direktori aplikasi
+      final savedPath = '${avatarDir.path}/$fileName';
+      await File(filePath).copy(savedPath);
+
+      return savedPath;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan avatar: $e')),
+        );
+      }
+      return null;
+    }
+  }
+
+  Future<void> _handleAvatarClick() async {
+    final savedPath = await _pickAndSaveAvatar();
+    if (savedPath == null || !mounted) return;
+
+    // Tampilkan preview
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E), // dark background
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Konfirmasi Avatar',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                File(savedPath),
+                height: 150,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Gunakan gambar ini sebagai avatar?',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: CustomColors.fontSubColor,
+            ),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF1379F0),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Gunakan'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await widget.userRepository
+            .updateUserAvatar(widget.user.id!, savedPath);
+        setState(() {
+          _avatarPath = savedPath;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Avatar berhasil diperbarui')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memperbarui avatar: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildAvatar() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: _handleAvatarClick,
+        child: _avatarPath != null
+            ? CircleAvatar(
+                radius: 18,
+                backgroundImage: FileImage(File(_avatarPath!)),
+              )
+            : const CircleAvatar(
+                radius: 18,
+                backgroundImage: AssetImage('assets/user.png'),
+              ),
+      ),
+    );
   }
 
   @override
@@ -145,9 +295,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     currentModulPage: getModulPage(_selectedMenu),
                     currentPage: headerCurrentPage,
                     currentPage2: headerSubPage,
-                    trailing: const CircleAvatar(
-                      radius: 18,
-                      backgroundImage: AssetImage('assets/user.png'),
+                    trailing: GestureDetector(
+                      onTap: _handleAvatarClick,
+                      child: _buildAvatar(),
                     ),
                   ),
                   Expanded(
