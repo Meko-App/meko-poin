@@ -153,6 +153,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Expanded(
                     child: DashboardContent(
                         menu: _selectedMenu,
+                        userId: widget.user.roleId,
                         onContentStateChanged: (state) {
                           if (_selectedMenu == 'Pengguna' ||
                               _selectedMenu == 'Master Data' ||
@@ -235,6 +236,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class DashboardContent extends StatelessWidget {
   final String menu;
+  final int userId;
   final Function(ContentState)? onContentStateChanged;
   final UserRepository userRepository;
   final TransactionRepository transactionRepository;
@@ -247,6 +249,7 @@ class DashboardContent extends StatelessWidget {
   const DashboardContent({
     super.key,
     required this.menu,
+    required this.userId,
     this.onContentStateChanged,
     required this.userRepository,
     required this.transactionRepository,
@@ -291,6 +294,7 @@ class DashboardContent extends StatelessWidget {
       case 'Transaksi':
         return TransaksiContent(
           key: ValueKey(contentKey),
+          user: userId,
           onStateChanged: onContentStateChanged!,
           transactionRepository: transactionRepository, // Teruskan repository
         );

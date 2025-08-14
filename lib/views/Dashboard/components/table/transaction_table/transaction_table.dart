@@ -12,14 +12,15 @@ class TransactionTable extends StatefulWidget {
   final Function(int transactionId) onViewDetail;
   final VoidCallback onAddNew;
   final VoidCallback onPrintReport;
+  final int? user;
 
-  const TransactionTable({
-    super.key,
-    required this.transactionRepository,
-    required this.onViewDetail,
-    required this.onAddNew,
-    required this.onPrintReport,
-  });
+  const TransactionTable(
+      {super.key,
+      required this.transactionRepository,
+      required this.onViewDetail,
+      required this.onAddNew,
+      required this.onPrintReport,
+      this.user});
 
   @override
   State<TransactionTable> createState() => _TransactionTableState();
@@ -197,6 +198,7 @@ class _TransactionTableState extends State<TransactionTable> {
         children: [
           TransactionTableSearch(
             currentPageData: currentPageData,
+            user: widget.user,
             data: sortedTransactionData,
             onDateRangeSelected: _handleDateRangeSelected,
             onAddNew: widget.onAddNew,

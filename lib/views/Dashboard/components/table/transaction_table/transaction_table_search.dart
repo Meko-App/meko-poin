@@ -10,16 +10,17 @@ class TransactionTableSearch extends StatefulWidget {
   final VoidCallback onAddNew;
   final VoidCallback onPrintReport;
   final Function(String) onSearch;
+  final int? user;
 
-  const TransactionTableSearch({
-    super.key,
-    required this.currentPageData,
-    required this.data,
-    required this.onDateRangeSelected,
-    required this.onAddNew,
-    required this.onPrintReport,
-    required this.onSearch,
-  });
+  const TransactionTableSearch(
+      {super.key,
+      required this.currentPageData,
+      required this.data,
+      required this.onDateRangeSelected,
+      required this.onAddNew,
+      required this.onPrintReport,
+      required this.onSearch,
+      this.user});
 
   @override
   State<TransactionTableSearch> createState() => _TransactionTableSearchState();
@@ -251,28 +252,29 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                 ),
               ],
               const SizedBox(width: 20),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1379F0), // Blue background
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
+              if (widget.user == 1)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1379F0), // Blue background
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    minimumSize: const Size(100, 40),
                   ),
-                  minimumSize: const Size(100, 40),
-                ),
-                onPressed: widget.onAddNew,
-                child: const Text(
-                  'Tambah Baru',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    height: 1.0,
-                    fontWeight: FontWeight.w500,
+                  onPressed: widget.onAddNew,
+                  child: const Text(
+                    'Tambah Baru',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      height: 1.0,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(

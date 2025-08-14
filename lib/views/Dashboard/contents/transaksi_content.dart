@@ -9,12 +9,14 @@ import 'package:meko_poin/utils/custom_colors.dart';
 class TransaksiContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
   final String? menu;
+  final int? user;
   final TransactionRepository transactionRepository;
 
   const TransaksiContent({
     super.key,
     required this.onStateChanged,
     this.menu,
+    this.user,
     required this.transactionRepository,
   });
 
@@ -88,11 +90,12 @@ class _TransaksiContentState extends State<TransaksiContent> {
             children: [
               if (_currentState == ContentState.form ||
                   _currentState == ContentState.detail)
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: _showTable,
-                  color: Colors.grey.shade700,
-                ),
+                if (widget.menu != 'Tambah Transaksi')
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: _showTable,
+                    color: Colors.grey.shade700,
+                  ),
               if (_currentState == ContentState.form ||
                   _currentState == ContentState.detail)
                 const SizedBox(width: 8),
@@ -139,6 +142,7 @@ class _TransaksiContentState extends State<TransaksiContent> {
                     onViewDetail: _showDetail,
                     onAddNew: _showForm,
                     onPrintReport: _printReport,
+                    user: widget.user,
                   )
                 : _currentState == ContentState.detail
                     ? TransactionDetail(
