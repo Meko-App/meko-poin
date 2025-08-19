@@ -28,7 +28,7 @@ class _InventoryFormState extends State<InventoryForm> {
   List<int> _existingInventoryIds = [];
 
   Future<List<MasterData>> _fetchMasterData() async {
-    return await _masterDataRepository.getAllMasterData();
+    return await _masterDataRepository.getAllMasterDataForSelect();
   }
 
   final TextEditingController _stockController = TextEditingController();

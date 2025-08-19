@@ -390,22 +390,31 @@ class _TransactionFormState extends State<TransactionForm> {
     );
 
     try {
-      final availableStock =
-          await _masterDataRepo.getStockByMasterDataId(selectedMasterData.id!);
-      print(availableStock);
-      if (availableStock == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Stok belum tersedia, harap hubungi admin')),
-        );
-        return;
+      // Daftar kategori yang perlu dicek stok
+      const stockCheckedCategories = ["Paper", "Packaging"];
+      final needStockCheck =
+          stockCheckedCategories.contains(selectedMasterData.category);
+
+      int? availableStock;
+      if (needStockCheck) {
+        availableStock = await _masterDataRepo
+            .getStockByMasterDataId(selectedMasterData.id!);
+        print(availableStock);
+        if (availableStock == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Stok belum tersedia, harap hubungi admin')),
+          );
+          return;
+        }
       }
+
       final existingItem = await _transactionItemRepo
           .findExistingCartItem(selectedMasterData.id!);
 
       if (existingItem != null) {
-        final totalQty;
-        final totalPrice;
+        final int totalQty;
+        final int totalPrice;
         if (isNewItem == false) {
           totalQty = qty;
           totalPrice = (selectedMasterData.price ?? 0) * qty;
@@ -414,7 +423,9 @@ class _TransactionFormState extends State<TransactionForm> {
           totalPrice = (existingItem.totalPrice ~/ existingItem.qty) *
               (existingItem.qty + qty);
         }
-        if (totalQty > availableStock) {
+
+        // Hanya cek stok jika kategorinya perlu dicek
+        if (needStockCheck && totalQty > availableStock!) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(
@@ -422,6 +433,7 @@ class _TransactionFormState extends State<TransactionForm> {
           );
           return;
         }
+
         final updatedItem = TransactionItem(
           id: existingItem.id,
           masterDataId: existingItem.masterDataId,
@@ -434,7 +446,9 @@ class _TransactionFormState extends State<TransactionForm> {
         await _transactionItemRepo.updateTransactionItem(updatedItem);
       } else {
         final totalPrice = (selectedMasterData.price ?? 0) * qty;
-        if (qty > availableStock) {
+
+        // Hanya cek stok jika kategorinya perlu dicek
+        if (needStockCheck && qty > availableStock!) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(

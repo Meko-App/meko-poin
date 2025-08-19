@@ -68,8 +68,6 @@ class InventoryRepository {
     WHERE i.deleted_at is NULL
   ''');
 
-    print(result);
-
     return result
         .map((row) => InventoryWithUserMasterData(
               inventoryData: Inventory(

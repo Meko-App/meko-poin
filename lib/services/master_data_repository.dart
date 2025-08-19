@@ -47,6 +47,16 @@ class MasterDataRepository {
     return result.map((map) => MasterData.fromMap(map)).toList();
   }
 
+  Future<List<MasterData>> getAllMasterDataForSelect(
+      {bool includeDeleted = false}) async {
+    final db = await dbHelper.database;
+    String where = includeDeleted
+        ? 'category IN ("Paper", "Packaging")'
+        : 'deleted_at IS NULL AND category IN ("Paper", "Packaging")';
+    final result = await db.query('Data_Master', where: where);
+    return result.map((map) => MasterData.fromMap(map)).toList();
+  }
+
   Future<List<MasterDataWithUser>> getAllMasterDataWithUser() async {
     final db = await dbHelper.database;
     final result = await db.rawQuery('''
