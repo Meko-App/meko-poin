@@ -65,6 +65,7 @@ class _TransactionFormState extends State<TransactionForm> {
   int _finalPrice = 0;
   bool _isNominalDiscount = false;
   bool _isPercentageDiscount = false;
+  bool _useRemainingPaper = false;
 
   @override
   void initState() {
@@ -126,6 +127,7 @@ class _TransactionFormState extends State<TransactionForm> {
           _discountNominalController.clear();
           _discountPercentController.clear();
           _noteController.clear();
+          _useRemainingPaper = false;
         });
 
         widget.onSuccess();
@@ -235,6 +237,12 @@ class _TransactionFormState extends State<TransactionForm> {
     for (final item in items) {
       final masterDataId = item['master_data_id'] as int;
       final qty = item['qty'] as int;
+
+      // Skip stock reduction for Paper items with "gunakan sisa kertas"
+      final masterData = await _masterDataRepo.getMasterDataById(masterDataId);
+      if (masterData?.category == "Paper" && _useRemainingPaper) {
+        continue;
+      }
 
       // Dapatkan data inventory
       final inventory = await db.query(
@@ -393,7 +401,8 @@ class _TransactionFormState extends State<TransactionForm> {
       // Daftar kategori yang perlu dicek stok
       const stockCheckedCategories = ["Paper", "Packaging"];
       final needStockCheck =
-          stockCheckedCategories.contains(selectedMasterData.category);
+          stockCheckedCategories.contains(selectedMasterData.category) &&
+              !(selectedMasterData.category == "Paper" && _useRemainingPaper);
 
       int? availableStock;
       if (needStockCheck) {
@@ -1499,221 +1508,238 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Widget _buildOrderInputRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFormLabel('Kategori'),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: _buildCategoryDropdown(),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFormLabel('Item'),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: _buildItemDropdown(),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFormLabel('Jumlah'),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 36,
-                child: TextField(
-                  controller: _orderQuantityController,
-                  keyboardType: TextInputType.number,
-                  textAlignVertical: TextAlignVertical.center,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white,
-                    height: 1.0,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFormLabel('Kategori'),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _buildCategoryDropdown(),
                   ),
-                  decoration: InputDecoration(
-                    hintText: 'Masukkan jumlah',
-                    hintStyle: const TextStyle(
-                      fontSize: 14,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w400,
-                      color: CustomColors.fontSubColor,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: CustomColors.borderInputColor,
-                        width: 1.0,
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFormLabel('Item'),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _buildItemDropdown(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFormLabel('Jumlah'),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 36,
+                    child: TextField(
+                      controller: _orderQuantityController,
+                      keyboardType: TextInputType.number,
+                      textAlignVertical: TextAlignVertical.center,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                        height: 1.0,
                       ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: CustomColors.borderInputColor,
-                        width: 1.0,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF1379F0),
-                        width: 1.0,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: CustomColors.inputColor,
-                    suffixIcon: SizedBox(
-                      width: 24,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Up Button
-                          SizedBox(
-                            width: 24,
-                            height: 16,
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4),
-                                ),
-                                onTap: () {
-                                  final current = int.tryParse(
-                                          _orderQuantityController.text) ??
-                                      0;
-                                  _orderQuantityController.text =
-                                      (current + 1).toString();
-                                },
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.keyboard_arrow_up,
-                                    size: 16,
-                                    color: CustomColors.fontSubColor,
+                      decoration: InputDecoration(
+                        hintText: 'Masukkan jumlah',
+                        hintStyle: const TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w400,
+                          color: CustomColors.fontSubColor,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: CustomColors.inputColor,
+                        suffixIcon: SizedBox(
+                          width: 24,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 16,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(4),
+                                    ),
+                                    onTap: () {
+                                      final current = int.tryParse(
+                                              _orderQuantityController.text) ??
+                                          0;
+                                      _orderQuantityController.text =
+                                          (current + 1).toString();
+                                    },
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.keyboard_arrow_up,
+                                        size: 16,
+                                        color: CustomColors.fontSubColor,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                          // Divider
-                          Container(
-                            height: 1,
-                            width: 16,
-                            color: CustomColors.borderInputColor,
-                          ),
-                          // Down Button
-                          SizedBox(
-                            width: 24,
-                            height: 16,
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(4),
-                                ),
-                                onTap: () {
-                                  final current = int.tryParse(
-                                          _orderQuantityController.text) ??
-                                      1;
-                                  if (current > 1) {
-                                    _orderQuantityController.text =
-                                        (current - 1).toString();
-                                  }
-                                },
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.keyboard_arrow_down,
-                                    size: 16,
-                                    color: CustomColors.fontSubColor,
+                              Container(
+                                height: 1,
+                                width: 16,
+                                color: CustomColors.borderInputColor,
+                              ),
+                              SizedBox(
+                                width: 24,
+                                height: 16,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: const BorderRadius.vertical(
+                                      bottom: Radius.circular(4),
+                                    ),
+                                    onTap: () {
+                                      final current = int.tryParse(
+                                              _orderQuantityController.text) ??
+                                          1;
+                                      if (current > 1) {
+                                        _orderQuantityController.text =
+                                            (current - 1).toString();
+                                      }
+                                    },
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.keyboard_arrow_down,
+                                        size: 16,
+                                        color: CustomColors.fontSubColor,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (_selectedCartItem == null)
-          // Add button
-          Container(
-            height: 34,
-            width: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1379F0),
-              borderRadius: BorderRadius.circular(8),
             ),
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.add, color: Colors.white, size: 20),
-              onPressed: () async {
-                await _addOrUpdateItemToCart(true);
-              },
-            ),
-          )
-        else
-          // Edit and Delete buttons
-          Row(
-            children: [
+            const SizedBox(width: 8),
+            if (_selectedCartItem == null)
+              // Add button
               Container(
                 height: 34,
                 width: 34,
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: const Color(0xFF1379F0),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.edit, color: Colors.white, size: 20),
+                  icon: const Icon(Icons.add, color: Colors.white, size: 20),
                   onPressed: () async {
-                    await _addOrUpdateItemToCart(false);
+                    await _addOrUpdateItemToCart(true);
                   },
                 ),
+              )
+            else
+              // Edit and Delete buttons
+              Row(
+                children: [
+                  Container(
+                    height: 34,
+                    width: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon:
+                          const Icon(Icons.edit, color: Colors.white, size: 20),
+                      onPressed: () async {
+                        await _addOrUpdateItemToCart(false);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 34,
+                    width: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.delete,
+                          color: Colors.white, size: 20),
+                      onPressed: () => _deleteCartItem(_selectedCartItem!.id!),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Container(
-                height: 34,
-                width: 34,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.delete, color: Colors.white, size: 20),
-                  onPressed: () => _deleteCartItem(_selectedCartItem!.id!),
+          ],
+        ),
+        if (_selectedOrderCategory == "Paper") ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Checkbox(
+                value: _useRemainingPaper,
+                onChanged: (value) {
+                  setState(() {
+                    _useRemainingPaper = value ?? false;
+                  });
+                },
+                activeColor: const Color(0xFF1379F0),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                'Gunakan sisa kertas',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
                 ),
               ),
             ],
           ),
+        ],
       ],
     );
   }
