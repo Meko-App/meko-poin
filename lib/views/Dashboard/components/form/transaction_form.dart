@@ -49,6 +49,7 @@ class _TransactionFormState extends State<TransactionForm> {
   String? _selectedOrderCategory;
   String? _selectedOrderItem;
   String? _selectedPaymentMethod;
+  String? _selectedBackground;
   TransactionItem? _hoveredCartItem;
 
   final MasterDataRepository _masterDataRepo =
@@ -59,6 +60,7 @@ class _TransactionFormState extends State<TransactionForm> {
   TransactionItem? _selectedCartItem;
   List<TransactionItem> _cartItems = [];
   List<MasterData> _masterDataItems = [];
+  List<MasterData> _backgroundDataItems = [];
   List<MasterData> _filteredMasterDataItems = [];
 
   int _totalPrice = 0;
@@ -339,9 +341,13 @@ class _TransactionFormState extends State<TransactionForm> {
 
   Future<void> _loadMasterData() async {
     try {
-      final items = await _masterDataRepo.getAllMasterData();
+      final items = await _masterDataRepo.getAllMasterDataForSelectCategory();
       setState(() {
         _masterDataItems = items;
+      });
+      final items2 = await _masterDataRepo.getAllMasterData();
+      setState(() {
+        _backgroundDataItems = items2;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -383,6 +389,14 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
+    // Validasi untuk Product harus memilih background
+    if (_selectedOrderCategory == "Product" && _selectedBackground == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Harap pilih background untuk produk')),
+      );
+      return;
+    }
+
     final qty = int.tryParse(_orderQuantityController.text) ?? 1;
     if (qty <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -391,98 +405,19 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
-    // Cari master data yang dipilih
-    final selectedMasterData = _filteredMasterDataItems.firstWhere(
-      (item) => item.name == _selectedOrderItem,
-      orElse: () => throw Exception('Item tidak ditemukan'),
-    );
-
     try {
-      // Daftar kategori yang perlu dicek stok
-      const stockCheckedCategories = ["Paper", "Packaging"];
-      final needStockCheck =
-          stockCheckedCategories.contains(selectedMasterData.category) &&
-              !(selectedMasterData.category == "Paper" && _useRemainingPaper);
+      // 1. Tambahkan produk utama ke keranjang
+      await _addItemToCart(_selectedOrderItem!, qty, isNewItem);
 
-      int? availableStock;
-      if (needStockCheck) {
-        availableStock = await _masterDataRepo
-            .getStockByMasterDataId(selectedMasterData.id!);
-        print(availableStock);
-        if (availableStock == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Stok belum tersedia, harap hubungi admin')),
-          );
-          return;
-        }
-      }
-
-      final existingItem = await _transactionItemRepo
-          .findExistingCartItem(selectedMasterData.id!);
-
-      if (existingItem != null) {
-        final int totalQty;
-        final int totalPrice;
-        if (isNewItem == false) {
-          totalQty = qty;
-          totalPrice = (selectedMasterData.price ?? 0) * qty;
-        } else {
-          totalQty = existingItem.qty + qty;
-          totalPrice = (existingItem.totalPrice ~/ existingItem.qty) *
-              (existingItem.qty + qty);
-        }
-
-        // Hanya cek stok jika kategorinya perlu dicek
-        if (needStockCheck && totalQty > availableStock!) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'Stok tidak mencukupi. Stok tersedia: $availableStock')),
-          );
-          return;
-        }
-
-        final updatedItem = TransactionItem(
-          id: existingItem.id,
-          masterDataId: existingItem.masterDataId,
-          qty: totalQty,
-          totalPrice: totalPrice,
-          createdAt: existingItem.createdAt,
-          updatedAt: DateTime.now(),
-        );
-
-        await _transactionItemRepo.updateTransactionItem(updatedItem);
-      } else {
-        final totalPrice = (selectedMasterData.price ?? 0) * qty;
-
-        // Hanya cek stok jika kategorinya perlu dicek
-        if (needStockCheck && qty > availableStock!) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'Stok tidak mencukupi. Stok tersedia: $availableStock')),
-          );
-          return;
-        }
-
-        final newItem = TransactionItem(
-          masterDataId: selectedMasterData.id!,
-          qty: qty,
-          totalPrice: totalPrice,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        await _transactionItemRepo.insertTransactionItem(newItem);
+      // 2. Jika kategori Product, tambahkan background juga
+      if (_selectedOrderCategory == "Product" && _selectedBackground != null) {
+        await _addItemToCart(_selectedBackground!, qty, isNewItem);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(existingItem != null
-              ? 'Jumlah item diperbarui'
-              : 'Item ditambahkan ke keranjang'),
-          duration: const Duration(seconds: 1),
+        const SnackBar(
+          content: Text('Item ditambahkan ke keranjang'),
+          duration: Duration(seconds: 1),
         ),
       );
     } catch (e) {
@@ -493,6 +428,52 @@ class _TransactionFormState extends State<TransactionForm> {
 
     _resetItemForm();
     await _loadCartItems();
+  }
+
+  Future<void> _addItemToCart(String itemName, int qty, bool isNewItem) async {
+    // Cari master data yang dipilih
+    final selectedMasterData = _backgroundDataItems.firstWhere(
+      (item) => item.name == itemName,
+      orElse: () => throw Exception('Item $itemName tidak ditemukan'),
+    );
+
+    final existingItem =
+        await _transactionItemRepo.findExistingCartItem(selectedMasterData.id!);
+
+    if (existingItem != null) {
+      final int totalQty;
+      final int totalPrice;
+      if (!isNewItem) {
+        totalQty = qty;
+        totalPrice = (selectedMasterData.price ?? 0) * qty;
+      } else {
+        totalQty = existingItem.qty + qty;
+        totalPrice = (existingItem.totalPrice ~/ existingItem.qty) * totalQty;
+      }
+
+      final updatedItem = TransactionItem(
+        id: existingItem.id,
+        masterDataId: existingItem.masterDataId,
+        qty: totalQty,
+        totalPrice: totalPrice,
+        createdAt: existingItem.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      await _transactionItemRepo.updateTransactionItem(updatedItem);
+    } else {
+      final totalPrice = (selectedMasterData.price ?? 0) * qty;
+
+      final newItem = TransactionItem(
+        masterDataId: selectedMasterData.id!,
+        qty: qty,
+        totalPrice: totalPrice,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await _transactionItemRepo.insertTransactionItem(newItem);
+    }
   }
 
   void _editCartItem(TransactionItem item) async {
@@ -524,6 +505,7 @@ class _TransactionFormState extends State<TransactionForm> {
     setState(() {
       _selectedOrderCategory = null;
       _selectedOrderItem = null;
+      _selectedBackground = null;
       _filteredMasterDataItems = [];
       _orderQuantityController.text = '';
       _selectedCartItem = null;
@@ -1715,6 +1697,17 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
           ],
         ),
+        if (_selectedOrderCategory == "Product" && _selectedBackground == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Harap pilih background',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
         if (_selectedOrderCategory == "Paper") ...[
           const SizedBox(height: 8),
           Row(
@@ -1740,7 +1733,68 @@ class _TransactionFormState extends State<TransactionForm> {
             ],
           ),
         ],
+        // Add background selection for Product category
+        if (_selectedOrderCategory == "Product") ...[
+          const SizedBox(height: 15),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFormLabel('Pilih Background'),
+              const SizedBox(height: 6),
+              _buildBackgroundRadioButtons(),
+            ],
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildBackgroundRadioButtons() {
+    // Filter master data to get only background items
+    final backgroundItems = _backgroundDataItems
+        .where((item) => item.category == "Background")
+        .toList();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: backgroundItems.map((item) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Radio<String>(
+                  value: item.name,
+                  groupValue: _selectedBackground,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedBackground = value;
+                    });
+                  },
+                  activeColor: const Color(0xFF1379F0),
+                  fillColor: MaterialStateProperty.resolveWith<Color>(
+                    (Set<MaterialState> states) {
+                      if (states.contains(MaterialState.selected)) {
+                        return const Color(0xFF1379F0);
+                      }
+                      return CustomColors.borderInputColor;
+                    },
+                  ),
+                ),
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -1845,7 +1899,7 @@ class _TransactionFormState extends State<TransactionForm> {
             )
           else
             ..._cartItems.map((item) {
-              final masterData = _masterDataItems.firstWhere(
+              final masterData = _backgroundDataItems.firstWhere(
                 (m) => m.id == item.masterDataId,
                 orElse: () => MasterData(
                   userId: 0,
