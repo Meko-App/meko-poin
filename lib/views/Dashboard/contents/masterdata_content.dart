@@ -73,6 +73,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
           category: data['category'],
           price: priceValue,
           userId: userId,
+          packagingId: 0,
         );
         await masterDataRepository.insertMasterData(newData);
         if (mounted) {
@@ -88,6 +89,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
           category: data['category'],
           price: priceValue,
           userId: _dataToEdit!['id_user'],
+          packagingId: _dataToEdit!['id_packaging'],
         );
         await masterDataRepository.updateMasterData(updatedData);
         if (mounted) {

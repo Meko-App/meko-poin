@@ -39,6 +39,29 @@ class MasterDataRepository {
   //   return id;
   // }
 
+  Future<List<MasterData>> getPackagingMasterData(
+      {bool includeDeleted = false}) async {
+    final db = await dbHelper.database;
+    final where = includeDeleted
+        ? 'category = "Packaging"'
+        : 'deleted_at IS NULL AND category = "Packaging"';
+    final result = await db.query('Data_Master', where: where);
+    return result.map((map) => MasterData.fromMap(map)).toList();
+  }
+
+  Future<int> updatePackagingId(int masterDataId, int packagingId) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'Data_Master',
+      {
+        'packaging_id': packagingId,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [masterDataId],
+    );
+  }
+
   Future<List<MasterData>> getAllMasterData(
       {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
@@ -70,7 +93,7 @@ class MasterDataRepository {
   Future<List<MasterDataWithUser>> getAllMasterDataWithUser() async {
     final db = await dbHelper.database;
     final result = await db.rawQuery('''
-    SELECT m.id, m.user_id, m.name, m.category, m.price, m.created_at, m.updated_at,
+    SELECT m.id, m.user_id, m.packaging_id, m.name, m.category, m.price, m.created_at, m.updated_at,
            u.name AS addedBy
     FROM Data_Master m
     JOIN Data_User u ON m.user_id = u.id
@@ -82,6 +105,7 @@ class MasterDataRepository {
               masterData: MasterData(
                 id: row['id'] as int,
                 userId: row['user_id'] as int,
+                packagingId: row['packaging_id'] as int,
                 name: row['name'] as String,
                 category: row['category'] as String,
                 price: row['price'] as int?,

@@ -1,6 +1,7 @@
 class MasterData {
   final int? id;
   final int userId;
+  final int packagingId;
   final String name;
   final String category;
   final int? price;
@@ -11,6 +12,7 @@ class MasterData {
   MasterData({
     this.id,
     required this.userId,
+    required this.packagingId,
     required this.name,
     required this.category,
     this.price,
@@ -23,6 +25,7 @@ class MasterData {
     return MasterData(
       id: map['id'],
       userId: map['user_id'],
+      packagingId: map['packaging_id'] ?? 0,
       name: map['name'],
       category: map['category'],
       price: map['price'],
@@ -37,6 +40,7 @@ class MasterData {
     return {
       'id': id,
       'user_id': userId,
+      'packaging_id': packagingId,
       'name': name,
       'category': category,
       'price': price,
@@ -50,6 +54,7 @@ class MasterData {
     return MasterData(
       id: id,
       userId: userId,
+      packagingId: packagingId,
       name: name,
       category: category,
       price: price,
@@ -63,12 +68,27 @@ class MasterData {
     return MasterData(
       id: id,
       userId: userId,
+      packagingId: packagingId,
       name: name,
       category: category,
       price: price,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
       deletedAt: null,
+    );
+  }
+
+  MasterData changePackaging(int newPackagingId) {
+    return MasterData(
+      id: id,
+      userId: userId,
+      packagingId: newPackagingId,
+      name: name,
+      category: category,
+      price: price,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+      deletedAt: deletedAt,
     );
   }
 

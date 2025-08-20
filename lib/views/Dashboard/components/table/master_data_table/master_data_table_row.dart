@@ -7,8 +7,10 @@ class MasterDataTableRow extends StatelessWidget {
   final String category;
   final int price;
   final String addedBy;
+  final int packagingId;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onPackaging;
   final bool isSelected;
   final Function(bool?) onSelectChanged;
 
@@ -18,8 +20,10 @@ class MasterDataTableRow extends StatelessWidget {
     required this.category,
     required this.price,
     required this.addedBy,
+    required this.packagingId,
     required this.onEdit,
     required this.onDelete,
+    required this.onPackaging,
     required this.isSelected,
     required this.onSelectChanged,
   });
@@ -136,6 +140,8 @@ class MasterDataTableRow extends StatelessWidget {
                       onEdit();
                     } else if (value == 'delete') {
                       onDelete();
+                    } else if (value == 'packaging') {
+                      onPackaging();
                     }
                   },
                   offset: const Offset(0, 30),
@@ -148,6 +154,35 @@ class MasterDataTableRow extends StatelessWidget {
                   ),
                   color: CustomColors.cardColor, // tema gelap
                   itemBuilder: (context) => [
+                    if (category == 'Paper')
+                      PopupMenuItem(
+                        value: 'packaging',
+                        padding: EdgeInsets.zero,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          splashColor: Colors.transparent,
+                          hoverColor: CustomColors.borderCardColor,
+                          onTap: () => Navigator.pop(context, 'packaging'),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_document,
+                                    color: Colors.green, size: 16),
+                                SizedBox(width: 8),
+                                Text(
+                                  packagingId == 0
+                                      ? 'Tambah Packaging'
+                                      : 'Edit Packaging',
+                                  style: TextStyle(
+                                      fontSize: 14, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     PopupMenuItem(
                       value: 'edit',
                       padding: EdgeInsets.zero,

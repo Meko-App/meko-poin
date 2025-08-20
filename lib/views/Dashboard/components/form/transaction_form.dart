@@ -1903,6 +1903,7 @@ class _TransactionFormState extends State<TransactionForm> {
                 (m) => m.id == item.masterDataId,
                 orElse: () => MasterData(
                   userId: 0,
+                  packagingId: 0,
                   name: 'Item tidak ditemukan',
                   category: 'Unknown',
                 ),

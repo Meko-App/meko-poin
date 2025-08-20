@@ -70,6 +70,7 @@ class DatabaseHelper {
       CREATE TABLE Data_Master (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
+        packaging_id INTEGER,
         name TEXT,
         category TEXT CHECK(category IN ('Product', 'Paper', 'Packaging', 'Additional', 'Background')),
         price INTEGER,
@@ -180,6 +181,7 @@ class DatabaseHelper {
   Future<void> _insertDummyDataMaster(Database db) async {
     await db.insert('Data_Master', {
       'user_id': 1,
+      'packaging_id': 0,
       'name': 'Produk Dummy',
       'category': 'Product',
       'price': 15000,
