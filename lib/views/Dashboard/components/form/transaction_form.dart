@@ -240,9 +240,14 @@ class _TransactionFormState extends State<TransactionForm> {
       final masterDataId = item['master_data_id'] as int;
       final qty = item['qty'] as int;
 
-      // Skip stock reduction for Paper items with "gunakan sisa kertas"
+      // Dapatkan data master untuk mengetahui kategorinya
       final masterData = await _masterDataRepo.getMasterDataById(masterDataId);
-      if (masterData?.category == "Paper" && _useRemainingPaper) {
+
+      if (masterData == null) continue;
+
+      // Skip stock reduction hanya untuk Paper items dengan "gunakan sisa kertas"
+      // Packaging TETAP harus berkurang stoknya meskipun checkbox dicentang
+      if (masterData.category == "Paper" && _useRemainingPaper) {
         continue;
       }
 
@@ -389,12 +394,27 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
-    // Validasi untuk Product harus memilih background
-    if (_selectedOrderCategory == "Product" && _selectedBackground == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Harap pilih background untuk produk')),
-      );
-      return;
+    // Validasi untuk Product: harus ada data background
+    if (_selectedOrderCategory == "Product") {
+      final backgroundItems = _backgroundDataItems
+          .where((item) => item.category == "Background")
+          .toList();
+
+      if (backgroundItems.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Tidak dapat menambahkan produk karena belum ada data background. Harap hubungi admin.')),
+        );
+        return;
+      }
+
+      if (_selectedBackground == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Harap pilih background untuk produk')),
+        );
+        return;
+      }
     }
 
     final qty = int.tryParse(_orderQuantityController.text) ?? 1;
@@ -406,12 +426,73 @@ class _TransactionFormState extends State<TransactionForm> {
     }
 
     try {
-      // 1. Tambahkan produk utama ke keranjang
+      // 1. Cari data master yang dipilih
+      final selectedMasterData = _filteredMasterDataItems.firstWhere(
+        (item) => item.name == _selectedOrderItem,
+        orElse: () => throw Exception('Item tidak ditemukan'),
+      );
+
+      // 2. Validasi khusus untuk Paper: harus memiliki packaging
+      if (selectedMasterData.category == "Paper") {
+        if (selectedMasterData.packagingId == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Paper ini belum memiliki packaging. Harap hubungi admin untuk mengatur packaging terlebih dahulu.')),
+          );
+          return;
+        }
+      }
+
+      // 3. Lakukan pengecekan stok untuk item utama
+      const stockCheckedCategories = ["Paper", "Packaging"];
+      final needStockCheck =
+          stockCheckedCategories.contains(selectedMasterData.category);
+
+      int? availableStock;
+      if (needStockCheck) {
+        availableStock = await _masterDataRepo
+            .getStockByMasterDataId(selectedMasterData.id!);
+        print(availableStock);
+        if (availableStock == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Stok belum tersedia, harap hubungi admin')),
+          );
+          return;
+        }
+
+        // Cek apakah stok cukup
+        if (availableStock < qty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Stok ${selectedMasterData.name} tidak cukup. Stok tersedia: $availableStock')),
+          );
+          return;
+        }
+      }
+
+      // 4. Jika kategori Paper, lakukan pengecekan stok packaging terlebih dahulu
+      if (_selectedOrderCategory == "Paper") {
+        final packagingStockValid =
+            await _checkPackagingStock(selectedMasterData, qty);
+        if (!packagingStockValid) {
+          return; // Stop jika stok packaging tidak cukup
+        }
+      }
+
+      // 5. Tambahkan produk utama ke keranjang
       await _addItemToCart(_selectedOrderItem!, qty, isNewItem);
 
-      // 2. Jika kategori Product, tambahkan background juga
+      // 6. Jika kategori Product, tambahkan background juga
       if (_selectedOrderCategory == "Product" && _selectedBackground != null) {
         await _addItemToCart(_selectedBackground!, qty, isNewItem);
+      }
+
+      // 7. Jika kategori Paper, tambahkan packaging secara otomatis
+      if (_selectedOrderCategory == "Paper") {
+        await _addPackagingForPaper(_selectedOrderItem!, qty, isNewItem);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -430,49 +511,177 @@ class _TransactionFormState extends State<TransactionForm> {
     await _loadCartItems();
   }
 
-  Future<void> _addItemToCart(String itemName, int qty, bool isNewItem) async {
-    // Cari master data yang dipilih
-    final selectedMasterData = _backgroundDataItems.firstWhere(
-      (item) => item.name == itemName,
-      orElse: () => throw Exception('Item $itemName tidak ditemukan'),
-    );
-
-    final existingItem =
-        await _transactionItemRepo.findExistingCartItem(selectedMasterData.id!);
-
-    if (existingItem != null) {
-      final int totalQty;
-      final int totalPrice;
-      if (!isNewItem) {
-        totalQty = qty;
-        totalPrice = (selectedMasterData.price ?? 0) * qty;
-      } else {
-        totalQty = existingItem.qty + qty;
-        totalPrice = (existingItem.totalPrice ~/ existingItem.qty) * totalQty;
+  Future<bool> _checkPackagingStock(MasterData paperData, int qty) async {
+    try {
+      // Validasi bahwa paper harus memiliki packaging
+      if (paperData.packagingId == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Paper ini belum memiliki packaging. Tidak dapat ditambahkan ke keranjang.')),
+        );
+        return false;
       }
 
-      final updatedItem = TransactionItem(
-        id: existingItem.id,
-        masterDataId: existingItem.masterDataId,
-        qty: totalQty,
-        totalPrice: totalPrice,
-        createdAt: existingItem.createdAt,
-        updatedAt: DateTime.now(),
+      // Cari data packaging berdasarkan packagingId
+      final packagingData =
+          await _masterDataRepo.getMasterDataById(paperData.packagingId);
+
+      if (packagingData != null && packagingData.category == "Packaging") {
+        // Cek stok packaging
+        final packagingStock =
+            await _masterDataRepo.getStockByMasterDataId(packagingData.id!);
+
+        if (packagingStock == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content:
+                    Text('Stok packaging belum tersedia, harap hubungi admin')),
+          );
+          return false;
+        }
+
+        // Cek apakah stok packaging cukup
+        if (packagingStock < qty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Stok packaging ${packagingData.name} tidak cukup. Stok tersedia: $packagingStock')),
+          );
+          return false;
+        }
+
+        return true; // Stok packaging cukup
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Packaging tidak ditemukan untuk paper ini')),
+        );
+        return false;
+      }
+    } catch (e) {
+      print('Error checking packaging stock: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error checking packaging stock: $e')),
+      );
+      return false;
+    }
+  }
+
+  Future<void> _addPackagingForPaper(
+      String paperName, int qty, bool isNewItem) async {
+    try {
+      // Cari data paper yang dipilih
+      final selectedPaper = _backgroundDataItems.firstWhere(
+        (item) => item.name == paperName && item.category == "Paper",
+        orElse: () => throw Exception('Paper $paperName tidak ditemukan'),
       );
 
-      await _transactionItemRepo.updateTransactionItem(updatedItem);
-    } else {
-      final totalPrice = (selectedMasterData.price ?? 0) * qty;
+      // Jika paper memiliki packagingId yang valid (bukan 0)
+      if (selectedPaper.packagingId != 0 && selectedPaper.packagingId > 0) {
+        // Cari data packaging berdasarkan packagingId
+        final packagingData =
+            await _masterDataRepo.getMasterDataById(selectedPaper.packagingId);
 
-      final newItem = TransactionItem(
-        masterDataId: selectedMasterData.id!,
-        qty: qty,
-        totalPrice: totalPrice,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        if (packagingData != null && packagingData.category == "Packaging") {
+          // Cek apakah packaging sudah ada di keranjang
+          final existingPackagingItem = await _transactionItemRepo
+              .findExistingCartItem(packagingData.id!);
+
+          if (existingPackagingItem != null) {
+            // Jika sudah ada, update quantity-nya
+            final updatedQty =
+                isNewItem ? existingPackagingItem.qty + qty : qty;
+            final updatedTotalPrice = (packagingData.price ?? 0) * updatedQty;
+
+            final updatedItem = TransactionItem(
+              id: existingPackagingItem.id,
+              masterDataId: existingPackagingItem.masterDataId,
+              qty: updatedQty,
+              totalPrice: updatedTotalPrice,
+              createdAt: existingPackagingItem.createdAt,
+              updatedAt: DateTime.now(),
+            );
+
+            await _transactionItemRepo.updateTransactionItem(updatedItem);
+          } else {
+            // Jika belum ada, tambahkan baru
+            final totalPrice = (packagingData.price ?? 0) * qty;
+
+            final newItem = TransactionItem(
+              masterDataId: packagingData.id!,
+              qty: qty,
+              totalPrice: totalPrice,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+
+            await _transactionItemRepo.insertTransactionItem(newItem);
+          }
+
+          print(
+              'Packaging ${packagingData.name} berhasil ditambahkan untuk paper $paperName');
+        } else {
+          print(
+              'Packaging dengan ID ${selectedPaper.packagingId} tidak ditemukan atau bukan kategori Packaging');
+        }
+      } else {
+        print('Paper $paperName tidak memiliki packaging yang terkait');
+      }
+    } catch (e) {
+      print('Error menambahkan packaging untuk paper: $e');
+      // Jangan tampilkan error ke user karena ini opsional
+    }
+  }
+
+  Future<void> _addItemToCart(String itemName, int qty, bool isNewItem) async {
+    try {
+      // Cari master data yang dipilih
+      final selectedMasterData = _backgroundDataItems.firstWhere(
+        (item) => item.name == itemName,
+        orElse: () => throw Exception('Item $itemName tidak ditemukan'),
       );
 
-      await _transactionItemRepo.insertTransactionItem(newItem);
+      final existingItem = await _transactionItemRepo
+          .findExistingCartItem(selectedMasterData.id!);
+
+      if (existingItem != null) {
+        final int totalQty;
+        final int totalPrice;
+        if (!isNewItem) {
+          totalQty = qty;
+          totalPrice = (selectedMasterData.price ?? 0) * qty;
+        } else {
+          totalQty = existingItem.qty + qty;
+          totalPrice = (existingItem.totalPrice ~/ existingItem.qty) * totalQty;
+        }
+
+        final updatedItem = TransactionItem(
+          id: existingItem.id,
+          masterDataId: existingItem.masterDataId,
+          qty: totalQty,
+          totalPrice: totalPrice,
+          createdAt: existingItem.createdAt,
+          updatedAt: DateTime.now(),
+        );
+
+        await _transactionItemRepo.updateTransactionItem(updatedItem);
+      } else {
+        final totalPrice = (selectedMasterData.price ?? 0) * qty;
+
+        final newItem = TransactionItem(
+          masterDataId: selectedMasterData.id!,
+          qty: qty,
+          totalPrice: totalPrice,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        await _transactionItemRepo.insertTransactionItem(newItem);
+      }
+    } catch (e) {
+      print('Error adding item to cart: $e');
+      rethrow; // Kembalikan error untuk ditangani di level atas
     }
   }
 
@@ -851,11 +1060,12 @@ class _TransactionFormState extends State<TransactionForm> {
 
     final cartItemsAsMaps = _cartItems.map((item) {
       final masterData =
-          _masterDataItems.firstWhere((m) => m.id == item.masterDataId);
+          _backgroundDataItems.firstWhere((m) => m.id == item.masterDataId);
       return {
         'id': item.id,
         'master_data_id': item.masterDataId,
         'name': masterData.name,
+        'category': masterData.category,
         'qty': item.qty,
         'price': masterData.price,
         'total_price': item.totalPrice,
@@ -1697,6 +1907,44 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
           ],
         ),
+
+        // Tampilkan info packaging jika paper dipilih dan memiliki packaging
+        if (_selectedOrderCategory == "Paper" && _selectedOrderItem != null)
+          FutureBuilder<MasterData?>(
+            future: () async {
+              try {
+                final paper = _backgroundDataItems.firstWhere((item) =>
+                    item.name == _selectedOrderItem &&
+                    item.category == "Paper");
+
+                if (paper.packagingId > 0) {
+                  return await _masterDataRepo
+                      .getMasterDataById(paper.packagingId);
+                }
+              } catch (e) {
+                print('Error getting packaging info: $e');
+              }
+              return null;
+            }(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done &&
+                  snapshot.hasData &&
+                  snapshot.data != null) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Packaging: ${snapshot.data!.name} akan ditambahkan otomatis',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                );
+              }
+              return SizedBox.shrink();
+            },
+          ),
         if (_selectedOrderCategory == "Product" && _selectedBackground == null)
           Padding(
             padding: const EdgeInsets.only(top: 8.0),
@@ -1754,6 +2002,21 @@ class _TransactionFormState extends State<TransactionForm> {
     final backgroundItems = _backgroundDataItems
         .where((item) => item.category == "Background")
         .toList();
+
+    // Jika tidak ada data background
+    if (backgroundItems.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4.0),
+        child: Text(
+          'Belum ada data background',
+          style: TextStyle(
+            color: Colors.orange.shade300,
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

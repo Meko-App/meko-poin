@@ -60,6 +60,7 @@ class TransactionDetail extends StatelessWidget {
           'id': item.id,
           'master_data_id': item.masterDataId,
           'name': masterData['name'],
+          'category': masterData['category'],
           'qty': item.qty,
           'price': masterData['price'],
           'total_price': item.totalPrice,
@@ -603,9 +604,9 @@ class _PrintOptionsDialog extends StatelessWidget {
     return Container(
       width: 400,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: CustomColors.cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: CustomColors.borderCardColor)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,7 +616,8 @@ class _PrintOptionsDialog extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1.0),
+                bottom:
+                    BorderSide(color: CustomColors.borderCardColor, width: 1.0),
               ),
             ),
             child: Row(
@@ -627,11 +629,11 @@ class _PrintOptionsDialog extends StatelessWidget {
                       fontSize: 16,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF111B37)),
+                      color: Colors.white),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close,
-                      size: 20, color: Color(0xFF78829D)),
+                      size: 20, color: CustomColors.fontSubColor),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: onClose,
@@ -647,7 +649,10 @@ class _PrintOptionsDialog extends StatelessWidget {
               children: [
                 const Text(
                   'Pilih opsi struk:',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white),
                 ),
                 const SizedBox(height: 20),
                 Wrap(
@@ -702,7 +707,8 @@ class _PrintOptionsDialog extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Colors.grey.shade200, width: 1.0),
+                top:
+                    BorderSide(color: CustomColors.borderCardColor, width: 1.0),
               ),
             ),
             child: Row(
@@ -742,14 +748,17 @@ class _PrintOptionsDialog extends StatelessWidget {
         width: 100,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: CustomColors.borderInputColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 30, color: Colors.blue),
+            Icon(icon, size: 30, color: Colors.white),
             const SizedBox(height: 8),
-            Text(label),
+            Text(
+              label,
+              style: TextStyle(color: Colors.white),
+            ),
           ],
         ),
       ),

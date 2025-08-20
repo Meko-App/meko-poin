@@ -65,7 +65,13 @@ class ReceiptService {
               pw.Text('ITEMS',
                   style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold, fontSize: 10)),
-              ...(transactionData['cart_items'] as List).map((item) {
+              ...((transactionData['cart_items'] as List).where((item) {
+                final category =
+                    item['category']?.toString().toLowerCase() ?? '';
+                return category == 'product' ||
+                    category == 'paper' ||
+                    category == 'additional';
+              }).map((item) {
                 return pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -89,7 +95,7 @@ class ReceiptService {
                     ),
                   ],
                 );
-              }).toList(),
+              }).toList()),
               pw.Divider(thickness: 1),
 
               // Summary
