@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:path/path.dart';
@@ -35,8 +37,22 @@ void main() async {
     // For development only - remove in production
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'app_database.db');
-    if (await databaseFactoryFfi.databaseExists(path)) {
-      await databaseFactoryFfi.deleteDatabase(path);
+    if (Platform.isMacOS) {
+      if (await databaseFactoryFfi.databaseExists(path)) {
+        await databaseFactoryFfi.deleteDatabase(path);
+
+        // Also try to delete WAL and SHM files if they exist
+        for (final suffix in ['-wal', '-shm']) {
+          final extraFile = File('$path$suffix');
+          if (await extraFile.exists()) {
+            await extraFile.delete();
+          }
+        }
+      }
+    } else {
+      if (await databaseFactoryFfi.databaseExists(path)) {
+        await databaseFactoryFfi.deleteDatabase(path);
+      }
     }
 
     // Initialize database helper

@@ -93,7 +93,12 @@ class _DashboardPageState extends State<DashboardPage> {
           'avatar_${widget.user.id}_${DateTime.now().millisecondsSinceEpoch}${path.extension(filePath)}';
 
       // 3. Dapatkan direktori dokumen aplikasi
-      final appDir = await getApplicationDocumentsDirectory();
+      final Directory appDir;
+      if (Platform.isMacOS) {
+        appDir = await getApplicationSupportDirectory();
+      } else {
+        appDir = await getApplicationDocumentsDirectory();
+      }
       final avatarDir = Directory('${appDir.path}/photorism-app/avatars');
 
       // 4. Buat folder jika belum ada
@@ -215,7 +220,9 @@ class _DashboardPageState extends State<DashboardPage> {
         child: _avatarPath != null
             ? CircleAvatar(
                 radius: 18,
-                backgroundImage: FileImage(File(_avatarPath!)),
+                backgroundImage: _avatarPath!.startsWith('assets/')
+                    ? AssetImage(_avatarPath!)
+                    : FileImage(File(_avatarPath!)) as ImageProvider,
               )
             : const CircleAvatar(
                 radius: 18,
