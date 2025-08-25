@@ -109,7 +109,6 @@ class _DashboardPageState extends State<DashboardPage> {
       // 5. Salin file ke direktori aplikasi
       final savedPath = '${avatarDir.path}/$fileName';
       await File(filePath).copy(savedPath);
-
       return savedPath;
     } catch (e) {
       if (mounted) {
@@ -122,7 +121,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _handleAvatarClick() async {
-    await showDialog(
+    final selectedImagePath = await showDialog<String?>(
       context: context,
       builder: (context) {
         String? currentImagePath; // simpan di dalam builder
@@ -190,7 +189,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.grey,
                   ),
-                  onPressed: () => Navigator.pop(context, false),
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('Batal'),
                 ),
                 ElevatedButton(
@@ -210,6 +209,32 @@ class _DashboardPageState extends State<DashboardPage> {
         );
       },
     );
+
+    // Simpan ke database jika gambar dipilih
+    if (selectedImagePath != null && selectedImagePath.isNotEmpty) {
+      try {
+        // Update avatar di database
+        await widget.userRepository
+            .updateUserAvatar(widget.user.id!, selectedImagePath);
+
+        // Update state lokal
+        setState(() {
+          _avatarPath = selectedImagePath;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Avatar berhasil diperbarui')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memperbarui avatar: $e')),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildAvatar() {
