@@ -62,16 +62,45 @@ class ReceiptService {
               pw.SizedBox(height: 8),
 
               // Items
+              // pw.Text('ITEMS',
+              //     style: pw.TextStyle(
+              //         fontWeight: pw.FontWeight.bold, fontSize: 10)),
+              // ...((transactionData['cart_items'] as List).where((item) {
+              //   final category =
+              //       item['category']?.toString().toLowerCase() ?? '';
+              //   return category == 'product' ||
+              //       category == 'paper' ||
+              //       category == 'additional';
+              // }).map((item) {
+              //   return pw.Row(
+              //     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              //     children: [
+              //       pw.Expanded(
+              //         flex: 3,
+              //         child: pw.Text(item['name'],
+              //             style: pw.TextStyle(fontSize: 10)),
+              //       ),
+              //       pw.Expanded(
+              //         flex: 1,
+              //         child: pw.Text(item['qty'].toString(),
+              //             style: pw.TextStyle(fontSize: 10)),
+              //       ),
+              //       pw.Expanded(
+              //         flex: 2,
+              //         child: pw.Text(
+              //           _formatPrice(item['total_price'] ?? 0),
+              //           style: pw.TextStyle(fontSize: 10),
+              //           textAlign: pw.TextAlign.right,
+              //         ),
+              //       ),
+              //     ],
+              //   );
+              // }).toList()),
+
               pw.Text('ITEMS',
                   style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold, fontSize: 10)),
-              ...((transactionData['cart_items'] as List).where((item) {
-                final category =
-                    item['category']?.toString().toLowerCase() ?? '';
-                return category == 'product' ||
-                    category == 'paper' ||
-                    category == 'additional';
-              }).map((item) {
+              ...(transactionData['cart_items'] as List).map((item) {
                 return pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -95,7 +124,8 @@ class ReceiptService {
                     ),
                   ],
                 );
-              }).toList()),
+              }).toList(),
+
               pw.Divider(thickness: 1),
 
               // Summary
