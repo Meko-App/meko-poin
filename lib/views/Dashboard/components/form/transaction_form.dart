@@ -78,6 +78,7 @@ class _TransactionFormState extends State<TransactionForm> {
     _phoneController.addListener(_onPhoneChanged);
     _phoneFocusNode.addListener(_onPhoneFocusChanged);
     _nameFocusNode.addListener(_onNameFocusChanged);
+    _selectedBackground = null;
   }
 
   @override
@@ -395,27 +396,27 @@ class _TransactionFormState extends State<TransactionForm> {
     }
 
     // Validasi untuk Product: harus ada data background
-    if (_selectedOrderCategory == "Product") {
-      final backgroundItems = _backgroundDataItems
-          .where((item) => item.category == "Background")
-          .toList();
+    // if (_selectedOrderCategory == "Product") {
+    //   final backgroundItems = _backgroundDataItems
+    //       .where((item) => item.category == "Background")
+    //       .toList();
 
-      if (backgroundItems.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Tidak dapat menambahkan produk karena belum ada data background. Harap hubungi admin.')),
-        );
-        return;
-      }
+    //   if (backgroundItems.isEmpty) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(
+    //           content: Text(
+    //               'Tidak dapat menambahkan produk karena belum ada data background. Harap hubungi admin.')),
+    //     );
+    //     return;
+    //   }
 
-      if (_selectedBackground == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Harap pilih background untuk produk')),
-        );
-        return;
-      }
-    }
+    //   if (_selectedBackground == null) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(content: Text('Harap pilih background untuk produk')),
+    //     );
+    //     return;
+    //   }
+    // }
 
     final qty = int.tryParse(_orderQuantityController.text) ?? 1;
     if (qty <= 0) {
@@ -1945,17 +1946,17 @@ class _TransactionFormState extends State<TransactionForm> {
               return SizedBox.shrink();
             },
           ),
-        if (_selectedOrderCategory == "Product" && _selectedBackground == null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Text(
-              'Harap pilih background',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 12,
-              ),
-            ),
-          ),
+        // if (_selectedOrderCategory == "Product" && _selectedBackground == null)
+        //   Padding(
+        //     padding: const EdgeInsets.only(top: 8.0),
+        //     child: Text(
+        //       'Harap pilih background',
+        //       style: TextStyle(
+        //         color: Colors.red,
+        //         fontSize: 12,
+        //       ),
+        //     ),
+        //   ),
         if (_selectedOrderCategory == "Paper") ...[
           const SizedBox(height: 8),
           Row(
@@ -1987,7 +1988,20 @@ class _TransactionFormState extends State<TransactionForm> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFormLabel('Pilih Background'),
+              Row(
+                children: [
+                  _buildFormLabel('Pilih Background'),
+                  const SizedBox(width: 4),
+                  const Text(
+                    '(Opsional)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: CustomColors.fontSubColor,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 6),
               _buildBackgroundRadioButtons(),
             ],
