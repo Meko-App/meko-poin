@@ -3,6 +3,16 @@ import 'package:intl/intl.dart';
 import 'package:meko_poin/models/transaction.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 
+extension StringCaseExtension on String {
+  String toAllCaps() {
+    return toUpperCase();
+  }
+
+  String toSentenceCase() {
+    return toBeginningOfSentenceCase(this) ?? this;
+  }
+}
+
 class TransactionTableRow extends StatelessWidget {
   final Transaction transaction;
   final String customerName;
@@ -125,8 +135,9 @@ class TransactionTableRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
-                  toBeginningOfSentenceCase(transaction.paymentMethod) ??
-                      transaction.paymentMethod,
+                  transaction.paymentMethod == 'qris'
+                      ? transaction.paymentMethod.toAllCaps()
+                      : transaction.paymentMethod.toSentenceCase(),
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.0,

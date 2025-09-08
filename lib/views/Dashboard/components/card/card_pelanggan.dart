@@ -4,6 +4,16 @@ import 'package:meko_poin/models/additional/transaction_with_customer_user.dart'
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 
+extension StringCaseExtension on String {
+  String toAllCaps() {
+    return toUpperCase();
+  }
+
+  String toSentenceCase() {
+    return toBeginningOfSentenceCase(this) ?? this;
+  }
+}
+
 class CardPelanggan extends StatefulWidget {
   final TransactionRepository transactionRepo;
 
@@ -64,6 +74,10 @@ class _CardPelangganState extends State<CardPelanggan> {
           break;
         case 'time':
           result = a.transaction.createdAt.compareTo(b.transaction.createdAt);
+          break;
+        case 'payment':
+          result = a.transaction.paymentMethod
+              .compareTo(b.transaction.paymentMethod);
           break;
         default:
           result = a.customerName.compareTo(b.customerName);
@@ -271,6 +285,36 @@ class _CardPelangganState extends State<CardPelanggan> {
                       ),
                     ),
                   ),
+
+                  // Kolom Payment Method
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => onSort('payment'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Metode Pembayaran',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: CustomColors.fontSubColor,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              _sortIcon('payment'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -361,6 +405,30 @@ class _CardPelangganState extends State<CardPelanggan> {
                                 horizontal: 18.0, vertical: 6.0),
                             child: Text(
                               _formatTime(transaction.transaction.createdAt),
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 1.0,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ),
+                        ),
+                        VerticalDivider(
+                            thickness: 1,
+                            width: 1,
+                            color: CustomColors.borderCardColor),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18.0, vertical: 6.0),
+                            child: Text(
+                              transaction.transaction.paymentMethod == 'qris'
+                                  ? transaction.transaction.paymentMethod
+                                      .toAllCaps()
+                                  : transaction.transaction.paymentMethod
+                                      .toSentenceCase(),
                               style: TextStyle(
                                 fontSize: 14,
                                 height: 1.0,

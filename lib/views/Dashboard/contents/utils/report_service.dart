@@ -7,6 +7,16 @@ import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:path_provider/path_provider.dart';
 
+extension StringCaseExtension on String {
+  String toAllCaps() {
+    return toUpperCase();
+  }
+
+  String toSentenceCase() {
+    return toBeginningOfSentenceCase(this) ?? this;
+  }
+}
+
 class ReportService {
   static final TransactionRepository _transactionRepo =
       TransactionRepository(DatabaseHelper.instance);
@@ -322,8 +332,10 @@ class ReportService {
       sheet.cell(excel.CellIndex.indexByColumnRow(
           columnIndex: 6, rowIndex: currentRow))
         ..value = excel.TextCellValue(
-            toBeginningOfSentenceCase(transaction.paymentMethod) ??
-                transaction.paymentMethod)
+          transaction.paymentMethod == 'qris'
+              ? transaction.paymentMethod.toAllCaps()
+              : transaction.paymentMethod.toSentenceCase(),
+        )
         ..cellStyle = transactionRowTextCenterStyle;
 
       sheet.cell(excel.CellIndex.indexByColumnRow(
