@@ -20,6 +20,11 @@ class ReceiptService {
     final logoImageBytes = logoImage.buffer.asUint8List();
     final logo = pw.MemoryImage(logoImageBytes);
 
+    final instagramIconImage =
+        await rootBundle.load('assets/instagram-icon.png');
+    final instagramIconBytes = instagramIconImage.buffer.asUint8List();
+    final instagramIcon = pw.MemoryImage(instagramIconBytes);
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
@@ -48,6 +53,7 @@ class ReceiptService {
               // Transaction Info
               pw.Text('No. Invoice: ${transactionData['invoice']}',
                   style: pw.TextStyle(fontSize: 10)),
+              pw.SizedBox(height: 2),
               pw.Text('Tanggal: ${transactionData['date']}',
                   style: pw.TextStyle(fontSize: 10)),
               pw.SizedBox(height: 8),
@@ -55,6 +61,7 @@ class ReceiptService {
               // Customer Info
               pw.Text('Pelanggan: ${transactionData['name']}',
                   style: pw.TextStyle(fontSize: 10)),
+              pw.SizedBox(height: 2),
               pw.Text('No. HP: ${transactionData['phone']}',
                   style: pw.TextStyle(fontSize: 10)),
               pw.SizedBox(height: 8),
@@ -100,6 +107,7 @@ class ReceiptService {
               pw.Text('ITEMS',
                   style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold, fontSize: 10)),
+              pw.SizedBox(height: 4),
               ...(transactionData['cart_items'] as List).map((item) {
                 return pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -166,9 +174,23 @@ class ReceiptService {
                   child: pw.Text('Terima Kasih Telah Berkunjung',
                       style: pw.TextStyle(fontSize: 10))),
               pw.SizedBox(height: 4),
+              // Instagram dengan icon
               pw.Center(
-                  child: pw.Text('IG: @photorismstudio',
-                      style: pw.TextStyle(fontSize: 10))),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
+                  children: [
+                    pw.Image(
+                      instagramIcon,
+                      height: 12,
+                      width: 12,
+                      fit: pw.BoxFit.contain,
+                    ),
+                    pw.SizedBox(width: 4),
+                    pw.Text('@photorismstudio',
+                        style: pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ),
             ],
           );
         },
