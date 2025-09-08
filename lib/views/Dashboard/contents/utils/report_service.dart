@@ -333,8 +333,8 @@ class ReportService {
           columnIndex: 6, rowIndex: currentRow))
         ..value = excel.TextCellValue(
           transaction.paymentMethod == 'qris'
-              ? transaction.paymentMethod.toAllCaps()
-              : transaction.paymentMethod.toSentenceCase(),
+              ? transaction.paymentMethod.toUpperCase()
+              : toBeginningOfSentenceCase(transaction.paymentMethod),
         )
         ..cellStyle = transactionRowTextCenterStyle;
 
