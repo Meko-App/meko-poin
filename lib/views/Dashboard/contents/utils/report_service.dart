@@ -157,7 +157,7 @@ class ReportService {
 
     sheet
       ..setColumnWidth(0, 5)
-      ..setColumnWidth(1, 12)
+      ..setColumnWidth(1, 25)
       ..setColumnWidth(2, 25)
       ..setColumnWidth(3, 18)
       ..setColumnWidth(4, 15)
@@ -196,7 +196,7 @@ class ReportService {
       sheet.cell(excel.CellIndex.indexByColumnRow(
           columnIndex: 1, rowIndex: currentRow))
         ..value = excel.TextCellValue(
-            DateFormat('dd/MM/yyyy').format(transaction.createdAt))
+            DateFormat('dd MMM yyyy HH:mm:ss').format(transaction.createdAt))
         ..cellStyle = rowStyle;
 
       sheet.cell(excel.CellIndex.indexByColumnRow(
