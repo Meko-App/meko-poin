@@ -125,6 +125,25 @@ class TransactionTableRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
+                  toBeginningOfSentenceCase(transaction.paymentMethod) ??
+                      transaction.paymentMethod,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.0,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
                   addedBy,
                   style: const TextStyle(
                     fontSize: 14,

@@ -210,7 +210,7 @@ class ReportService {
   ) {
     // Judul - Row 1
     sheet.merge(excel.CellIndex.indexByString("A1"),
-        excel.CellIndex.indexByString("G1"));
+        excel.CellIndex.indexByString("H1"));
     sheet.cell(excel.CellIndex.indexByString("A1"))
       ..value = excel.TextCellValue(title)
       ..cellStyle = titleStyle;
@@ -223,7 +223,7 @@ class ReportService {
       final dateRange =
           'Periode: ${DateFormat('dd MMM yyyy').format(startDate)} - ${DateFormat('dd MMM yyyy').format(endDate)}';
       sheet.merge(excel.CellIndex.indexByString("A2"),
-          excel.CellIndex.indexByString("G2"));
+          excel.CellIndex.indexByString("H2"));
       sheet.cell(excel.CellIndex.indexByString("A2"))
         ..value = excel.TextCellValue(dateRange)
         ..cellStyle = periodStyle;
@@ -246,6 +246,7 @@ class ReportService {
       'No HP Pelanggan',
       'Diskon (Rp)',
       'Total (Rp)',
+      'Metode Pembayaran',
       'Added By'
     ];
 
@@ -258,7 +259,8 @@ class ReportService {
       ..setColumnWidth(3, 18)
       ..setColumnWidth(4, 15)
       ..setColumnWidth(5, 15)
-      ..setColumnWidth(6, 20);
+      ..setColumnWidth(6, 22)
+      ..setColumnWidth(7, 20);
 
     for (int col = 0; col < headers.length; col++) {
       sheet.cell(excel.CellIndex.indexByColumnRow(
@@ -319,6 +321,13 @@ class ReportService {
 
       sheet.cell(excel.CellIndex.indexByColumnRow(
           columnIndex: 6, rowIndex: currentRow))
+        ..value = excel.TextCellValue(
+            toBeginningOfSentenceCase(transaction.paymentMethod) ??
+                transaction.paymentMethod)
+        ..cellStyle = transactionRowTextCenterStyle;
+
+      sheet.cell(excel.CellIndex.indexByColumnRow(
+          columnIndex: 7, rowIndex: currentRow))
         ..value = excel.TextCellValue(item.addedBy)
         ..cellStyle = transactionRowTextCenterStyle;
 
@@ -378,7 +387,7 @@ class ReportService {
   static void _addItemSectionHeader(excel.Sheet sheet, int row) {
     sheet.merge(
       excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
-      excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row),
+      excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row),
     );
     sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
       ..value = excel.TextCellValue("Detail Item:")
@@ -393,6 +402,7 @@ class ReportService {
       'Qty',
       'Harga Satuan',
       'Subtotal',
+      '',
       '',
       ''
     ];

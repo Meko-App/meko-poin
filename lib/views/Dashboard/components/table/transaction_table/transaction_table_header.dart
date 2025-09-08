@@ -154,6 +154,39 @@ class TransactionTableHeader extends StatelessWidget {
             ),
             Expanded(
               child: InkWell(
+                onTap: () => onSort('paymentMethhod'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(color: CustomColors.borderCardColor),
+                    ),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Metode Pembayaran',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            fontWeight: FontWeight.w400,
+                            color: CustomColors.fontSubColor,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        sortIcon('paymentMethhod'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: InkWell(
                 onTap: () => onSort('addedBy'),
                 child: Container(
                   padding:

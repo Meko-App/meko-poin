@@ -116,6 +116,10 @@ class _TransactionTableState extends State<TransactionTable> {
           valueA = a.customerName;
           valueB = b.customerName;
           break;
+        case 'discount':
+          valueA = a.transaction.discountPrice;
+          valueB = b.transaction.discountPrice;
+          break;
         case 'amount':
           valueA = a.transaction.finalPrice;
           valueB = b.transaction.finalPrice;
@@ -124,13 +128,13 @@ class _TransactionTableState extends State<TransactionTable> {
           valueA = a.transaction.paymentMethod;
           valueB = b.transaction.paymentMethod;
           break;
-        case 'date':
-          valueA = a.transaction.createdAt;
-          valueB = b.transaction.createdAt;
-          break;
         case 'addedBy':
           valueA = a.addedBy;
           valueB = b.addedBy;
+          break;
+        case 'date':
+          valueA = a.transaction.createdAt;
+          valueB = b.transaction.createdAt;
           break;
         default:
           valueA = a.transaction.createdAt;
