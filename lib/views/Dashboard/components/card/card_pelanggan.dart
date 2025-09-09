@@ -94,6 +94,19 @@ class _CardPelangganState extends State<CardPelanggan> {
         end > sortedTransactions.length ? sortedTransactions.length : end);
   }
 
+  // Fungsi untuk menghitung total berdasarkan metode pembayaran
+  int getTotalByPaymentMethod(String method) {
+    return transactions
+        .where((transaction) => transaction.transaction.paymentMethod == method)
+        .fold(
+            0, (sum, transaction) => sum + transaction.transaction.finalPrice);
+  }
+
+  int get totalAllTransactions {
+    return transactions.fold(
+        0, (sum, transaction) => sum + transaction.transaction.finalPrice);
+  }
+
   void onSort(String column) {
     setState(() {
       if (sortBy == column) {
@@ -147,6 +160,11 @@ class _CardPelangganState extends State<CardPelanggan> {
     final endItem = (currentPage * itemsPerPage > transactions.length)
         ? transactions.length
         : currentPage * itemsPerPage;
+
+    // Hitung total untuk setiap metode pembayaran
+    final totalQris = getTotalByPaymentMethod('qris');
+    final totalCash = getTotalByPaymentMethod('cash');
+    final totalAll = totalAllTransactions;
 
     return Container(
       decoration: BoxDecoration(
@@ -524,6 +542,159 @@ class _CardPelangganState extends State<CardPelanggan> {
                 ],
               ),
             ),
+
+          // Total Pembayaran Section - Tampilan seperti tabel
+          if (transactions.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Column(
+                children: [
+                  // Total QRIS
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            'Total QRIS',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            ':',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 7,
+                          child: Text(
+                            _formatPrice(totalQris),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Total Cash
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            'Total Cash',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            ':',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 7,
+                          child: Text(
+                            _formatPrice(totalCash),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Total Keseluruhan
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            'Total',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            ':',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 7,
+                          child: Text(
+                            _formatPrice(totalAll),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
         ],
       ),
     );
