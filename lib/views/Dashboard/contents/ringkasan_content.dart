@@ -8,6 +8,7 @@ import 'package:meko_poin/views/Dashboard/components/card/card_gudang.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_kertas_terjual.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_pelanggan.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_penjualan.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_penjualan_harian.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_plastik_terpakai.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_produk.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_produk_terjual.dart';
@@ -90,6 +91,20 @@ class RingkasanContent extends StatelessWidget {
                                     DatabaseHelper.instance),
                                 transactionItemRepo: TransactionItemRepository(
                                     DatabaseHelper.instance))),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 600, // BERIKAN HEIGHT EXPLICIT
+                            child: CardPenjualanHarian(
+                              transactionRepository: TransactionRepository(
+                                  DatabaseHelper.instance),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],

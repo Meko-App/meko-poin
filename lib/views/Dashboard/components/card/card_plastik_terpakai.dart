@@ -174,6 +174,7 @@ class _CardPlastikTerjualState extends State<CardPlastikTerjual> {
               color: Colors.white,
               fontFamily: 'Inter',
             ),
+            textAlign: TextAlign.start,
           ),
           const SizedBox(height: 16),
 

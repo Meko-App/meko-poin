@@ -154,7 +154,7 @@ class TransactionTableHeader extends StatelessWidget {
             ),
             Expanded(
               child: InkWell(
-                onTap: () => onSort('paymentMethhod'),
+                onTap: () => onSort('paymentMethod'),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -178,7 +178,7 @@ class TransactionTableHeader extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        sortIcon('paymentMethhod'),
+                        sortIcon('paymentMethod'),
                       ],
                     ),
                   ),

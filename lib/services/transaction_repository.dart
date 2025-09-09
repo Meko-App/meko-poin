@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:meko_poin/models/additional/daily_report.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
 
@@ -218,5 +219,62 @@ class TransactionRepository {
     }
 
     return {'category': 'Produk', 'name': 'Item #$masterDataId', 'price': 0};
+  }
+
+  Future<List<DailyReport>> getDailyReportsByMonth(int year, int month) async {
+    final db = await dbHelper.database;
+
+    final firstDay = DateTime(year, month, 1);
+    final lastDay = DateTime(year, month + 1, 0);
+
+    final result = await db.rawQuery('''
+    SELECT 
+      date(t.created_at) as report_date,
+      COUNT(DISTINCT t.customer_id) as customer_count,
+      SUM(t.final_price) as total_revenue,
+      SUM(CASE WHEN t.payment_method = 'cash' THEN t.final_price ELSE 0 END) as total_cash,
+      SUM(CASE WHEN t.payment_method = 'qris' THEN t.final_price ELSE 0 END) as total_qris,
+      COUNT(t.id) as total_sales
+    FROM Data_Transaction t
+    WHERE t.created_at BETWEEN ? AND ?
+    GROUP BY date(t.created_at)
+    ORDER BY report_date DESC
+  ''', [
+      firstDay.toIso8601String(),
+      lastDay.add(const Duration(days: 1)).toIso8601String(),
+    ]);
+
+    return result.map((row) {
+      return DailyReport(
+        date: DateTime.parse(row['report_date'] as String),
+        customerCount: row['customer_count'] as int? ?? 0,
+        totalRevenue: (row['total_revenue'] as num?)?.toDouble() ?? 0,
+        totalCash: (row['total_cash'] as num?)?.toDouble() ?? 0,
+        totalQris: (row['total_qris'] as num?)?.toDouble() ?? 0,
+        totalSales: (row['total_sales'] as num?)?.toDouble() ?? 0,
+      );
+    }).toList();
+  }
+
+  // Di TransactionRepository
+  Future<List<Map<String, dynamic>>> getAvailableMonths() async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+    SELECT 
+      strftime('%Y', created_at) as year,
+      strftime('%m', created_at) as month
+    FROM Data_Transaction
+    GROUP BY year, month
+    ORDER BY year DESC, month DESC
+  ''');
+
+    // Convert ke format yang konsisten
+    return result.map((row) {
+      return {
+        'year': row['year']?.toString() ?? '',
+        'month': row['month']?.toString() ?? ''
+      };
+    }).toList();
   }
 }
