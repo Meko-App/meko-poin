@@ -66,4 +66,18 @@ class TransactionItemRepository {
     );
     return result.isNotEmpty ? TransactionItem.fromMap(result.first) : null;
   }
+
+  Future<List<TransactionItem>> getTransactionItemsByDateRange(
+      DateTime startDate, DateTime endDate) async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      'Data_Transaction_Item',
+      where: 'created_at BETWEEN ? AND ?',
+      whereArgs: [
+        startDate.toIso8601String(),
+        endDate.toIso8601String(),
+      ],
+    );
+    return result.map((map) => TransactionItem.fromMap(map)).toList();
+  }
 }
