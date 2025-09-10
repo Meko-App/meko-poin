@@ -295,11 +295,29 @@ class _TransactionFormState extends State<TransactionForm> {
     }
   }
 
-  Future<int> _getLastTransactionId() async {
+  Future<Map<String, int>> _getDailyTransactionCount() async {
     final db = await DatabaseHelper.instance.database;
-    final result =
+
+    // Dapatkan tanggal hari ini dalam format YYYY-MM-DD
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    // Hitung jumlah transaksi hari ini
+    final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM Data_Transaction WHERE DATE(created_at) = ?',
+        [today]);
+
+    final dailyCount = result.first['count'] as int? ?? 0;
+
+    // Dapatkan ID transaksi terakhir
+    final lastIdResult =
         await db.rawQuery('SELECT MAX(id) as last_id FROM Data_Transaction');
-    return result.first['last_id'] as int? ?? 0;
+
+    final lastId = lastIdResult.first['last_id'] as int? ?? 0;
+
+    return {
+      'dailyCount': dailyCount + 1, // +1 untuk transaksi yang akan dibuat
+      'lastId': lastId + 1 // +1 untuk transaksi yang akan dibuat
+    };
   }
 
   bool _isFormValid() {
@@ -1043,8 +1061,15 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
-    final lastId = await _getLastTransactionId();
-    final invoiceNumber = '#${lastId + 1}';
+    final transactionCounts = await _getDailyTransactionCount();
+    final dailyCount = transactionCounts['dailyCount']!;
+    final lastId = transactionCounts['lastId']!;
+
+    // Format invoice number: CUST-001-123
+    final dailyCountFormatted = dailyCount.toString().padLeft(3, '0');
+    final transactionId = lastId.toString().padLeft(3, '0');
+    final invoiceNumber = 'CUST-$dailyCountFormatted-$transactionId';
+
     final now = DateTime.now();
     final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
 
@@ -1078,6 +1103,7 @@ class _TransactionFormState extends State<TransactionForm> {
       'phone': _phoneController.text,
       'date': formattedDate,
       'invoice': invoiceNumber,
+      'daily_count': dailyCount, // Simpan juga daily count untuk keperluan lain
       'discount_nominal': discountNominal,
       'discount_percent': discountPercent,
       'discount_price': discountPrice,

@@ -277,4 +277,17 @@ class TransactionRepository {
       };
     }).toList();
   }
+
+  // Di TransactionRepository class
+  Future<int> getDailyTransactionCount(DateTime date) async {
+    final db = await DatabaseHelper.instance.database;
+
+    final formattedDate = date.toIso8601String().substring(0, 10);
+
+    final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM Data_Transaction WHERE DATE(created_at) = ?',
+        [formattedDate]);
+
+    return result.first['count'] as int? ?? 0;
+  }
 }
