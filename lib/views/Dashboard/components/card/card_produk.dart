@@ -6,10 +6,11 @@ import 'package:meko_poin/utils/custom_colors.dart';
 
 class _ChartData {
   final String label;
+  final String category;
   final double value;
   final Color color;
 
-  _ChartData(this.label, this.value, this.color);
+  _ChartData(this.label, this.category, this.value, this.color);
 }
 
 class CardProduk extends StatelessWidget {
@@ -69,6 +70,7 @@ class CardProduk extends StatelessWidget {
           chartData.add(
             _ChartData(
               favoriteProducts[i].name,
+              favoriteProducts[i].category,
               favoriteProducts[i].totalQty.toDouble(),
               colorPalette[i % colorPalette.length],
             ),
@@ -174,7 +176,7 @@ class CardProduk extends StatelessWidget {
   Widget _buildChart(List<_ChartData> chartData) {
     return Container(
       padding: const EdgeInsets.all(16),
-      height: 370,
+      height: 450,
       decoration: BoxDecoration(
         color: CustomColors.cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -239,37 +241,53 @@ class CardProduk extends StatelessWidget {
                   ),
                   const SizedBox(width: 24),
                   // Legend
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: chartData.map((data) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: data.color,
+                  // Legend dengan Wrap yang bisa di-scroll horizontal dan vertical
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: Wrap(
+                          direction: Axis.horizontal,
+                          spacing: 16.0,
+                          runSpacing: 12.0,
+                          children: chartData.map((data) {
+                            return ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 180),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: data.color,
+                                    ),
+                                  ),
+                                  Flexible(
+                                    child: Text(
+                                      data.category == 'Background'
+                                          ? 'Background ${data.label}'
+                                          : data.label,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        fontFamily: 'Inter',
+                                        color: Colors.white,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            Text(
-                              data.label,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                fontFamily: 'Inter',
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }).toList(),
-                  ),
+                      ),
+                    ),
+                  )
                 ],
               ),
             ),

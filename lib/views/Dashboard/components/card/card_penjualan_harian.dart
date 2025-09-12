@@ -450,14 +450,18 @@ class _DailyReportHeader extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Jumlah Pelanggan',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: CustomColors.fontSubColor,
-                            fontFamily: 'Inter',
+                        Expanded(
+                          child: Text(
+                            'Jumlah Pelanggan',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              fontWeight: FontWeight.w400,
+                              color: CustomColors.fontSubColor,
+                              fontFamily: 'Inter',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
                           ),
                         ),
                         const SizedBox(width: 4),

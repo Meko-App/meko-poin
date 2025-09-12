@@ -195,7 +195,7 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
                 children: [
                   // Kolom Item
                   Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: InkWell(
                       onTap: () => onSort('item'),
                       child: Container(
@@ -287,7 +287,7 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
                       children: [
                         // Kolom Item
                         Expanded(
-                          flex: 3,
+                          flex: 2,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 18.0, vertical: 18.0),

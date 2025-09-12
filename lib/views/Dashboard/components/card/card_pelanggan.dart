@@ -281,6 +281,12 @@ class _CardPelangganState extends State<CardPelanggan> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 18, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            right:
+                                BorderSide(color: CustomColors.borderCardColor),
+                          ),
+                        ),
                         child: Center(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -315,14 +321,18 @@ class _CardPelangganState extends State<CardPelanggan> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Metode Pembayaran',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  height: 1.5,
-                                  fontWeight: FontWeight.w400,
-                                  color: CustomColors.fontSubColor,
-                                  fontFamily: 'Inter',
+                              Expanded(
+                                child: Text(
+                                  'Metode Pembayaran',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w400,
+                                    color: CustomColors.fontSubColor,
+                                    fontFamily: 'Inter',
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -556,12 +566,12 @@ class _CardPelangganState extends State<CardPelanggan> {
                     child: Row(
                       children: [
                         Expanded(
-                          flex: 1,
+                          flex: 2,
                           child: Text(
                             'Total QRIS',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
@@ -573,20 +583,20 @@ class _CardPelangganState extends State<CardPelanggan> {
                             ':',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.left,
                           ),
                         ),
                         Expanded(
-                          flex: 7,
+                          flex: 8,
                           child: Text(
                             _formatPrice(totalQris),
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
@@ -603,12 +613,12 @@ class _CardPelangganState extends State<CardPelanggan> {
                     child: Row(
                       children: [
                         Expanded(
-                          flex: 1,
+                          flex: 2,
                           child: Text(
                             'Total Cash',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
@@ -620,20 +630,20 @@ class _CardPelangganState extends State<CardPelanggan> {
                             ':',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.left,
                           ),
                         ),
                         Expanded(
-                          flex: 7,
+                          flex: 8,
                           child: Text(
                             _formatPrice(totalCash),
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
@@ -650,12 +660,12 @@ class _CardPelangganState extends State<CardPelanggan> {
                     child: Row(
                       children: [
                         Expanded(
-                          flex: 1,
+                          flex: 2,
                           child: Text(
                             'Total',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
@@ -671,16 +681,16 @@ class _CardPelangganState extends State<CardPelanggan> {
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.left,
                           ),
                         ),
                         Expanded(
-                          flex: 7,
+                          flex: 8,
                           child: Text(
                             _formatPrice(totalAll),
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                               fontFamily: 'Inter',
                             ),

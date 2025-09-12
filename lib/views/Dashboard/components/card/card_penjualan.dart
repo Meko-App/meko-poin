@@ -87,7 +87,7 @@ class _CardPenjualanState extends State<CardPenjualan> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      height: 367,
+      height: 450,
       decoration: BoxDecoration(
         color: CustomColors.cardColor,
         borderRadius: BorderRadius.circular(12),
