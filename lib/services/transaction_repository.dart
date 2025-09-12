@@ -185,7 +185,7 @@ class TransactionRepository {
       AND date(t.created_at) = ?
       GROUP BY m.id, m.name, m.category
       ORDER BY total_qty DESC
-      LIMIT 5
+      LIMIT 18
     ''', [today]);
 
     return result;

@@ -42,6 +42,7 @@ class RingkasanContent extends StatelessWidget {
                 return Column(
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                             child: CardPelanggan(
@@ -54,6 +55,7 @@ class RingkasanContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                             child: CardGudang(
@@ -70,6 +72,7 @@ class RingkasanContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                             child: CardProdukTerjual(
@@ -98,7 +101,7 @@ class RingkasanContent extends StatelessWidget {
                       children: [
                         Expanded(
                           child: SizedBox(
-                            height: 600, // BERIKAN HEIGHT EXPLICIT
+                            height: 600,
                             child: CardPenjualanHarian(
                               transactionRepository: TransactionRepository(
                                   DatabaseHelper.instance),
@@ -129,6 +132,24 @@ class RingkasanContent extends StatelessWidget {
                       transactionRepo:
                           TransactionRepository(DatabaseHelper.instance),
                     ),
+                    const SizedBox(height: 16),
+                    CardProdukTerjual(
+                        masterDataRepo:
+                            MasterDataRepository(DatabaseHelper.instance),
+                        transactionItemRepo:
+                            TransactionItemRepository(DatabaseHelper.instance)),
+                    const SizedBox(height: 16),
+                    CardKertasTerjual(
+                        masterDataRepo:
+                            MasterDataRepository(DatabaseHelper.instance),
+                        transactionItemRepo:
+                            TransactionItemRepository(DatabaseHelper.instance)),
+                    const SizedBox(height: 16),
+                    CardPlastikTerjual(
+                        masterDataRepo:
+                            MasterDataRepository(DatabaseHelper.instance),
+                        transactionItemRepo:
+                            TransactionItemRepository(DatabaseHelper.instance)),
                   ],
                 );
               }

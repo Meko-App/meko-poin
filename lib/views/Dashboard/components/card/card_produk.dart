@@ -43,11 +43,24 @@ class CardProduk extends StatelessWidget {
 
         // Siapkan warna untuk chart
         final List<Color> colorPalette = [
-          Colors.blue,
-          Colors.orange,
-          Colors.green,
-          Colors.purple,
-          Colors.yellow,
+          Color(0xFF007ed5),
+          Color(0xFF8399ec),
+          Color(0xFF8c6dee),
+          Color(0xFF9c46cf),
+          Color(0xFFc658cf),
+          Color(0xFFdf1e84),
+          Color(0xFFfd0000),
+          Color(0xFFff7300),
+          Color(0xFFffaf00),
+          Color(0xFFffec00),
+          Color(0xFFd6f30d),
+          Color(0xFF52d726),
+          Color(0xFF1ba92f),
+          Color(0xFF2fc975),
+          Color(0xFF24d7ad),
+          Color(0xFF7bdddc),
+          Color(0xFF60b7d3),
+          Color(0xFF95d9fc),
         ];
 
         // Buat chart data
