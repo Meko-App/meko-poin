@@ -6,6 +6,8 @@ class AttendanceTableHeader extends StatelessWidget {
   final bool isAscending;
   final Function(String) onSort;
   final Icon Function(String) sortIcon;
+  final bool isAllSelected;
+  final Function(bool?) onSelectAllChanged;
 
   const AttendanceTableHeader({
     super.key,
@@ -13,6 +15,8 @@ class AttendanceTableHeader extends StatelessWidget {
     required this.isAscending,
     required this.onSort,
     required this.sortIcon,
+    required this.isAllSelected,
+    required this.onSelectAllChanged,
   });
 
   @override
@@ -28,6 +32,27 @@ class AttendanceTableHeader extends StatelessWidget {
       child: IntrinsicHeight(
         child: Row(
           children: [
+            SizedBox(
+              width: 60,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: CustomColors.borderCardColor),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Checkbox(
+                  value: isAllSelected,
+                  onChanged: onSelectAllChanged,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  activeColor: Colors.blue.shade400,
+                  side: const BorderSide(width: 0.4, color: Colors.grey),
+                ),
+              ),
+            ),
             Expanded(
               child: InkWell(
                 onTap: () => onSort('date'),

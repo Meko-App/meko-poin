@@ -5,12 +5,16 @@ class AttendanceTableRow extends StatelessWidget {
   final String date;
   final String transactionCount;
   final String revenue;
+  final bool isSelected;
+  final Function(bool?) onSelectChanged;
 
   const AttendanceTableRow({
     super.key,
     required this.date,
     required this.transactionCount,
     required this.revenue,
+    required this.isSelected,
+    required this.onSelectChanged,
   });
 
   @override
@@ -23,6 +27,19 @@ class AttendanceTableRow extends StatelessWidget {
       child: IntrinsicHeight(
         child: Row(
           children: [
+            SizedBox(
+              width: 59,
+              child: Checkbox(
+                value: isSelected,
+                onChanged: onSelectChanged,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                activeColor: Colors.blue.shade400,
+                side: const BorderSide(width: 0.4, color: Colors.grey),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(

@@ -32,10 +32,37 @@ class _AttendanceTableState extends State<AttendanceTable> {
   int? _filterYear;
   int? _filterMonth;
 
+  Set<String> selectedTransactionIds = {};
+  bool get isAllSelected =>
+      selectedTransactionIds.length == currentPageData.length &&
+      currentPageData.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _loadTransactions();
+  }
+
+  void toggleSelectAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds
+            .addAll(currentPageData.map((report) => report['date']));
+      } else {
+        selectedTransactionIds
+            .removeAll(currentPageData.map((report) => report['date']));
+      }
+    });
+  }
+
+  void toggleSelectOne(String date, bool? value) {
+    setState(() {
+      if (value == true) {
+        selectedTransactionIds.add(date);
+      } else {
+        selectedTransactionIds.remove(date);
+      }
+    });
   }
 
   Future<void> _loadTransactions() async {
@@ -312,6 +339,8 @@ class _AttendanceTableState extends State<AttendanceTable> {
             isAscending: isAscending,
             onSort: onSort,
             sortIcon: _sortIcon,
+            isAllSelected: isAllSelected,
+            onSelectAllChanged: toggleSelectAll,
           ),
 
           // Body
@@ -334,6 +363,10 @@ class _AttendanceTableState extends State<AttendanceTable> {
                                 transactionCount:
                                     report['transactionCount'].toString(),
                                 revenue: report['formattedRevenue'],
+                                isSelected: selectedTransactionIds
+                                    .contains(report['date']),
+                                onSelectChanged: (value) =>
+                                    toggleSelectOne(report['date'], value),
                               ))
                           .toList(),
                     ),
