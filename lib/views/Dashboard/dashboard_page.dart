@@ -289,6 +289,8 @@ class _DashboardPageState extends State<DashboardPage> {
         headerSubPage = 'Log Aktivitas';
       } else if (_contentCurrentState == ContentState.detail) {
         headerSubPage = 'Detail Transaksi';
+      } else if (_contentCurrentState == ContentState.attendance) {
+        headerSubPage = 'Riwayat Kehadiran';
       } else {
         headerSubPage = null;
       }
@@ -495,7 +497,8 @@ class DashboardContent extends StatelessWidget {
         return PenggunaContent(
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
-          userRepository: userRepository, // Teruskan repository
+          userRepository: userRepository,
+          transactionRepository: transactionRepository, // Teruskan repository
         );
       case 'Database':
         return const DatabaseContent();

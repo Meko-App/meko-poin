@@ -7,6 +7,7 @@ class UserTableRow extends StatelessWidget {
   final String role;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onAttendance;
   final bool isSelected;
   final Function(bool?) onSelectChanged;
 
@@ -17,6 +18,7 @@ class UserTableRow extends StatelessWidget {
     required this.role,
     required this.onEdit,
     required this.onDelete,
+    required this.onAttendance,
     required this.isSelected,
     required this.onSelectChanged,
   });
@@ -109,6 +111,8 @@ class UserTableRow extends StatelessWidget {
                       onEdit();
                     } else if (value == 'delete') {
                       onDelete();
+                    } else if (value == 'attendance') {
+                      onAttendance();
                     }
                   },
                   offset: const Offset(0, 30),
@@ -167,6 +171,34 @@ class UserTableRow extends StatelessWidget {
                               const SizedBox(width: 8),
                               const Text(
                                 'Hapus',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'attendance',
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'attendance'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_month_outlined,
+                                  color: const Color.fromARGB(255, 16, 206, 63)
+                                      .withOpacity(0.9),
+                                  size: 16),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Riwayat Kehadiran',
                                 style: TextStyle(
                                     fontSize: 14, color: Colors.white),
                               ),

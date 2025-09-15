@@ -12,6 +12,7 @@ class UserTable extends StatefulWidget {
   final UserRepository userRepository;
   final Function(User) onEditUser;
   final Function(User) onDeleteUser;
+  final Function(int userId, String userName) onAttendance;
 
   const UserTable({
     super.key,
@@ -19,6 +20,7 @@ class UserTable extends StatefulWidget {
     required this.userRepository,
     required this.onEditUser,
     required this.onDeleteUser,
+    required this.onAttendance,
   });
 
   @override
@@ -238,6 +240,8 @@ class _UserTableState extends State<UserTable> {
                                       onSelectChanged: (value) =>
                                           toggleSelectOne(user.id!, value),
                                       onEdit: () => widget.onEditUser(user),
+                                      onAttendance: () => widget.onAttendance(
+                                          user.id!, user.name),
                                       onDelete: () => widget.onDeleteUser(user),
                                     ))
                                 .toList(),

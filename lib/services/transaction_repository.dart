@@ -22,6 +22,25 @@ class TransactionRepository {
     return result.map((map) => Transaction.fromMap(map)).toList();
   }
 
+  Future<List<Transaction>> getAllTransactionsThisMonth() async {
+    final db = await dbHelper.database;
+
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+
+    final startDate = firstDayOfMonth.toIso8601String();
+    final endDate = lastDayOfMonth.toIso8601String();
+
+    final result = await db.query(
+      'Data_Transaction',
+      where: 'created_at BETWEEN ? AND ?',
+      whereArgs: [startDate, endDate],
+    );
+
+    return result.map((map) => Transaction.fromMap(map)).toList();
+  }
+
   Future<List<TransactionWithCustomerUser>>
       getAllTransactionsWithCustomerUser() async {
     final db = await dbHelper.database;

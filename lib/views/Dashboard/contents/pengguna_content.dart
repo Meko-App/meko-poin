@@ -6,13 +6,20 @@ import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/form/user_form.dart';
 import 'package:meko_poin/models/user.dart';
 import 'package:meko_poin/utils/password_hasher.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/table/attendance_table/attendance_table.dart';
 
 class PenggunaContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
   final UserRepository userRepository;
+  final TransactionRepository transactionRepository;
 
-  const PenggunaContent(
-      {super.key, required this.onStateChanged, required this.userRepository});
+  const PenggunaContent({
+    super.key,
+    required this.onStateChanged,
+    required this.userRepository,
+    required this.transactionRepository,
+  });
 
   @override
   State<PenggunaContent> createState() => _PenggunaContentState();
@@ -22,11 +29,17 @@ class _PenggunaContentState extends State<PenggunaContent> {
   ContentState _currentState = ContentState.table;
   Map<String, dynamic>? _userToEdit;
   late final UserRepository userRepository;
+  late final TransactionRepository transactionRepository;
+
+  // State untuk attendance history
+  int? _selectedUserId;
+  String? _selectedUserName;
 
   @override
   void initState() {
     super.initState();
     userRepository = widget.userRepository;
+    transactionRepository = widget.transactionRepository;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onStateChanged(_currentState);
     });
@@ -52,6 +65,17 @@ class _PenggunaContentState extends State<PenggunaContent> {
     setState(() {
       _currentState = ContentState.table;
       _userToEdit = null;
+      _selectedUserId = null;
+      _selectedUserName = null;
+      widget.onStateChanged(_currentState);
+    });
+  }
+
+  void _showAttendanceHistory(int userId, String userName) {
+    setState(() {
+      _currentState = ContentState.attendance;
+      _selectedUserId = userId;
+      _selectedUserName = userName;
       widget.onStateChanged(_currentState);
     });
   }
@@ -121,23 +145,19 @@ class _PenggunaContentState extends State<PenggunaContent> {
         children: [
           Row(
             children: [
-              if (_currentState == ContentState.form)
+              if (_currentState != ContentState.table)
                 IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _showTable,
                   color: Colors.grey.shade700,
                 ),
-              if (_currentState == ContentState.form) const SizedBox(width: 8),
+              if (_currentState != ContentState.table) const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _currentState == ContentState.table
-                        ? "Pengguna"
-                        : (_userToEdit != null
-                            ? "Edit Pengguna"
-                            : "Buat Pengguna Baru"),
-                    style: TextStyle(
+                    _getTitle(),
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
@@ -145,7 +165,7 @@ class _PenggunaContentState extends State<PenggunaContent> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Data master untuk pengguna aplikasi MEKO POIN",
+                    _getSubtitle(),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -161,60 +181,110 @@ class _PenggunaContentState extends State<PenggunaContent> {
             constraints: BoxConstraints(
               maxHeight: currentMaxHeight,
             ),
-            child: _currentState == ContentState.table
-                ? UserTable(
-                    onAddNew: _showForm,
-                    userRepository: userRepository,
-                    onEditUser: (user) => _showForm(user: user),
-                    onDeleteUser: (user) async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Konfirmasi'),
-                          content: Text('Hapus user ${user.name}?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Batal'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Hapus'),
-                            ),
-                          ],
-                        ),
-                      );
-
-                      if (confirmed == true) {
-                        try {
-                          // await userRepository.deleteUser(user.id!);
-                          await userRepository.softDeleteUser(user.id!);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('User berhasil dihapus')),
-                            );
-                          }
-                          _showTable();
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text('Gagal menghapus user: $e')),
-                            );
-                          }
-                        }
-                      }
-                    },
-                  )
-                : UserForm(
-                    onCancel: _showTable,
-                    initialUserData: _userToEdit,
-                    onSubmit: _handleUserFormSubmit,
-                  ),
+            child: _buildContent(),
           ),
         ],
       ),
     );
+  }
+
+  String _getTitle() {
+    switch (_currentState) {
+      case ContentState.table:
+        return "Pengguna";
+      case ContentState.form:
+        return _userToEdit != null ? "Edit Pengguna" : "Buat Pengguna Baru";
+      case ContentState.attendance:
+        return "Riwayat Kehadiran - $_selectedUserName";
+      default:
+        return "Pengguna";
+    }
+  }
+
+  String _getSubtitle() {
+    switch (_currentState) {
+      case ContentState.table:
+        return "Data master untuk pengguna aplikasi MEKO POIN";
+      case ContentState.form:
+        return _userToEdit != null
+            ? "Edit data pengguna"
+            : "Buat pengguna baru";
+      case ContentState.attendance:
+        return "Data kehadiran pengguna berdasarkan transaksi";
+      default:
+        return "Data master untuk pengguna aplikasi MEKO POIN";
+    }
+  }
+
+  Widget _buildContent() {
+    switch (_currentState) {
+      case ContentState.table:
+        return UserTable(
+          onAddNew: _showForm,
+          userRepository: userRepository,
+          onEditUser: (user) => _showForm(user: user),
+          onDeleteUser: (user) async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Konfirmasi'),
+                content: Text('Hapus user ${user.name}?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Batal'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Hapus'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirmed == true) {
+              try {
+                await userRepository.softDeleteUser(user.id!);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('User berhasil dihapus')),
+                  );
+                }
+                _showTable();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal menghapus user: $e')),
+                  );
+                }
+              }
+            }
+          },
+          onAttendance: (userId, userName) =>
+              _showAttendanceHistory(userId, userName),
+        );
+      case ContentState.form:
+        return UserForm(
+          onCancel: _showTable,
+          initialUserData: _userToEdit,
+          onSubmit: _handleUserFormSubmit,
+        );
+      case ContentState.attendance:
+        return _selectedUserId != null
+            ? AttendanceTable(
+                transactionRepository: transactionRepository,
+                userId: _selectedUserId!,
+              )
+            : const Center(child: Text('User tidak ditemukan'));
+      default:
+        return UserTable(
+          onAddNew: _showForm,
+          userRepository: userRepository,
+          onEditUser: (user) => _showForm(user: user),
+          onDeleteUser: (user) {},
+          onAttendance: (userId, userName) =>
+              _showAttendanceHistory(userId, userName),
+        );
+    }
   }
 }
