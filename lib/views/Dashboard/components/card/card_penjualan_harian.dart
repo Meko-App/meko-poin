@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/daily_report.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
-import 'package:meko_poin/views/Dashboard/components/table/transaction_table/transaction_table_pagination.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/daily_report_service.dart';
 
 class CardPenjualanHarian extends StatefulWidget {
@@ -24,12 +23,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
 
   // Sorting state
   String _sortBy = 'date';
-  bool _isAscending = false;
-
-  // Pagination state
-  int _currentPage = 1;
-  int _itemsPerPage = 10;
-
+  bool _isAscending = true;
   @override
   void initState() {
     super.initState();
@@ -77,7 +71,6 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
       setState(() {
         _allDailyReports = reports;
         _applySorting();
-        _currentPage = 1;
       });
     } catch (e) {
       debugPrint('Error loading daily reports: $e');
@@ -177,13 +170,8 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
     );
   }
 
-  List<DailyReport> get _currentPageData {
-    int start = (_currentPage - 1) * _itemsPerPage;
-    int end = start + _itemsPerPage;
-    return _sortedDailyReports.sublist(
-      start,
-      end > _sortedDailyReports.length ? _sortedDailyReports.length : end,
-    );
+  List<DailyReport> get _displayedData {
+    return _sortedDailyReports.take(35).toList();
   }
 
   String _formatMonthYear(Map<String, dynamic> monthData) {
@@ -193,13 +181,39 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
     return DateFormat('MMMM yyyy').format(date);
   }
 
+  // Calculate summary values
+  Map<String, dynamic> _calculateSummary() {
+    final displayedData = _displayedData;
+
+    if (displayedData.isEmpty) {
+      return {
+        'customerCount': 0,
+        'totalRevenue': 0,
+        'totalCash': 0,
+        'totalQris': 0,
+        'totalSales': 0,
+      };
+    }
+
+    return {
+      'customerCount':
+          displayedData.fold(0, (sum, report) => sum + report.customerCount),
+      'totalRevenue':
+          displayedData.fold(0.0, (sum, report) => sum + report.totalRevenue),
+      'totalCash':
+          displayedData.fold(0.0, (sum, report) => sum + report.totalCash),
+      'totalQris':
+          displayedData.fold(0.0, (sum, report) => sum + report.totalQris),
+      'totalSales':
+          displayedData.fold(0.0, (sum, report) => sum + report.totalSales),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final totalPages = (_sortedDailyReports.length / _itemsPerPage).ceil();
-    final startItem = (_currentPage - 1) * _itemsPerPage + 1;
-    final endItem = (_currentPage * _itemsPerPage > _sortedDailyReports.length)
-        ? _sortedDailyReports.length
-        : _currentPage * _itemsPerPage;
+    final displayedData = _displayedData;
+    final summary = _calculateSummary();
+    final NumberFormat currencyFormat = NumberFormat('#,###');
 
     return Container(
       decoration: BoxDecoration(
@@ -214,12 +228,11 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment
-                  .spaceBetween, // Diubah dari end ke spaceBetween
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Title di sebelah kiri
                 const Text(
-                  'Catatan Penjualan Bulanan', // Title baru
+                  'Catatan Penjualan Bulanan',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -282,8 +295,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
                     // Tombol Export Excel
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xFF0BC33F), // Green background
+                        backgroundColor: const Color(0xFF0BC33F),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         shape: RoundedRectangleBorder(
@@ -297,7 +309,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
                       child: const Text(
                         'Cetak Laporan',
                         style: TextStyle(
-                          color: Colors.white, // White text color
+                          color: Colors.white,
                           fontFamily: 'Inter',
                           fontSize: 12,
                           height: 1.0,
@@ -319,56 +331,181 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
             sortIcon: _sortIcon,
           ),
 
-          // Table Body
-          Flexible(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: 200,
-                maxHeight: 400,
-              ),
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _sortedDailyReports.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'Tidak ada data untuk bulan ini',
-                            style: TextStyle(
-                              color: CustomColors.fontSubColor,
-                              fontFamily: 'Inter',
+          // Table Body - Height adjusts to content
+          _isLoading
+              ? const SizedBox(
+                  height: 200,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : displayedData.isEmpty
+                  ? const SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: Text(
+                          'Tidak ada data untuk bulan ini',
+                          style: TextStyle(
+                            color: CustomColors.fontSubColor,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        // Data rows
+                        ...displayedData
+                            .map((report) => _DailyReportRow(report: report)),
+
+                        // Summary row
+                        Container(
+                          decoration: BoxDecoration(
+                            color: CustomColors.cardColor.withOpacity(0.8),
+                            border: Border(
+                              top: BorderSide(
+                                  color: CustomColors.borderCardColor,
+                                  width: 2),
+                              bottom: BorderSide(
+                                  color: CustomColors.borderCardColor),
                             ),
                           ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const ClampingScrollPhysics(),
-                          itemCount: _currentPageData.length,
-                          itemBuilder: (context, index) {
-                            final report = _currentPageData[index];
-                            return _DailyReportRow(report: report);
-                          },
+                          child: IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(
+                                            color:
+                                                CustomColors.borderCardColor),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'TOTAL',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(
+                                            color:
+                                                CustomColors.borderCardColor),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      currencyFormat
+                                          .format(summary['totalSales']),
+                                      // summary['customerCount'].toString(),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(
+                                            color:
+                                                CustomColors.borderCardColor),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Rp ${currencyFormat.format(summary['totalRevenue'])}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(
+                                            color:
+                                                CustomColors.borderCardColor),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Rp ${currencyFormat.format(summary['totalCash'])}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: BorderSide(
+                                            color:
+                                                CustomColors.borderCardColor),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Rp ${currencyFormat.format(summary['totalQris'])}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 18, vertical: 16),
+                                    child: Text(
+                                      // 'Rp ${currencyFormat.format(summary['totalSales'])}',
+                                      'Rp ${currencyFormat.format(summary['totalRevenue'])}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-            ),
-          ),
-
-          // Pagination
-          if (!_isLoading && _sortedDailyReports.isNotEmpty)
-            TransactionTablePagination(
-              currentPage: _currentPage,
-              totalPages: totalPages,
-              startItem: startItem,
-              endItem: endItem,
-              totalItems: _sortedDailyReports.length,
-              itemsPerPage: _itemsPerPage,
-              onItemsPerPageChanged: (value) {
-                setState(() {
-                  _itemsPerPage = value;
-                  _currentPage = 1;
-                });
-              },
-              onPageChanged: (page) {
-                setState(() => _currentPage = page);
-              },
-            ),
+                      ],
+                    ),
         ],
       ),
     );
@@ -653,7 +790,6 @@ class _DailyReportRow extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  // report.customerCount.toString(),
                   report.totalSales.toInt().toString(),
                   style: const TextStyle(
                     fontSize: 14,
@@ -729,7 +865,6 @@ class _DailyReportRow extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
                 child: Text(
-                  // report.totalSales.toInt().toString(),
                   'Rp ${currencyFormat.format(report.totalRevenue)}',
                   style: const TextStyle(
                     fontSize: 14,

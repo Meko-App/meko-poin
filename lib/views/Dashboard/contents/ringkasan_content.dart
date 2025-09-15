@@ -100,12 +100,9 @@ class RingkasanContent extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: SizedBox(
-                            height: 600,
-                            child: CardPenjualanHarian(
-                              transactionRepository: TransactionRepository(
-                                  DatabaseHelper.instance),
-                            ),
+                          child: CardPenjualanHarian(
+                            transactionRepository:
+                                TransactionRepository(DatabaseHelper.instance),
                           ),
                         ),
                       ],

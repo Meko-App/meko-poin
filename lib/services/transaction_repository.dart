@@ -226,7 +226,13 @@ class TransactionRepository {
 
     final firstDay = DateTime(year, month, 1);
     final lastDay = DateTime(year, month + 1, 0);
+    final totalDays = lastDay.day;
 
+    // Generate semua tanggal dalam bulan
+    final allDates =
+        List.generate(totalDays, (index) => DateTime(year, month, index + 1));
+
+    // Query data transaksi yang ada
     final result = await db.rawQuery('''
     SELECT 
       date(t.created_at) as report_date,
@@ -244,15 +250,38 @@ class TransactionRepository {
       lastDay.add(const Duration(days: 1)).toIso8601String(),
     ]);
 
-    return result.map((row) {
-      return DailyReport(
-        date: DateTime.parse(row['report_date'] as String),
-        customerCount: row['customer_count'] as int? ?? 0,
-        totalRevenue: (row['total_revenue'] as num?)?.toDouble() ?? 0,
-        totalCash: (row['total_cash'] as num?)?.toDouble() ?? 0,
-        totalQris: (row['total_qris'] as num?)?.toDouble() ?? 0,
-        totalSales: (row['total_sales'] as num?)?.toDouble() ?? 0,
-      );
+    // Buat map dari hasil query untuk akses cepat
+    final resultMap = {
+      for (var row in result) row['report_date'] as String: row
+    };
+
+    // Gabungkan semua tanggal dengan data yang ada
+    return allDates.map((date) {
+      final dateString =
+          date.toIso8601String().split('T')[0]; // Format YYYY-MM-DD
+      final rowData = resultMap[dateString];
+
+      if (rowData != null) {
+        // Jika ada data transaksi untuk tanggal ini
+        return DailyReport(
+          date: date,
+          customerCount: rowData['customer_count'] as int? ?? 0,
+          totalRevenue: (rowData['total_revenue'] as num?)?.toDouble() ?? 0,
+          totalCash: (rowData['total_cash'] as num?)?.toDouble() ?? 0,
+          totalQris: (rowData['total_qris'] as num?)?.toDouble() ?? 0,
+          totalSales: (rowData['total_sales'] as num?)?.toDouble() ?? 0,
+        );
+      } else {
+        // Jika tidak ada transaksi, return data default 0
+        return DailyReport(
+          date: date,
+          customerCount: 0,
+          totalRevenue: 0,
+          totalCash: 0,
+          totalQris: 0,
+          totalSales: 0,
+        );
+      }
     }).toList();
   }
 
