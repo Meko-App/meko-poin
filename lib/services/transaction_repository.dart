@@ -191,21 +191,22 @@ class TransactionRepository {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     final result = await db.rawQuery('''
-      SELECT 
-        m.id,
-        m.name,
-        m.category,
-        SUM(ti.qty) as total_qty,
-        SUM(ti.total_price) as total_sales
-      FROM Data_Transaction_Item ti
-      JOIN Data_Master m ON ti.master_data_id = m.id
-      JOIN Data_Transaction t ON ti.transaction_id = t.id
-      WHERE m.deleted_at IS NULL
-      AND date(t.created_at) = ?
-      GROUP BY m.id, m.name, m.category
-      ORDER BY total_qty DESC
-      LIMIT 18
-    ''', [today]);
+    SELECT 
+      m.id,
+      m.name,
+      m.category,
+      SUM(ti.qty) as total_qty,
+      SUM(ti.total_price) as total_sales
+    FROM Data_Transaction_Item ti
+    JOIN Data_Master m ON ti.master_data_id = m.id
+    JOIN Data_Transaction t ON ti.transaction_id = t.id
+    WHERE m.deleted_at IS NULL
+    AND date(t.created_at) = ?
+    AND m.category IN ('Product', 'Background')
+    GROUP BY m.id, m.name, m.category
+    ORDER BY total_qty DESC
+    LIMIT 18
+  ''', [today]);
 
     return result;
   }
