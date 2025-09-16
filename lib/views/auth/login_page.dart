@@ -3,6 +3,7 @@ import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/inventory_repository.dart';
+import 'package:meko_poin/services/kas_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
@@ -56,7 +57,8 @@ class _LoginPageState extends State<LoginPage> {
                   inventoryLogRepository:
                       InventoryLogRepository(DatabaseHelper.instance),
                   customerRepository:
-                      CustomerRepository(DatabaseHelper.instance))),
+                      CustomerRepository(DatabaseHelper.instance),
+                  kasRepository: KasRepository(DatabaseHelper.instance))),
         );
       } else if (mounted) {
         _showError('Invalid email or password');

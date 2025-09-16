@@ -47,6 +47,7 @@ class DatabaseHelper {
     await _createCustomerTable(db);
     await _createTransactionTable(db);
     await _createTransactionItemTable(db);
+    await _createKasTable(db);
     await _insertDefaultAdmin(db);
     await _insertDummyDataMaster(db);
   }
@@ -164,6 +165,24 @@ class DatabaseHelper {
         transaction_id INTEGER,
         FOREIGN KEY (master_data_id) REFERENCES Data_Master(id),
         FOREIGN KEY (transaction_id) REFERENCES Data_Transaction(id)
+      )
+    ''');
+  }
+
+  Future<void> _createKasTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE Data_Kas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount INTEGER,
+        description TEXT,
+        type TEXT CHECK(type IN ('income', 'outcome')),
+        cash_date DATE,
+        created_at DATETIME,
+        updated_at DATETIME,
+        deleted_at TEXT,
+        created_by INTEGER,
+        updated_by INTEGER,
+        deleted_by INTEGER
       )
     ''');
   }

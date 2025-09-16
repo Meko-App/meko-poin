@@ -81,8 +81,13 @@ class _SidebarState extends State<Sidebar> {
                   ["Ringkasan", "Pelanggan"]),
 
             if (_userRole == '1')
-              _buildAccordionMenu("Managements", Icons.layers_outlined,
-                  ["Master Data", "Inventori", "Transaksi", "Pengguna"])
+              _buildAccordionMenu("Managements", Icons.layers_outlined, [
+                "Master Data",
+                "Inventori",
+                "Transaksi",
+                "Pengguna",
+                "Kas Tunai"
+              ])
             else
               _buildAccordionMenu("Managements", Icons.layers_outlined,
                   ["Tambah Transaksi", "Transaksi"]),

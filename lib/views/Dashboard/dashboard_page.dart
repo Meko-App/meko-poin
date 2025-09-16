@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:meko_poin/services/kas_repository.dart';
+import 'package:meko_poin/views/Dashboard/contents/kas_content.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -30,6 +32,7 @@ class DashboardPage extends StatefulWidget {
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
   final CustomerRepository customerRepository;
+  final KasRepository kasRepository;
   final String? initialMenu;
 
   const DashboardPage(
@@ -41,6 +44,7 @@ class DashboardPage extends StatefulWidget {
       required this.inventoryRepository,
       required this.inventoryLogRepository,
       required this.customerRepository,
+      required this.kasRepository,
       this.initialMenu});
 
   @override
@@ -266,7 +270,8 @@ class _DashboardPageState extends State<DashboardPage> {
           menu == 'Inventori' ||
           menu == 'Transaksi' ||
           menu == 'Tambah Transaksi' ||
-          menu == 'Pengguna') {
+          menu == 'Pengguna' ||
+          menu == 'Kas Tunai') {
         return 'Managements';
       } else if (menu == 'Database') {
         return 'Settings';
@@ -282,7 +287,8 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_selectedMenu == 'Pengguna' ||
         _selectedMenu == 'Master Data' ||
         _selectedMenu == 'Inventori' ||
-        _selectedMenu == 'Transaksi') {
+        _selectedMenu == 'Transaksi' ||
+        _selectedMenu == 'Kas Tunai') {
       if (_contentCurrentState == ContentState.form) {
         headerSubPage = 'Buat Baru';
       } else if (_contentCurrentState == ContentState.log) {
@@ -346,7 +352,8 @@ class _DashboardPageState extends State<DashboardPage> {
                           if (_selectedMenu == 'Pengguna' ||
                               _selectedMenu == 'Master Data' ||
                               _selectedMenu == 'Inventori' ||
-                              _selectedMenu == 'Transaksi') {
+                              _selectedMenu == 'Transaksi' ||
+                              _selectedMenu == 'Kas Tunai') {
                             _updateContentState(state);
                           }
                         },
@@ -356,6 +363,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         inventoryRepository: widget.inventoryRepository,
                         inventoryLogRepository: widget.inventoryLogRepository,
                         customerRepository: widget.customerRepository,
+                        kasRepository: widget.kasRepository,
                         contentKey: _ContentKey),
                   ),
                 ],
@@ -432,6 +440,7 @@ class DashboardContent extends StatelessWidget {
   final InventoryRepository inventoryRepository;
   final InventoryLogRepository inventoryLogRepository;
   final CustomerRepository customerRepository;
+  final KasRepository kasRepository;
   final int contentKey;
 
   const DashboardContent({
@@ -445,6 +454,7 @@ class DashboardContent extends StatelessWidget {
     required this.inventoryRepository,
     required this.inventoryLogRepository,
     required this.customerRepository,
+    required this.kasRepository,
     this.contentKey = 0,
   });
 
@@ -499,6 +509,12 @@ class DashboardContent extends StatelessWidget {
           onStateChanged: onContentStateChanged!,
           userRepository: userRepository,
           transactionRepository: transactionRepository, // Teruskan repository
+        );
+      case 'Kas Tunai':
+        return KasContent(
+          key: ValueKey(contentKey),
+          onStateChanged: onContentStateChanged!,
+          kasRepository: kasRepository,
         );
       case 'Database':
         return const DatabaseContent();
