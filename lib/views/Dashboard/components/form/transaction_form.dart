@@ -197,18 +197,44 @@ class _TransactionFormState extends State<TransactionForm> {
 
     final db = await DatabaseHelper.instance.database;
 
-    final transactionId = await db.insert('Data_Transaction', {
-      'user_id': userId,
-      'customer_id': customerId,
-      'discount_price': data['discount_nominal'],
-      'final_price': data['final_price'],
-      'payment_method': data['payment_method']?.toLowerCase(),
-      'notes': data['note'],
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
-    });
+    await db.execute('BEGIN TRANSACTION');
 
-    return transactionId;
+    try {
+      final transactionId = await db.insert('Data_Transaction', {
+        'user_id': userId,
+        'customer_id': customerId,
+        'discount_price': data['discount_nominal'],
+        'final_price': data['final_price'],
+        'payment_method': data['payment_method']?.toLowerCase(),
+        'notes': data['note'],
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      if (data['payment_method']?.toLowerCase() == 'cash') {
+        final customerName = data['name'];
+        final invoiceNumber = data['invoice'];
+        final finalPrice = data['final_price'];
+
+        await db.insert('Data_Kas', {
+          'amount': finalPrice,
+          'description':
+              'Pemasukan dari transaksi atas nama $customerName Invoice $invoiceNumber',
+          'type': 'income',
+          'cash_date': DateTime.now().toIso8601String(),
+          'created_by': userId,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      await db.execute('COMMIT');
+
+      return transactionId;
+    } catch (e) {
+      await db.execute('ROLLBACK');
+      rethrow;
+    }
   }
 
   Future<void> _updateTransactionItems(int transactionId) async {
