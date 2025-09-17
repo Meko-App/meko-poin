@@ -1,32 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/models/additional/kas_with_balance.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:intl/intl.dart';
 
-class KasTableRow extends StatelessWidget {
-  final int month;
-  final int year;
-  final int totalIncome;
-  final int totalOutcome;
-  final int netAmount;
+class KasDetailTableRow extends StatelessWidget {
+  final KasWithBalance kasWithBalance;
   final bool isSelected;
   final Function(bool?) onSelectChanged;
-  final VoidCallback onViewDetail;
+  final VoidCallback onEdit;
 
-  const KasTableRow({
+  const KasDetailTableRow({
     super.key,
-    required this.month,
-    required this.year,
-    required this.totalIncome,
-    required this.totalOutcome,
-    required this.netAmount,
+    required this.kasWithBalance,
     required this.isSelected,
     required this.onSelectChanged,
-    required this.onViewDetail,
+    required this.onEdit,
   });
-
-  String get monthName {
-    return DateFormat('MMMM', 'id_ID').format(DateTime(year, month));
-  }
 
   String formatCurrency(int amount) {
     return NumberFormat.currency(
@@ -36,8 +25,14 @@ class KasTableRow extends StatelessWidget {
     ).format(amount);
   }
 
+  String formatDate(DateTime date) {
+    return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final kas = kasWithBalance.kas;
+
     return Container(
       constraints: const BoxConstraints(
         minHeight: 55,
@@ -52,7 +47,7 @@ class KasTableRow extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
-              width: 59,
+              width: 60,
               child: Checkbox(
                 value: isSelected,
                 onChanged: onSelectChanged,
@@ -65,11 +60,12 @@ class KasTableRow extends StatelessWidget {
             VerticalDivider(
                 thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
+              flex: 2,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
-                  monthName,
+                  formatDate(kas.cashDate),
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.2,
@@ -80,53 +76,96 @@ class KasTableRow extends StatelessWidget {
                 ),
               ),
             ),
-            // VerticalDivider(
-            //     thickness: 1, width: 1, color: CustomColors.borderCardColor),
-            // Expanded(
-            //   child: Container(
-            //     padding: const EdgeInsets.symmetric(
-            //         horizontal: 18.0, vertical: 20.0),
-            //     child: Text(
-            //       formatCurrency(totalIncome),
-            //       style: TextStyle(
-            //         fontSize: 14,
-            //         height: 1.0,
-            //         fontWeight: FontWeight.w400,
-            //         color: Colors.green[300],
-            //         fontFamily: 'Inter',
-            //       ),
-            //     ),
-            //   ),
-            // ),
-            // VerticalDivider(
-            //     thickness: 1, width: 1, color: CustomColors.borderCardColor),
-            // Expanded(
-            //   child: Container(
-            //     padding: const EdgeInsets.symmetric(
-            //         horizontal: 18.0, vertical: 20.0),
-            //     child: Text(
-            //       formatCurrency(totalOutcome),
-            //       style: TextStyle(
-            //         fontSize: 14,
-            //         height: 1.0,
-            //         fontWeight: FontWeight.w400,
-            //         color: Colors.red[300],
-            //         fontFamily: 'Inter',
-            //       ),
-            //     ),
-            //   ),
-            // ),
             VerticalDivider(
                 thickness: 1, width: 1, color: CustomColors.borderCardColor),
             Expanded(
+              flex: 2,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
-                  formatCurrency(netAmount),
+                  formatCurrency(kas.amount),
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.0,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
+                  kas.type == 'income' ? 'Pemasukan' : 'Pengeluaran',
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.0,
+                    fontWeight: FontWeight.w500,
+                    color: kas.type == 'income'
+                        ? Color(0xFF0BC33F)
+                        : Color(0xFFED143B),
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
+                  formatCurrency(kasWithBalance.initialBalance),
                   style: const TextStyle(
                     fontSize: 14,
-                    height: 1.2,
+                    height: 1.0,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
+                  formatCurrency(kasWithBalance.finalBalance),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.0,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              flex: 3,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
+                  kas.description,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.0,
                     fontWeight: FontWeight.w500,
                     color: Colors.white,
                     fontFamily: 'Inter',
@@ -141,8 +180,8 @@ class KasTableRow extends StatelessWidget {
               child: Center(
                 child: PopupMenuButton<String>(
                   onSelected: (value) {
-                    if (value == 'detail') {
-                      onViewDetail();
+                    if (value == 'edit') {
+                      onEdit();
                     }
                   },
                   offset: const Offset(0, 30),
@@ -156,25 +195,23 @@ class KasTableRow extends StatelessWidget {
                   color: CustomColors.cardColor, // tema gelap
                   itemBuilder: (context) => [
                     PopupMenuItem(
-                      value: 'detail',
+                      value: 'edit',
                       padding: EdgeInsets.zero,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
                         splashColor: Colors.transparent,
-                        hoverColor: CustomColors.borderCardColor, // efek hover
-                        onTap: () => Navigator.pop(context, 'detail'),
-                        // onTap: () => {},
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'edit'),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           child: Row(
                             children: const [
-                              Icon(Icons.remove_red_eye_outlined,
-                                  color: Color(0xFF60A5FA),
-                                  size: 16), // warna biru konsisten
+                              Icon(Icons.edit,
+                                  color: Color(0xFF60A5FA), size: 16),
                               SizedBox(width: 8),
                               Text(
-                                'Lihat Detail',
+                                'Edit',
                                 style: TextStyle(
                                     fontSize: 14, color: Colors.white),
                               ),

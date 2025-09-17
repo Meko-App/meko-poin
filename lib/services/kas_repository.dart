@@ -1,3 +1,4 @@
+import 'package:meko_poin/models/additional/kas_with_balance.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/models/kas.dart';
 
@@ -71,17 +72,59 @@ class KasRepository {
     }).toList();
   }
 
-  Future<List<Kas>> getKasByMonth(int year, int month) async {
+  Future<List<KasWithBalance>> getKasByMonth(int year, int month) async {
     final db = await dbHelper.database;
-    final result = await db.rawQuery('''
-      SELECT * FROM Data_Kas 
-      WHERE strftime('%Y', cash_date) = ? 
-      AND strftime('%m', cash_date) = ?
-      AND deleted_at IS NULL
-      ORDER BY cash_date DESC
-    ''', [year.toString(), month.toString().padLeft(2, '0')]);
 
-    return result.map((map) => Kas.fromMap(map)).toList();
+    // Pertama, dapatkan saldo awal bulan (saldo akhir bulan sebelumnya)
+    final saldoAwalBulan = await _getSaldoAwalBulan(year, month);
+
+    final result = await db.rawQuery('''
+    SELECT * FROM Data_Kas 
+    WHERE strftime('%Y', cash_date) = ? 
+    AND strftime('%m', cash_date) = ?
+    AND deleted_at IS NULL
+    ORDER BY cash_date ASC, created_at ASC
+  ''', [year.toString(), month.toString().padLeft(2, '0')]);
+
+    int runningBalance = saldoAwalBulan;
+    final List<KasWithBalance> kasList = [];
+
+    for (var map in result) {
+      final kas = Kas.fromMap(map);
+      final int initialBalance = runningBalance;
+
+      if (kas.type == 'income') {
+        runningBalance += kas.amount;
+      } else {
+        runningBalance -= kas.amount;
+      }
+
+      kasList.add(KasWithBalance(
+        kas: kas,
+        initialBalance: initialBalance,
+        finalBalance: runningBalance,
+      ));
+    }
+
+    return kasList;
+  }
+
+  Future<int> _getSaldoAwalBulan(int year, int month) async {
+    final db = await dbHelper.database;
+
+    // Hitung saldo sampai akhir bulan sebelumnya
+    final result = await db.rawQuery('''
+    SELECT 
+      SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as total_saldo
+    FROM Data_Kas 
+    WHERE 
+      (strftime('%Y', cash_date) < ? OR 
+       (strftime('%Y', cash_date) = ? AND strftime('%m', cash_date) < ?))
+    AND deleted_at IS NULL
+  ''', [year.toString(), year.toString(), month.toString().padLeft(2, '0')]);
+
+    final totalSaldo = result.first['total_saldo'] as int? ?? 0;
+    return totalSaldo;
   }
 
   Future<List<int>> getAvailableYears() async {
@@ -123,6 +166,35 @@ class KasRepository {
       if (totalValue == null) {
         return 0.0;
       }
+      return (totalValue as num).toDouble();
+    } catch (e) {
+      print('Error getting total saldo: $e');
+      return 0.0;
+    }
+  }
+
+  Future<double> getTotalSaldoBulanan(int year, int month) async {
+    try {
+      final db = await dbHelper.database;
+      final result = await db.rawQuery('''
+        SELECT 
+          SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as total
+        FROM Data_Kas
+        WHERE 
+          (strftime('%Y', cash_date) < ? OR 
+          (strftime('%Y', cash_date) = ? AND strftime('%m', cash_date) <= ?))
+        AND deleted_at IS NULL
+      ''',
+          [year.toString(), year.toString(), month.toString().padLeft(2, '0')]);
+
+      final totalValue = result.first['total'];
+
+      if (totalValue == null) {
+        return 0.0;
+      }
+
+      print(totalValue);
+
       return (totalValue as num).toDouble();
     } catch (e) {
       print('Error getting total saldo: $e');

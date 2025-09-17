@@ -295,6 +295,8 @@ class _DashboardPageState extends State<DashboardPage> {
         headerSubPage = 'Log Aktivitas';
       } else if (_contentCurrentState == ContentState.detail) {
         headerSubPage = 'Detail Transaksi';
+      } else if (_contentCurrentState == ContentState.detailKas) {
+        headerSubPage = 'Detail Kas Bulanan';
       } else if (_contentCurrentState == ContentState.attendance) {
         headerSubPage = 'Riwayat Kehadiran';
       } else {

@@ -3,7 +3,7 @@ import 'package:meko_poin/models/kas.dart';
 import 'package:meko_poin/services/kas_repository.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_table/kas_table.dart';
-import 'package:meko_poin/views/Dashboard/components/table/kas_table/kas_detail_table.dart';
+import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table.dart';
 import 'package:meko_poin/views/Dashboard/components/form/kas_form.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:intl/intl.dart'; // Import untuk format currency
@@ -22,12 +22,18 @@ class KasContent extends StatefulWidget {
   State<KasContent> createState() => _KasContentState();
 }
 
+enum FormOrigin { fromTable, fromDetail }
+
 class _KasContentState extends State<KasContent> {
   ContentState _currentState = ContentState.table;
   DateTime? _selectedMonthForDetail;
   Map<String, dynamic>? _dataToEdit;
-  double _totalSaldo = 0; // Variabel untuk menyimpan total saldo
-  bool _isLoadingTotalSaldo = true; // Loading state untuk total saldo
+  double _totalSaldo = 0;
+  bool _isLoadingTotalSaldo = true;
+  String? _selectedMonthName;
+  int? _selectedMonth;
+  int? _selectedYear;
+  FormOrigin _formOrigin = FormOrigin.fromTable;
 
   @override
   void initState() {
@@ -38,20 +44,28 @@ class _KasContentState extends State<KasContent> {
     _loadTotalSaldo(); // Load total saldo saat init
   }
 
-  void _showForm({Map<String, dynamic>? data}) {
+  void _showForm(
+      {Map<String, dynamic>? data, FormOrigin origin = FormOrigin.fromTable}) {
     setState(() {
       _currentState = ContentState.form;
       _dataToEdit = data;
+      _formOrigin = origin;
       widget.onStateChanged(_currentState);
     });
   }
 
   void _showDetail(DateTime month) {
     setState(() {
-      _currentState = ContentState.detail;
+      _currentState = ContentState.detailKas;
       _selectedMonthForDetail = month;
+      _selectedMonthName = _getMonthName(month);
+      _selectedMonth = int.tryParse(_getMonth(month));
+      _selectedYear = int.tryParse(_getYear(month));
+      _formOrigin = FormOrigin.fromTable;
       widget.onStateChanged(_currentState);
     });
+
+    _loadTotalSaldo();
   }
 
   void _showTable() {
@@ -59,20 +73,41 @@ class _KasContentState extends State<KasContent> {
       _currentState = ContentState.table;
       _selectedMonthForDetail = null;
       _dataToEdit = null;
+      _selectedMonthName = null;
       widget.onStateChanged(_currentState);
     });
-    // Refresh total saldo ketika kembali ke tabel
+
     _loadTotalSaldo();
   }
 
-  // Method untuk load total saldo dari seluruh database
+  String _getMonthName(DateTime date) {
+    return DateFormat('MMMM yyyy', 'id_ID').format(date);
+  }
+
+  String _getMonth(DateTime date) {
+    return DateFormat('M', 'id_ID').format(date);
+  }
+
+  String _getYear(DateTime date) {
+    return DateFormat('yyyy', 'id_ID').format(date);
+  }
+
   Future<void> _loadTotalSaldo() async {
-    if (_currentState != ContentState.table) return;
+    if (_currentState != ContentState.table &&
+        _currentState != ContentState.detailKas) {
+      return;
+    }
 
     setState(() => _isLoadingTotalSaldo = true);
     try {
-      final totalSaldo = await widget.kasRepository.getTotalSaldo();
-      setState(() => _totalSaldo = totalSaldo);
+      if (_currentState == ContentState.table) {
+        final totalSaldo = await widget.kasRepository.getTotalSaldo();
+        setState(() => _totalSaldo = totalSaldo);
+      } else if (_currentState == ContentState.detailKas) {
+        final totalSaldo = await widget.kasRepository
+            .getTotalSaldoBulanan(_selectedYear!, _selectedMonth!);
+        setState(() => _totalSaldo = totalSaldo);
+      }
     } catch (e) {
       debugPrint('Error loading total saldo: $e');
     } finally {
@@ -100,8 +135,7 @@ class _KasContentState extends State<KasContent> {
           amount: kasData.amount,
           type: kasData.type,
           createdBy: kasData.createdBy,
-          updatedBy: kasData
-              .createdBy, // Assuming updated_by should be the same as created_by for now
+          updatedBy: kasData.createdBy,
         );
 
         await widget.kasRepository.updateKas(updatedData);
@@ -111,9 +145,14 @@ class _KasContentState extends State<KasContent> {
           );
         }
       }
-      // Refresh total saldo setelah menambah/mengedit data
+
       _loadTotalSaldo();
-      _showTable();
+
+      if (_formOrigin == FormOrigin.fromDetail) {
+        _showDetail(_selectedMonthForDetail!);
+      } else {
+        _showTable();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -125,8 +164,7 @@ class _KasContentState extends State<KasContent> {
 
   @override
   Widget build(BuildContext context) {
-    double currentMaxHeight = _currentState == ContentState.form ||
-            _currentState == ContentState.detail
+    double currentMaxHeight = _currentState == ContentState.form
         ? double.infinity
         : MediaQuery.of(context).size.height * 0.77;
 
@@ -148,14 +186,24 @@ class _KasContentState extends State<KasContent> {
               Row(
                 children: [
                   if (_currentState == ContentState.form ||
-                      _currentState == ContentState.detail)
+                      _currentState == ContentState.detailKas)
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: _showTable,
+                      onPressed: () {
+                        if (_currentState == ContentState.form) {
+                          if (_formOrigin == FormOrigin.fromDetail) {
+                            _showDetail(_selectedMonthForDetail!);
+                          } else {
+                            _showTable();
+                          }
+                        } else {
+                          _showTable();
+                        }
+                      },
                       color: Colors.grey.shade700,
                     ),
                   if (_currentState == ContentState.form ||
-                      _currentState == ContentState.detail)
+                      _currentState == ContentState.detailKas)
                     const SizedBox(width: 8),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +215,7 @@ class _KasContentState extends State<KasContent> {
                                 ? (_dataToEdit != null
                                     ? "Edit Data Kas"
                                     : "Tambah Data Kas")
-                                : "Detail Kas Bulanan"),
+                                : "Detail Kas Tunai"),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w500,
@@ -182,7 +230,7 @@ class _KasContentState extends State<KasContent> {
                                 ? (_dataToEdit != null
                                     ? "Edit data arus kas bulanan"
                                     : "Tambah data arus kas bulanan")
-                                : "Detail transaksi kas bulanan"),
+                                : "Data arus kas tunai $_selectedMonthName"),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
@@ -195,7 +243,8 @@ class _KasContentState extends State<KasContent> {
               ),
 
               // Total Saldo - Hanya ditampilkan di state table
-              if (_currentState == ContentState.table)
+              if (_currentState == ContentState.table ||
+                  _currentState == ContentState.detailKas)
                 _isLoadingTotalSaldo
                     ? SizedBox(
                         width: 120,
@@ -229,11 +278,17 @@ class _KasContentState extends State<KasContent> {
                 ? KasTable(
                     kasRepository: widget.kasRepository,
                     onViewDetail: _showDetail,
-                    onAddNew: () => _showForm(),
+                    onAddNew: () => _showForm(origin: FormOrigin.fromTable),
                   )
                 : (_currentState == ContentState.form
                     ? KasForm(
-                        onCancel: _showTable,
+                        onCancel: () {
+                          if (_formOrigin == FormOrigin.fromDetail) {
+                            _showDetail(_selectedMonthForDetail!);
+                          } else {
+                            _showTable();
+                          }
+                        },
                         initialData: _dataToEdit,
                         onSubmit: _handleDataFormSubmit,
                       )
@@ -241,7 +296,10 @@ class _KasContentState extends State<KasContent> {
                         kasRepository: widget.kasRepository,
                         selectedMonth: _selectedMonthForDetail!,
                         onBack: _showTable,
-                        // onEdit: (data) => _showForm(data: data),
+                        onEdit: (data) => _showForm(
+                            data: data, origin: FormOrigin.fromDetail),
+                        onAddNew: () =>
+                            _showForm(origin: FormOrigin.fromDetail),
                       )),
           ),
         ],
