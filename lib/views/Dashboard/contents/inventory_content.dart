@@ -191,19 +191,104 @@ class _InventoryContentState extends State<InventoryContent> {
                     onDeleteInventory: (data) async {
                       final confirmed = await showDialog<bool>(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Konfirmasi'),
-                          content: Text('Hapus Data ini?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Batal'),
+                        builder: (context) => Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            child: Dialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              backgroundColor: Colors.grey[900],
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Header dengan ikon dan judul
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: Colors.amber,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            'Konfirmasi Penghapusan',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.grey[700],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    // Content text
+                                    Text(
+                                      'Hapus Data inventory ini?',
+                                      style: TextStyle(
+                                        color: Colors.grey[300],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Tindakan ini tidak dapat dibatalkan.',
+                                      style: TextStyle(
+                                        color: Colors.grey[300],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    // Divider
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.grey[700],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Footer Buttons
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.grey[400],
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                          ),
+                                          child: const Text('Batal'),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red[300],
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                          ),
+                                          child: const Text('Hapus'),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Hapus'),
-                            ),
-                          ],
+                          ),
                         ),
                       );
 

@@ -31,10 +31,9 @@ class _AddRejectDialogState extends State<AddRejectDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final bgColor = isDarkMode ? Colors.grey[900] : Colors.white;
-    final textColor = isDarkMode ? Colors.white : Colors.black87;
-    final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey[300]!;
+    final bgColor = Colors.grey[900];
+    final textColor = Colors.white;
+    final borderColor = Colors.grey[700];
 
     return Center(
       child: ConstrainedBox(
@@ -109,7 +108,7 @@ class _AddRejectDialogState extends State<AddRejectDialog> {
                       labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: borderColor),
+                        borderSide: BorderSide(color: borderColor!),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
