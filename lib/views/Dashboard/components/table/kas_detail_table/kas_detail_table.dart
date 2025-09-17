@@ -7,6 +7,7 @@ import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_
 import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table_pagination.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table_row.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table_search.dart';
+import 'package:meko_poin/views/Dashboard/contents/utils/kas_report_service.dart';
 
 class KasDetailTable extends StatefulWidget {
   final KasRepository kasRepository;
@@ -142,6 +143,16 @@ class _KasDetailTableState extends State<KasDetailTable> {
     return sorted;
   }
 
+  void _exportToExcel() async {
+    if (_kasDetailList.isEmpty) return;
+
+    await KasReportService.exportKasReportToExcel(
+      kasData: _kasDetailList,
+      monthYear: monthName,
+      context: context,
+    );
+  }
+
   List<KasWithBalance> get currentPageData {
     int start = (currentPage - 1) * itemsPerPage;
     int end = start + itemsPerPage;
@@ -207,11 +218,8 @@ class _KasDetailTableState extends State<KasDetailTable> {
                 currentPage = 1;
               });
             },
-            onPrint: () {
-              // Implement print functionality
-              _printReport();
-            },
             onAddNew: widget.onAddNew,
+            onPrint: _exportToExcel,
             monthName: monthName,
           ),
 
@@ -277,10 +285,5 @@ class _KasDetailTableState extends State<KasDetailTable> {
         ],
       ),
     );
-  }
-
-  void _printReport() {
-    // Implement print functionality here
-    print('Printing report for $monthName');
   }
 }

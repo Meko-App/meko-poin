@@ -193,8 +193,6 @@ class KasRepository {
         return 0.0;
       }
 
-      print(totalValue);
-
       return (totalValue as num).toDouble();
     } catch (e) {
       print('Error getting total saldo: $e');

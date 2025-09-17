@@ -6,7 +6,8 @@ import 'package:meko_poin/views/Dashboard/components/table/kas_table/kas_table.d
 import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table.dart';
 import 'package:meko_poin/views/Dashboard/components/form/kas_form.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
-import 'package:intl/intl.dart'; // Import untuk format currency
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import untuk format currency
 
 class KasContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
@@ -127,15 +128,16 @@ class _KasContentState extends State<KasContent> {
           );
         }
       } else {
-        // Edit existing data
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getInt('userId') ?? 0;
+
         final updatedData = Kas(
           id: _dataToEdit!['id'],
           cashDate: kasData.cashDate,
           description: kasData.description,
           amount: kasData.amount,
           type: kasData.type,
-          createdBy: kasData.createdBy,
-          updatedBy: kasData.createdBy,
+          updatedBy: userId,
         );
 
         await widget.kasRepository.updateKas(updatedData);
