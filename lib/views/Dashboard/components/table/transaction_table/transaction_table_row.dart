@@ -99,6 +99,24 @@ class TransactionTableRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18.0, vertical: 20.0),
                 child: Text(
+                  transaction.invoiceNumber,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.2,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
                   discountDisplay,
                   style: const TextStyle(
                     fontSize: 14,

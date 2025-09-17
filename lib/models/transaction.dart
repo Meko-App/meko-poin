@@ -5,6 +5,7 @@ class Transaction {
   final int? discountPrice;
   final int? discountPercentage;
   final int finalPrice;
+  final String invoiceNumber;
   final String paymentMethod;
   final String notes;
   final DateTime createdAt;
@@ -17,6 +18,7 @@ class Transaction {
     this.discountPrice,
     this.discountPercentage,
     required this.finalPrice,
+    required this.invoiceNumber,
     required this.paymentMethod,
     required this.notes,
     required this.createdAt,
@@ -31,6 +33,7 @@ class Transaction {
       discountPrice: map['discount_price'],
       discountPercentage: map['discount_percentage'],
       finalPrice: map['final_price'],
+      invoiceNumber: map['invoice_number'],
       paymentMethod: map['payment_method'],
       notes: map['notes'],
       createdAt: DateTime.parse(map['created_at']),
@@ -46,6 +49,7 @@ class Transaction {
       'discount_price': discountPrice,
       'discount_percentage': discountPercentage,
       'final_price': finalPrice,
+      'invoice_number': invoiceNumber,
       'payment_method': paymentMethod,
       'notes': notes,
       'created_at': createdAt.toIso8601String(),

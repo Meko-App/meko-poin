@@ -207,6 +207,29 @@ class TransactionDetail extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       const SizedBox(height: 8),
+                                      // Invoice Number
+                                      const Text(
+                                        'Invoice',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontFamily: 'Inter',
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        transaction.invoiceNumber,
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontFamily: 'Inter',
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+
                                       // Diskon Nominal
                                       const Text(
                                         'Diskon (Nominal)',

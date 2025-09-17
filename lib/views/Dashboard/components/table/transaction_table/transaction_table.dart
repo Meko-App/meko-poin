@@ -98,10 +98,13 @@ class _TransactionTableState extends State<TransactionTable> {
 
   List<TransactionWithCustomerUser> get filteredTransactions {
     if (_searchQuery.isEmpty) return _transactionList;
+
     return _transactionList.where((t) {
       final customerName = t.customerName.toLowerCase();
+      final invoiceNumber = t.transaction.invoiceNumber.toLowerCase();
       final query = _searchQuery.toLowerCase();
-      return customerName.contains(query);
+
+      return customerName.contains(query) || invoiceNumber.contains(query);
     }).toList();
   }
 
@@ -115,6 +118,10 @@ class _TransactionTableState extends State<TransactionTable> {
         case 'customerName':
           valueA = a.customerName;
           valueB = b.customerName;
+          break;
+        case 'invoice':
+          valueA = a.transaction.invoiceNumber;
+          valueB = b.transaction.invoiceNumber;
           break;
         case 'discount':
           valueA = a.transaction.discountPrice;

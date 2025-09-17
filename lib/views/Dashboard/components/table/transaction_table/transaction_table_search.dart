@@ -154,7 +154,7 @@ class _TransactionTableSearchState extends State<TransactionTableSearch> {
                     color: Colors.white,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Cari Nama',
+                    hintText: 'Cari Nama atau Invoice',
                     hintStyle: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w400,

@@ -205,6 +205,7 @@ class _TransactionFormState extends State<TransactionForm> {
         'customer_id': customerId,
         'discount_price': data['discount_nominal'],
         'final_price': data['final_price'],
+        'invoice_number': data['invoice'],
         'payment_method': data['payment_method']?.toLowerCase(),
         'notes': data['note'],
         'created_at': DateTime.now().toIso8601String(),
@@ -498,7 +499,6 @@ class _TransactionFormState extends State<TransactionForm> {
       if (needStockCheck) {
         availableStock = await _masterDataRepo
             .getStockByMasterDataId(selectedMasterData.id!);
-        print(availableStock);
         if (availableStock == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -663,9 +663,6 @@ class _TransactionFormState extends State<TransactionForm> {
 
             await _transactionItemRepo.insertTransactionItem(newItem);
           }
-
-          print(
-              'Packaging ${packagingData.name} berhasil ditambahkan untuk paper $paperName');
         } else {
           print(
               'Packaging dengan ID ${selectedPaper.packagingId} tidak ditemukan atau bukan kategori Packaging');

@@ -68,8 +68,45 @@ class TransactionTableHeader extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
+                        Expanded(
+                          child: Text(
+                            'Nama Pelanggan',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              fontWeight: FontWeight.w400,
+                              color: CustomColors.fontSubColor,
+                              fontFamily: 'Inter',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        sortIcon('customerName'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: InkWell(
+                onTap: () => onSort('invoice'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(color: CustomColors.borderCardColor),
+                    ),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
                         const Text(
-                          'Nama Pelanggan',
+                          'Invoice',
                           style: TextStyle(
                             fontSize: 13,
                             height: 1.5,
@@ -79,7 +116,7 @@ class TransactionTableHeader extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        sortIcon('customerName'),
+                        sortIcon('invoice'),
                       ],
                     ),
                   ),
@@ -167,14 +204,18 @@ class TransactionTableHeader extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Metode Pembayaran',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: CustomColors.fontSubColor,
-                            fontFamily: 'Inter',
+                        Expanded(
+                          child: Text(
+                            'Metode Pembayaran',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              fontWeight: FontWeight.w400,
+                              color: CustomColors.fontSubColor,
+                              fontFamily: 'Inter',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -200,14 +241,18 @@ class TransactionTableHeader extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Ditambahkan Oleh',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: CustomColors.fontSubColor,
-                            fontFamily: 'Inter',
+                        Expanded(
+                          child: Text(
+                            'Ditambahkan Oleh',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              fontWeight: FontWeight.w400,
+                              color: CustomColors.fontSubColor,
+                              fontFamily: 'Inter',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
                           ),
                         ),
                         const SizedBox(width: 4),
