@@ -146,8 +146,19 @@ class _KasDetailTableState extends State<KasDetailTable> {
   void _exportToExcel() async {
     if (_kasDetailList.isEmpty) return;
 
+    final sortedList = List<KasWithBalance>.from(_kasDetailList)
+      ..sort((a, b) {
+        final dateCompare = a.kas.cashDate.compareTo(b.kas.cashDate);
+        if (dateCompare != 0) return dateCompare;
+        return a.kas.id!.compareTo(b.kas.id!);
+      });
+
+    final lastBalance =
+        sortedList.isNotEmpty ? sortedList.last.finalBalance : 0;
+
     await KasReportService.exportKasReportToExcel(
-      kasData: _kasDetailList,
+      kasData: sortedList,
+      finalBalance: lastBalance,
       monthYear: monthName,
       context: context,
     );

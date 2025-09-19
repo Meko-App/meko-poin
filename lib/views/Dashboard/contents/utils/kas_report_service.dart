@@ -15,6 +15,7 @@ class KasReportService {
   static Future<void> exportKasReportToExcel({
     required List<KasWithBalance> kasData,
     required String monthYear,
+    required int finalBalance,
     required BuildContext context,
   }) async {
     try {
@@ -24,7 +25,7 @@ class KasReportService {
 
       _addReportHeader(sheet, monthYear);
       _addTableHeaders(sheet);
-      _addKasData(sheet, kasData);
+      _addKasData(sheet, kasData, finalBalance);
 
       final fileName = _generateFileName(monthYear);
 
@@ -146,7 +147,7 @@ class KasReportService {
       ..setColumnWidth(3, 18) // Nominal
       ..setColumnWidth(4, 18) // Saldo Awal
       ..setColumnWidth(5, 18) // Saldo Akhir
-      ..setColumnWidth(6, 30); // Keterangan
+      ..setColumnWidth(6, 60); // Keterangan
 
     for (int col = 0; col < headers.length; col++) {
       sheet
@@ -162,6 +163,7 @@ class KasReportService {
   static void _addKasData(
     excel.Sheet sheet,
     List<KasWithBalance> kasData,
+    int finalBalance,
   ) {
     int currentRow = 3;
     final currencyFormat = NumberFormat('#,###');
@@ -222,12 +224,12 @@ class KasReportService {
     }
 
     // Tambahkan row total
-    _addTotalRow(sheet, currentRow, kasData);
+    _addTotalRow(sheet, currentRow, finalBalance, kasData);
   }
 
   /// Tambahkan row total
-  static void _addTotalRow(
-      excel.Sheet sheet, int row, List<KasWithBalance> kasData) {
+  static void _addTotalRow(excel.Sheet sheet, int row, int finalBalance,
+      List<KasWithBalance> kasData) {
     final currencyFormat = NumberFormat('#,###');
 
     int totalPemasukan = kasData
@@ -243,11 +245,29 @@ class KasReportService {
     // Merge cells untuk label "TOTAL"
     sheet.merge(
       excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
-      excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row),
+      excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row),
     );
 
     sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
       ..value = excel.TextCellValue("Total Cash Flow (Rp)")
+      ..cellStyle = _createTableHeaderStyle().copyWith(
+        backgroundColorHexVal: excel.ExcelColor.fromHexString("#FF0D5ADB"),
+      );
+
+    sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+      ..value = excel.TextCellValue(currencyFormat.format(netCashFlow))
+      ..cellStyle = _createTableHeaderStyle().copyWith(
+        backgroundColorHexVal: excel.ExcelColor.fromHexString("#FF0D5ADB"),
+        numberFormat: excel.CustomNumericNumFormat(formatCode: "#,##0"),
+      );
+
+    sheet.merge(
+      excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row),
+      excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row),
+    );
+
+    sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+      ..value = excel.TextCellValue("Saldo Akhir (Rp)")
       ..cellStyle = _createTableHeaderStyle().copyWith(
         backgroundColorHexVal: excel.ExcelColor.fromHexString("#FF0D5ADB"),
       );
@@ -269,7 +289,7 @@ class KasReportService {
 
     // Saldo Akhir (net cash flow)
     sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row))
-      ..value = excel.TextCellValue(currencyFormat.format(netCashFlow))
+      ..value = excel.TextCellValue(currencyFormat.format(finalBalance))
       ..cellStyle = _createTableHeaderStyle().copyWith(
         backgroundColorHexVal: excel.ExcelColor.fromHexString("#FF0D5ADB"),
         numberFormat: excel.CustomNumericNumFormat(formatCode: "#,##0"),

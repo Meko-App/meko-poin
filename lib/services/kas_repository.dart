@@ -83,7 +83,7 @@ class KasRepository {
     WHERE strftime('%Y', cash_date) = ? 
     AND strftime('%m', cash_date) = ?
     AND deleted_at IS NULL
-    ORDER BY cash_date ASC, created_at ASC
+    ORDER BY cash_date ASC
   ''', [year.toString(), month.toString().padLeft(2, '0')]);
 
     int runningBalance = saldoAwalBulan;
@@ -106,6 +106,12 @@ class KasRepository {
       ));
     }
 
+    kasList.sort((a, b) {
+      final dateCompare = b.kas.createdAt!.compareTo(a.kas.createdAt!);
+      if (dateCompare != 0) return dateCompare;
+      return b.kas.id!.compareTo(a.kas.id!);
+    });
+
     return kasList;
   }
 
@@ -124,6 +130,7 @@ class KasRepository {
   ''', [year.toString(), year.toString(), month.toString().padLeft(2, '0')]);
 
     final totalSaldo = result.first['total_saldo'] as int? ?? 0;
+
     return totalSaldo;
   }
 
