@@ -67,7 +67,32 @@ class _KasFormState extends State<KasForm> {
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      lastDate: DateTime.now(),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData(
+            colorScheme: ColorScheme.dark(
+              primary: Color(
+                  0xFF1379F0), // Sesuai dengan warna biru di focusedBorder
+              onPrimary: Colors.white,
+              surface: Color(0xFF2D2D2D), // Warna background gelap
+              onSurface: Colors.white,
+            ),
+            dialogBackgroundColor: Color(0xFF2D2D2D),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Color(0xFF1379F0),
+              ),
+            ),
+            textTheme: TextTheme(
+              bodyLarge: TextStyle(color: Colors.white),
+              bodyMedium: TextStyle(color: Colors.white),
+            ),
+            dividerColor: Colors.grey[700],
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null && picked != _selectedDate) {
