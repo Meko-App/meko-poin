@@ -36,7 +36,7 @@ class _KasDetailTableState extends State<KasDetailTable> {
   List<KasWithBalance> _kasDetailList = [];
   bool _isLoading = true;
   String _searchQuery = '';
-  String sortBy = 'month'; // Default sort by month
+  String sortBy = 'id'; // Default sort by month
   bool isAscending = false;
 
   Set<int> selectedTransactionIds = {};
@@ -132,6 +132,10 @@ class _KasDetailTableState extends State<KasDetailTable> {
           valueA = a.kas.description;
           valueB = b.kas.description;
           break;
+        case 'id':
+          valueA = a.kas.id;
+          valueB = b.kas.id;
+          break;
         default:
           valueA = a.kas.cashDate;
           valueB = b.kas.cashDate;
@@ -148,9 +152,9 @@ class _KasDetailTableState extends State<KasDetailTable> {
 
     final sortedList = List<KasWithBalance>.from(_kasDetailList)
       ..sort((a, b) {
-        final dateCompare = a.kas.cashDate.compareTo(b.kas.cashDate);
+        final dateCompare = a.kas.createdAt!.compareTo(b.kas.createdAt!);
         if (dateCompare != 0) return dateCompare;
-        return a.kas.id!.compareTo(b.kas.id!);
+        return b.kas.id!.compareTo(a.kas.id!);
       });
 
     final lastBalance =
