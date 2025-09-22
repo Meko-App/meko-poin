@@ -90,7 +90,7 @@ class _SidebarState extends State<Sidebar> {
               ])
             else
               _buildAccordionMenu("Managements", Icons.layers_outlined,
-                  ["Tambah Transaksi", "Transaksi"]),
+                  ["Tambah Transaksi", "Transaksi", "Kas Tunai"]),
 
             if (_userRole == '1')
               _buildAccordionMenu(
