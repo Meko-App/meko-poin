@@ -222,7 +222,7 @@ class _KasTableState extends State<KasTable> {
                                 year: data['year'],
                                 totalIncome: data['total_income'],
                                 totalOutcome: data['total_outcome'],
-                                netAmount: data['net_amount'],
+                                netAmount: data['net_amount_with_saldo'],
                                 isSelected:
                                     selectedMonthIds.contains(monthYearId),
                                 onSelectChanged: (value) =>

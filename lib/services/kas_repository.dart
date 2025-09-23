@@ -61,15 +61,29 @@ class KasRepository {
       ORDER BY year DESC, month DESC
     ''', whereArgs);
 
-    return result.map((row) {
-      return {
-        'month': int.parse(row['month'] as String),
-        'year': int.parse(row['year'] as String),
+    final List<Map<String, dynamic>> summaryList = [];
+
+    for (var row in result) {
+      final int month = int.parse(row['month'] as String);
+      final int year = int.parse(row['year'] as String);
+
+      // Dapatkan saldo awal bulan
+      final int saldoAwal = await _getSaldoAwalBulan(year, month);
+      final int netAmount = row['net_amount'] as int? ?? 0;
+      final int netAmountWithSaldo = netAmount + saldoAwal;
+
+      summaryList.add({
+        'month': month,
+        'year': year,
         'total_income': row['total_income'] as int? ?? 0,
         'total_outcome': row['total_outcome'] as int? ?? 0,
-        'net_amount': row['net_amount'] as int? ?? 0,
-      };
-    }).toList();
+        'net_amount': netAmount,
+        'saldo_awal': saldoAwal,
+        'net_amount_with_saldo': netAmountWithSaldo,
+      });
+    }
+
+    return summaryList;
   }
 
   Future<List<KasWithBalance>> getKasByMonth(int year, int month) async {
@@ -83,7 +97,7 @@ class KasRepository {
     WHERE strftime('%Y', cash_date) = ? 
     AND strftime('%m', cash_date) = ?
     AND deleted_at IS NULL
-    ORDER BY id ASC, cash_date ASC
+    ORDER BY cash_date ASC, id ASC
   ''', [year.toString(), month.toString().padLeft(2, '0')]);
 
     int runningBalance = saldoAwalBulan;
