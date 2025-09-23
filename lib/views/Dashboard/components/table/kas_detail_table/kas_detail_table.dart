@@ -161,9 +161,17 @@ class _KasDetailTableState extends State<KasDetailTable> {
 
     final sortedList = List<KasWithBalance>.from(_kasDetailList)
       ..sort((a, b) {
-        final dateCompare = a.kas.cashDate.compareTo(b.kas.cashDate);
+        final dateA = DateTime(
+            a.kas.cashDate.year, a.kas.cashDate.month, a.kas.cashDate.day);
+        final dateB = DateTime(
+            b.kas.cashDate.year, b.kas.cashDate.month, b.kas.cashDate.day);
+
+        final dateCompare = dateA.compareTo(dateB);
         if (dateCompare != 0) return dateCompare;
-        return b.kas.id!.compareTo(a.kas.id!);
+
+        final int idA = int.tryParse(a.kas.id?.toString() ?? '0') ?? 0;
+        final int idB = int.tryParse(b.kas.id?.toString() ?? '0') ?? 0;
+        return idA.compareTo(idB);
       });
 
     final lastBalance =
