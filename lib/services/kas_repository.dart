@@ -97,7 +97,7 @@ class KasRepository {
     WHERE strftime('%Y', cash_date) = ? 
     AND strftime('%m', cash_date) = ?
     AND deleted_at IS NULL
-    ORDER BY cash_date ASC, id ASC
+    ORDER BY date(cash_date) ASC, id ASC
   ''', [year.toString(), month.toString().padLeft(2, '0')]);
 
     int runningBalance = saldoAwalBulan;
