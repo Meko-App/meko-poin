@@ -12,12 +12,13 @@ import 'package:shared_preferences/shared_preferences.dart'; // Import untuk for
 class KasContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
   final KasRepository kasRepository;
+  final int? user;
 
-  const KasContent({
-    super.key,
-    required this.onStateChanged,
-    required this.kasRepository,
-  });
+  const KasContent(
+      {super.key,
+      required this.onStateChanged,
+      required this.kasRepository,
+      this.user});
 
   @override
   State<KasContent> createState() => _KasContentState();
@@ -293,6 +294,7 @@ class _KasContentState extends State<KasContent> {
                         },
                         initialData: _dataToEdit,
                         onSubmit: _handleDataFormSubmit,
+                        user: widget.user,
                       )
                     : KasDetailTable(
                         kasRepository: widget.kasRepository,

@@ -7,13 +7,14 @@ class KasForm extends StatefulWidget {
   final VoidCallback onCancel;
   final Function(Map<String, dynamic>) onSubmit;
   final Map<String, dynamic>? initialData;
+  final int? user;
 
-  const KasForm({
-    super.key,
-    required this.onCancel,
-    required this.onSubmit,
-    this.initialData,
-  });
+  const KasForm(
+      {super.key,
+      required this.onCancel,
+      required this.onSubmit,
+      this.initialData,
+      this.user});
 
   @override
   State<KasForm> createState() => _KasFormState();
@@ -320,20 +321,35 @@ class _KasFormState extends State<KasForm> {
                 color: CustomColors.fontSubColor),
             iconSize: 20,
             isExpanded: true,
-            items: <String>['income', 'outcome']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value == 'income' ? 'Pemasukan' : 'Pengeluaran',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white,
-                  ),
-                ),
-              );
-            }).toList(),
+            items: widget.user == 2
+                ? <String>['outcome']
+                    .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        'Pengeluaran',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  }).toList()
+                : <String>['income', 'outcome']
+                    .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value == 'income' ? 'Pemasukan' : 'Pengeluaran',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  }).toList(),
             onChanged: (String? newValue) {
               setState(() {
                 _selectedType = newValue;

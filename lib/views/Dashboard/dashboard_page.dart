@@ -517,6 +517,7 @@ class DashboardContent extends StatelessWidget {
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           kasRepository: kasRepository,
+          user: userId,
         );
       case 'Database':
         return const DatabaseContent();
