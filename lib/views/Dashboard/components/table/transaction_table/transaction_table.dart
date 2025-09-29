@@ -43,6 +43,16 @@ class _TransactionTableState extends State<TransactionTable> {
       selectedTransactionIds.length == currentPageData.length &&
       currentPageData.isNotEmpty;
 
+  // Data untuk card summary
+  int get _totalTransactions => sortedTransactionData.length;
+  double get _totalCash => sortedTransactionData
+      .where((t) => t.transaction.paymentMethod == 'cash')
+      .fold(0, (sum, t) => sum + t.transaction.finalPrice);
+  double get _totalQris => sortedTransactionData
+      .where((t) => t.transaction.paymentMethod == 'qris')
+      .fold(0, (sum, t) => sum + t.transaction.finalPrice);
+  double get _netTotal => _totalCash - _totalQris;
+
   @override
   void initState() {
     super.initState();
@@ -190,6 +200,247 @@ class _TransactionTableState extends State<TransactionTable> {
     );
   }
 
+  String _formatCurrency(double amount) {
+    return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+  }
+
+  // Widget untuk 4 card summary sesuai gambar
+  Widget _buildSummaryCards() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        children: [
+          // Card 1: Total Transaksi
+          Expanded(
+            child: Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: CustomColors.cardColor,
+                border: Border.all(color: CustomColors.borderCardColor),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset(
+                    'assets/icons/cheque.png',
+                    width: 24.38,
+                    height: 25.08,
+                  ),
+                  const SizedBox(height: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _totalTransactions.toString(),
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Transaksi',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9A9CAE),
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+
+          // Card 2: Total QRIS
+          Expanded(
+            child: Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: CustomColors.cardColor,
+                border: Border.all(color: CustomColors.borderCardColor),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset(
+                    'assets/icons/scan-barcode.png',
+                    width: 24.5,
+                    height: 25.5,
+                  ),
+                  const SizedBox(height: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatCurrency(_totalQris),
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'QRIS',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9A9CAE),
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+
+          // Card 3: Total Cash
+          Expanded(
+            child: Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: CustomColors.cardColor,
+                border: Border.all(color: CustomColors.borderCardColor),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset(
+                    'assets/icons/Union.png',
+                    width: 25.67,
+                    height: 21,
+                  ),
+                  const SizedBox(height: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatCurrency(_totalCash),
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Cash',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9A9CAE),
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+
+          // Card 4: Total Bersih
+          Expanded(
+            child: Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: CustomColors.cardColor,
+                border: Border.all(color: CustomColors.borderCardColor),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset(
+                    'assets/icons/credit-cart.png',
+                    width: 25.08,
+                    height: 21.34,
+                  ),
+                  const SizedBox(height: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatCurrency(_netTotal),
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Total',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9A9CAE),
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalPages = (sortedTransactionData.length / itemsPerPage).ceil();
@@ -198,96 +449,107 @@ class _TransactionTableState extends State<TransactionTable> {
         ? sortedTransactionData.length
         : currentPage * itemsPerPage;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: CustomColors.cardColor,
-        border: Border.all(color: CustomColors.borderCardColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TransactionTableSearch(
-            currentPageData: currentPageData,
-            user: widget.user,
-            data: sortedTransactionData,
-            onDateRangeSelected: _handleDateRangeSelected,
-            onAddNew: widget.onAddNew,
-            onPrintReport: widget.onPrintReport,
-            onSearch: (query) {
-              setState(() {
-                _searchQuery = query;
-                currentPage = 1;
-              });
-            },
-          ),
+    return Column(
+      children: [
+        // 4 Card Summary di luar Container utama
+        _buildSummaryCards(),
 
-          // Header
-          TransactionTableHeader(
-            sortBy: sortBy,
-            isAscending: isAscending,
-            onSort: onSort,
-            sortIcon: _sortIcon,
-            isAllSelected: isAllSelected,
-            onSelectAllChanged: toggleSelectAll,
-          ),
-
-          // Body
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : sortedTransactionData.isEmpty
-                    ? const Center(child: Text('Tidak ada data transaksi'))
-                    : Scrollbar(
-                        controller: _scrollController,
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: currentPageData
-                                .map((t) => TransactionTableRow(
-                                      transaction: t.transaction,
-                                      customerName: t.customerName,
-                                      customerPhone: t.customerPhone,
-                                      discountDisplay: t.discountDisplay,
-                                      addedBy: t.addedBy,
-                                      key: ValueKey(t.transaction.id),
-                                      isSelected: selectedTransactionIds
-                                          .contains(t.transaction.id),
-                                      onSelectChanged: (value) =>
-                                          toggleSelectOne(
-                                              t.transaction.id, value),
-                                      onViewDetail: () =>
-                                          widget.onViewDetail(t.transaction.id),
-                                    ))
-                                .toList(),
-                          ),
-                        ),
-                      ),
-          ),
-
-          // Pagination
-          if (!_isLoading && sortedTransactionData.isNotEmpty)
-            TransactionTablePagination(
-              currentPage: currentPage,
-              totalPages: totalPages,
-              startItem: startItem,
-              endItem: endItem,
-              totalItems: sortedTransactionData.length,
-              itemsPerPage: itemsPerPage,
-              onItemsPerPageChanged: (value) {
-                setState(() {
-                  itemsPerPage = value;
-                  currentPage = 1;
-                });
-              },
-              onPageChanged: (page) {
-                setState(() => currentPage = page);
-              },
+        // Container utama tabel dengan tinggi yang ditentukan
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: CustomColors.cardColor,
+              border: Border.all(color: CustomColors.borderCardColor),
+              borderRadius: BorderRadius.circular(12),
             ),
-        ],
-      ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TransactionTableSearch(
+                  currentPageData: currentPageData,
+                  user: widget.user,
+                  data: sortedTransactionData,
+                  onDateRangeSelected: _handleDateRangeSelected,
+                  onAddNew: widget.onAddNew,
+                  onPrintReport: widget.onPrintReport,
+                  onSearch: (query) {
+                    setState(() {
+                      _searchQuery = query;
+                      currentPage = 1;
+                    });
+                  },
+                ),
+
+                // Header
+                TransactionTableHeader(
+                  sortBy: sortBy,
+                  isAscending: isAscending,
+                  onSort: onSort,
+                  sortIcon: _sortIcon,
+                  isAllSelected: isAllSelected,
+                  onSelectAllChanged: toggleSelectAll,
+                ),
+
+                // Body - menggunakan Expanded di sini karena parent sudah memiliki constraint
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : sortedTransactionData.isEmpty
+                          ? const Center(
+                              child: Text('Tidak ada data transaksi'))
+                          : Scrollbar(
+                              controller: _scrollController,
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                controller: _scrollController,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: currentPageData
+                                      .map((t) => TransactionTableRow(
+                                            transaction: t.transaction,
+                                            customerName: t.customerName,
+                                            customerPhone: t.customerPhone,
+                                            discountDisplay: t.discountDisplay,
+                                            addedBy: t.addedBy,
+                                            key: ValueKey(t.transaction.id),
+                                            isSelected: selectedTransactionIds
+                                                .contains(t.transaction.id),
+                                            onSelectChanged: (value) =>
+                                                toggleSelectOne(
+                                                    t.transaction.id, value),
+                                            onViewDetail: () => widget
+                                                .onViewDetail(t.transaction.id),
+                                          ))
+                                      .toList(),
+                                ),
+                              ),
+                            ),
+                ),
+
+                // Pagination
+                if (!_isLoading && sortedTransactionData.isNotEmpty)
+                  TransactionTablePagination(
+                    currentPage: currentPage,
+                    totalPages: totalPages,
+                    startItem: startItem,
+                    endItem: endItem,
+                    totalItems: sortedTransactionData.length,
+                    itemsPerPage: itemsPerPage,
+                    onItemsPerPageChanged: (value) {
+                      setState(() {
+                        itemsPerPage = value;
+                        currentPage = 1;
+                      });
+                    },
+                    onPageChanged: (page) {
+                      setState(() => currentPage = page);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
