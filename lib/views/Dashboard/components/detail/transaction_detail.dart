@@ -28,15 +28,6 @@ class TransactionDetail extends StatelessWidget {
       BuildContext context,
       TransactionWithCustomerUser transactionData,
       List<TransactionItem> items) async {
-    // Dapatkan jumlah transaksi harian
-    final dailyCount = await transactionRepository
-        .getDailyTransactionCount(transactionData.transaction.createdAt);
-
-    final dailyCountFormatted = (dailyCount + 1).toString().padLeft(3, '0');
-    final transactionId =
-        transactionData.transaction.id.toString().padLeft(3, '0');
-    final invoiceNumber = 'CUST-$dailyCountFormatted-$transactionId';
-
     // Konversi data ke format yang sesuai untuk receipt service
     final transaction = transactionData.transaction;
 
@@ -49,7 +40,8 @@ class TransactionDetail extends StatelessWidget {
       'name': transactionData.customerName,
       'phone': transactionData.customerPhone,
       'date': DateFormat('d MMM y, HH:mm:ss').format(transaction.createdAt),
-      'invoice': invoiceNumber, // Gunakan format baru
+      'invoice':
+          transactionData.transaction.invoiceNumber, // Gunakan format baru
       'discount_nominal': transaction.discountPrice ?? 0,
       'discount_percent': 0,
       'discount_price': transaction.discountPrice ?? 0,

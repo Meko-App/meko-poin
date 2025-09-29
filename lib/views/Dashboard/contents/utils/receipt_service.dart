@@ -25,6 +25,10 @@ class ReceiptService {
     final instagramIconBytes = instagramIconImage.buffer.asUint8List();
     final instagramIcon = pw.MemoryImage(instagramIconBytes);
 
+    final tiktokIconImage = await rootBundle.load('assets/tiktok-icon.png');
+    final tiktokIconBytes = tiktokIconImage.buffer.asUint8List();
+    final tiktokIcon = pw.MemoryImage(tiktokIconBytes);
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
@@ -179,6 +183,13 @@ class ReceiptService {
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.center,
                   children: [
+                    pw.Image(
+                      tiktokIcon,
+                      height: 14,
+                      width: 14,
+                      fit: pw.BoxFit.contain,
+                    ),
+                    pw.SizedBox(width: 4),
                     pw.Image(
                       instagramIcon,
                       height: 12,
