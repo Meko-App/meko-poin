@@ -307,128 +307,125 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return Scaffold(
+        backgroundColor: CustomColors.background,
         body: Stack(
-      children: [
-        Row(
           children: [
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: SizedBox(
-                width: _showSidebar ? 280 : 30,
-                child: Visibility(
-                  visible: _showSidebar,
-                  maintainState: true,
-                  maintainAnimation: true,
-                  maintainSize: true,
-                  child: Sidebar(
-                    activeMenu: _selectedMenu,
-                    onMenuSelected: (menu) {
-                      setState(() {
-                        _selectedMenu = menu;
-                        _contentCurrentState = null;
-                        _ContentKey++;
-                      });
-                    },
+            Row(
+              children: [
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: SizedBox(
+                    width: _showSidebar ? 280 : 30,
+                    child: Sidebar(
+                      showSidebar: _showSidebar,
+                      activeMenu: _selectedMenu,
+                      onMenuSelected: (menu) {
+                        setState(() {
+                          _selectedMenu = menu;
+                          _contentCurrentState = null;
+                          _ContentKey++;
+                        });
+                      },
+                    ),
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              child: Column(
-                children: [
-                  Header(
-                    currentModulPage: getModulPage(_selectedMenu),
-                    currentPage: headerCurrentPage,
-                    currentPage2: headerSubPage,
-                    trailing: GestureDetector(
-                      onTap: _handleAvatarClick,
-                      child: _buildAvatar(),
-                    ),
-                  ),
-                  Expanded(
-                    child: DashboardContent(
-                        menu: _selectedMenu,
-                        userId: widget.user.roleId,
-                        onContentStateChanged: (state) {
-                          if (_selectedMenu == 'Pengguna' ||
-                              _selectedMenu == 'Master Data' ||
-                              _selectedMenu == 'Inventori' ||
-                              _selectedMenu == 'Transaksi' ||
-                              _selectedMenu == 'Kas Tunai') {
-                            _updateContentState(state);
-                          }
-                        },
-                        userRepository: widget.userRepository,
-                        transactionRepository: widget.transactionRepository,
-                        masterDataRepository: widget.masterDataRepository,
-                        inventoryRepository: widget.inventoryRepository,
-                        inventoryLogRepository: widget.inventoryLogRepository,
-                        customerRepository: widget.customerRepository,
-                        kasRepository: widget.kasRepository,
-                        contentKey: _ContentKey),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          top: 20,
-          left: _showSidebar ? 260 : 10,
-          child: AnimatedCrossFade(
-            duration: const Duration(milliseconds: 300),
-            firstChild: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationY(3.1416),
-              child: IconButton(
-                icon: const Icon(Icons.keyboard_tab),
-                onPressed: _toggleSidebar,
-                color: Colors.white,
-                iconSize: 18,
-                style: ButtonStyle(
-                    backgroundColor:
-                        WidgetStateProperty.all(CustomColors.inputColor),
-                    shape: WidgetStateProperty.all(
-                      RoundedRectangleBorder(
-                        side: BorderSide(
-                          color: CustomColors.borderInputColor,
-                          width: 1.0,
-                          style: BorderStyle.solid,
+                Expanded(
+                  child: Column(
+                    children: [
+                      Header(
+                        currentModulPage: getModulPage(_selectedMenu),
+                        currentPage: headerCurrentPage,
+                        currentPage2: headerSubPage,
+                        trailing: GestureDetector(
+                          onTap: _handleAvatarClick,
+                          child: _buildAvatar(),
                         ),
-                        borderRadius: BorderRadius.circular(8),
                       ),
-                    )),
+                      Expanded(
+                        child: DashboardContent(
+                            menu: _selectedMenu,
+                            userId: widget.user.roleId,
+                            onContentStateChanged: (state) {
+                              if (_selectedMenu == 'Pengguna' ||
+                                  _selectedMenu == 'Master Data' ||
+                                  _selectedMenu == 'Inventori' ||
+                                  _selectedMenu == 'Transaksi' ||
+                                  _selectedMenu == 'Kas Tunai') {
+                                _updateContentState(state);
+                              }
+                            },
+                            userRepository: widget.userRepository,
+                            transactionRepository: widget.transactionRepository,
+                            masterDataRepository: widget.masterDataRepository,
+                            inventoryRepository: widget.inventoryRepository,
+                            inventoryLogRepository:
+                                widget.inventoryLogRepository,
+                            customerRepository: widget.customerRepository,
+                            kasRepository: widget.kasRepository,
+                            contentKey: _ContentKey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              top: 20,
+              left: _showSidebar ? 260 : 10,
+              child: AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                firstChild: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.rotationY(3.1416),
+                  child: IconButton(
+                    icon: const Icon(Icons.keyboard_tab),
+                    onPressed: _toggleSidebar,
+                    color: Colors.white,
+                    iconSize: 18,
+                    style: ButtonStyle(
+                        backgroundColor:
+                            WidgetStateProperty.all(CustomColors.inputColor),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                            side: BorderSide(
+                              color: CustomColors.borderInputColor,
+                              width: 1.0,
+                              style: BorderStyle.solid,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        )),
+                  ),
+                ),
+                secondChild: IconButton(
+                  icon: const Icon(Icons.keyboard_tab),
+                  onPressed: _toggleSidebar,
+                  iconSize: 18,
+                  color: Colors.white,
+                  style: ButtonStyle(
+                      backgroundColor:
+                          WidgetStateProperty.all(CustomColors.inputColor),
+                      shape: WidgetStateProperty.all(
+                        RoundedRectangleBorder(
+                          side: BorderSide(
+                            color: CustomColors.borderInputColor,
+                            width: 1.0,
+                            style: BorderStyle.solid,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      )),
+                ),
+                crossFadeState: _showSidebar
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
               ),
-            ),
-            secondChild: IconButton(
-              icon: const Icon(Icons.keyboard_tab),
-              onPressed: _toggleSidebar,
-              iconSize: 18,
-              color: Colors.white,
-              style: ButtonStyle(
-                  backgroundColor:
-                      WidgetStateProperty.all(CustomColors.inputColor),
-                  shape: WidgetStateProperty.all(
-                    RoundedRectangleBorder(
-                      side: BorderSide(
-                        color: CustomColors.borderInputColor,
-                        width: 1.0,
-                        style: BorderStyle.solid,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  )),
-            ),
-            crossFadeState: _showSidebar
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-          ),
-        )
-      ],
-    ));
+            )
+          ],
+        ));
   }
 }
 

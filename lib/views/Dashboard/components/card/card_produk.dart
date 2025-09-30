@@ -87,7 +87,7 @@ class CardProduk extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       height: 370,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CustomColors.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
