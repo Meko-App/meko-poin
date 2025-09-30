@@ -51,7 +51,7 @@ class _TransactionTableState extends State<TransactionTable> {
   double get _totalQris => sortedTransactionData
       .where((t) => t.transaction.paymentMethod == 'qris')
       .fold(0, (sum, t) => sum + t.transaction.finalPrice);
-  double get _netTotal => _totalCash - _totalQris;
+  double get _netTotal => _totalCash + _totalQris;
 
   @override
   void initState() {
