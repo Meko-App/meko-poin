@@ -171,7 +171,8 @@ class ReceiptService {
                 ],
               ),
               pw.SizedBox(height: 8),
-              pw.Text('Pembayaran: ${transactionData['payment_method']}',
+              pw.Text(
+                  'Pembayaran: ${transactionData['payment_method'] == 'cash' ? 'Cash' : transactionData['payment_method'] == 'qris' ? 'QRIS' : transactionData['payment_method']}',
                   style: pw.TextStyle(fontSize: 10)),
               pw.SizedBox(height: 16),
               pw.Center(
