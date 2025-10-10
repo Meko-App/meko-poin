@@ -31,6 +31,23 @@ class _TransactionDetailState extends State<TransactionDetail> {
   final TextEditingController _phoneController = TextEditingController();
   bool _isSaving = false;
   bool _isDeleting = false;
+  int? _currentUserRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUserRole();
+  }
+
+  Future<void> _getCurrentUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('userRole');
+    setState(() {
+      _currentUserRole = role != null ? int.tryParse(role) : null;
+    });
+  }
+
+  bool get _isAdmin => _currentUserRole == 1;
 
   @override
   void dispose() {
@@ -633,12 +650,11 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                       const SizedBox(height: 16),
 
                                       // Buttons
-                                      // Di dalam bagian "Pembayaran Section Card", update bagian buttons:
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
                                         children: [
-                                          // Tombol Kembali
+                                          // Tombol Kembali (selalu tampil)
                                           ElevatedButton(
                                             onPressed: widget.onBackPressed,
                                             style: ElevatedButton.styleFrom(
@@ -656,56 +672,57 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                             child: const Text(
                                               'Kembali',
                                               style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                              ),
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400),
                                             ),
                                           ),
                                           const SizedBox(width: 10),
 
-                                          // Tombol Hapus (Delete)
-                                          ElevatedButton(
-                                            onPressed: _isDeleting
-                                                ? null
-                                                : _showDeleteConfirmation,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 10),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
+                                          // Tombol Hapus (hanya untuk admin)
+                                          if (_isAdmin) ...[
+                                            ElevatedButton(
+                                              onPressed: _isDeleting
+                                                  ? null
+                                                  : _showDeleteConfirmation,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 10),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
                                               ),
+                                              child: _isDeleting
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                                Colors.white),
+                                                      ),
+                                                    )
+                                                  : const Text(
+                                                      'Hapus',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                      ),
+                                                    ),
                                             ),
-                                            child: _isDeleting
-                                                ? const SizedBox(
-                                                    width: 16,
-                                                    height: 16,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                                  Color>(
-                                                              Colors.white),
-                                                    ),
-                                                  )
-                                                : const Text(
-                                                    'Hapus',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w400,
-                                                    ),
-                                                  ),
-                                          ),
-                                          const SizedBox(width: 10),
+                                            const SizedBox(width: 10),
+                                          ],
 
-                                          // Tombol Cetak
+                                          // Tombol Cetak (selalu tampil)
                                           ElevatedButton(
                                             onPressed: () {
                                               _showPrintOptions(
@@ -728,10 +745,9 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                             child: const Text(
                                               'Cetak',
                                               style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                              ),
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400),
                                             ),
                                           ),
                                         ],
