@@ -88,7 +88,7 @@ class CustomerTableHeader extends StatelessWidget {
             ),
             Expanded(
               child: InkWell(
-                onTap: () => onSort('no_hp'),
+                onTap: () => onSort('phone'),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -102,7 +102,7 @@ class CustomerTableHeader extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         const Text(
-                          'No. Hp',
+                          'No. HP',
                           style: TextStyle(
                             fontSize: 13,
                             height: 1.5,
@@ -112,44 +112,20 @@ class CustomerTableHeader extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        sortIcon('no_hp'),
+                        sortIcon('phone'),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
-            Expanded(
-              child: InkWell(
-                onTap: () => onSort('added'),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(color: CustomColors.borderCardColor),
-                    ),
-                  ),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Ditambahkan Pada',
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: CustomColors.fontSubColor,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        sortIcon('added'),
-                      ],
-                    ),
-                  ),
-                ),
+            SizedBox(
+              width: 60,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                alignment: Alignment.center,
+                child: const SizedBox.shrink(),
               ),
             ),
           ],

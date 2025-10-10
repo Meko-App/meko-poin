@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/customer.dart';
 import 'package:meko_poin/services/customer_repository.dart';
+import 'package:meko_poin/utils/custom_colors.dart';
 import 'customer_table_header.dart';
 import 'customer_table_row.dart';
 import 'customer_table_pagination.dart';
 import 'customer_table_search.dart';
-import 'package:meko_poin/utils/custom_colors.dart';
 
 class CustomerTable extends StatefulWidget {
+  final VoidCallback onAddNew;
   final CustomerRepository customerRepository;
+  final Function(Customer) onEditCustomer;
+  final Function(Customer) onDeleteCustomer;
 
   const CustomerTable({
     super.key,
+    required this.onAddNew,
     required this.customerRepository,
+    required this.onEditCustomer,
+    required this.onDeleteCustomer,
   });
 
   @override
@@ -29,9 +35,9 @@ class _CustomerTableState extends State<CustomerTable> {
   String sortBy = 'name';
   bool isAscending = true;
 
-  Set<int> selectedTransactionIds = {};
+  Set<int> selectedCustomerIds = {};
   bool get isAllSelected =>
-      selectedTransactionIds.length == currentPageData.length &&
+      selectedCustomerIds.length == currentPageData.length &&
       currentPageData.isNotEmpty;
 
   @override
@@ -43,10 +49,11 @@ class _CustomerTableState extends State<CustomerTable> {
   void toggleSelectAll(bool? value) {
     setState(() {
       if (value == true) {
-        selectedTransactionIds.addAll(currentPageData.map((user) => user.id!));
+        selectedCustomerIds
+            .addAll(currentPageData.map((customer) => customer.id!));
       } else {
-        selectedTransactionIds
-            .removeAll(currentPageData.map((user) => user.id));
+        selectedCustomerIds
+            .removeAll(currentPageData.map((customer) => customer.id));
       }
     });
   }
@@ -54,9 +61,9 @@ class _CustomerTableState extends State<CustomerTable> {
   void toggleSelectOne(int customerId, bool? value) {
     setState(() {
       if (value == true) {
-        selectedTransactionIds.add(customerId);
+        selectedCustomerIds.add(customerId);
       } else {
-        selectedTransactionIds.remove(customerId);
+        selectedCustomerIds.remove(customerId);
       }
     });
   }
@@ -64,9 +71,8 @@ class _CustomerTableState extends State<CustomerTable> {
   Future<void> _loadCustomers() async {
     setState(() => _isLoading = true);
     try {
-      final allCustomers = await widget.customerRepository.getAllCustomers();
-      final operatorCustomers = allCustomers.toList();
-      setState(() => _customers = operatorCustomers);
+      final customers = await widget.customerRepository.getAllCustomers();
+      setState(() => _customers = customers);
     } catch (e) {
       debugPrint('Error loading customers: $e');
     } finally {
@@ -90,7 +96,8 @@ class _CustomerTableState extends State<CustomerTable> {
     if (_searchQuery.isEmpty) return _customers;
     return _customers
         .where((customer) =>
-            customer.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+            customer.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            customer.phone.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
   }
 
@@ -108,10 +115,6 @@ class _CustomerTableState extends State<CustomerTable> {
         case 'phone':
           valueA = a.phone;
           valueB = b.phone;
-          break;
-        case 'added':
-          valueA = a.createdAt;
-          valueB = b.createdAt;
           break;
         default:
           valueA = a.name;
@@ -177,6 +180,7 @@ class _CustomerTableState extends State<CustomerTable> {
           CustomerTableSearch(
             currentPageData: currentPageData,
             data: sortedCustomers,
+            onAddNew: widget.onAddNew,
             onSearch: (query) {
               setState(() {
                 _searchQuery = query;
@@ -209,15 +213,18 @@ class _CustomerTableState extends State<CustomerTable> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: currentPageData
-                                .map((user) => CustomerTableRow(
-                                      name: user.name,
-                                      phone: user.phone,
-                                      createdAt: user.createdAt,
-                                      key: ValueKey(user.id),
-                                      isSelected: selectedTransactionIds
-                                          .contains(user.id),
+                                .map((customer) => CustomerTableRow(
+                                      name: customer.name,
+                                      phone: customer.phone,
+                                      key: ValueKey(customer.id),
+                                      isSelected: selectedCustomerIds
+                                          .contains(customer.id),
                                       onSelectChanged: (value) =>
-                                          toggleSelectOne(user.id!, value),
+                                          toggleSelectOne(customer.id!, value),
+                                      onEdit: () =>
+                                          widget.onEditCustomer(customer),
+                                      onDelete: () =>
+                                          widget.onDeleteCustomer(customer),
                                     ))
                                 .toList(),
                           ),

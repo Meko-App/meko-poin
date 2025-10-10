@@ -339,4 +339,22 @@ class TransactionRepository {
 
     return result.first['count'] as int? ?? 0;
   }
+
+  Future<int> deleteTransaction(int transactionId) async {
+    final db = await dbHelper.database;
+
+    // Hapus transaction items terlebih dahulu (foreign key constraint)
+    await db.delete(
+      'Data_Transaction_Item',
+      where: 'transaction_id = ?',
+      whereArgs: [transactionId],
+    );
+
+    // Hapus transaction
+    return await db.delete(
+      'Data_Transaction',
+      where: 'id = ?',
+      whereArgs: [transactionId],
+    );
+  }
 }

@@ -103,7 +103,7 @@ class _DashboardPageState extends State<DashboardPage> {
       } else {
         appDir = await getApplicationDocumentsDirectory();
       }
-      final avatarDir = Directory('${appDir.path}/photorism-app/avatars');
+      final avatarDir = Directory('${appDir.path}/meko-point/avatars');
 
       // 4. Buat folder jika belum ada
       if (!await avatarDir.exists()) {
@@ -474,6 +474,7 @@ class DashboardContent extends StatelessWidget {
       case 'Pelanggan':
         return PelangganContent(
           customerRepository: customerRepository,
+          onStateChanged: onContentStateChanged!,
         );
       case 'Master Data':
         return MasterdataContent(

@@ -33,6 +33,20 @@ class Validators {
     return null;
   }
 
+  static String? validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'No. HP harus diisi';
+    }
+
+    // Validasi format nomor HP Indonesia
+    final phoneRegex = RegExp(r'^(\+62|62|0)8[1-9][0-9]{6,9}$');
+    if (!phoneRegex.hasMatch(value)) {
+      return 'Format No. HP tidak valid';
+    }
+
+    return null;
+  }
+
   static String? validatePrice(String? value) {
     final cleaned = (value ?? '').replaceAll('.', '');
 

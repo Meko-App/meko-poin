@@ -115,4 +115,19 @@ class UserRepository {
       whereArgs: [id],
     );
   }
+
+  Future<bool> verifyPassword(int userId, String password) async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      'Data_User',
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+
+    if (result.isNotEmpty) {
+      final storedHashedPassword = result.first['password'] as String;
+      return PasswordHasher.verifyPassword(password, storedHashedPassword);
+    }
+    return false;
+  }
 }

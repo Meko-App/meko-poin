@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
+import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class TransactionDetail extends StatelessWidget {
+class TransactionDetail extends StatefulWidget {
   final int transactionId;
   final TransactionRepository transactionRepository;
   final VoidCallback onBackPressed;
@@ -17,6 +20,198 @@ class TransactionDetail extends StatelessWidget {
     required this.transactionRepository,
     required this.onBackPressed,
   });
+
+  @override
+  State<TransactionDetail> createState() => _TransactionDetailState();
+}
+
+class _TransactionDetailState extends State<TransactionDetail> {
+  bool _isEditingCustomer = false;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  bool _isSaving = false;
+  bool _isDeleting = false;
+  int? _currentUserRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUserRole();
+  }
+
+  Future<void> _getCurrentUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('userRole');
+    setState(() {
+      _currentUserRole = role != null ? int.tryParse(role) : null;
+    });
+  }
+
+  bool get _isAdmin => _currentUserRole == 1;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  void _startEditing(String currentName, String currentPhone) {
+    setState(() {
+      _isEditingCustomer = true;
+      _nameController.text = currentName;
+      _phoneController.text = currentPhone;
+    });
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _isEditingCustomer = false;
+      _nameController.clear();
+      _phoneController.clear();
+    });
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return _DeleteConfirmationDialog(
+          onConfirm: (password, isConfirmed) =>
+              _deleteTransaction(password, isConfirmed),
+          onCancel: () => Navigator.of(context).pop(),
+          isLoading: _isDeleting,
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteTransaction(String password, bool isConfirmed) async {
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      // Dapatkan user ID dari SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getInt('userId');
+
+      if (currentUserId == null) {
+        // Tampilkan error di modal tanpa menutup
+        _updateModalWithError('User tidak terautentikasi');
+        return;
+      }
+
+      // Buat UserRepository instance langsung
+      final userRepository = UserRepository(DatabaseHelper.instance);
+      final isValidPassword =
+          await userRepository.verifyPassword(currentUserId, password);
+
+      if (!isValidPassword) {
+        _updateModalWithError('Password salah');
+        return;
+      }
+
+      // Hapus transaksi
+      final result = await widget.transactionRepository
+          .deleteTransaction(widget.transactionId);
+
+      if (result > 0) {
+        // Tutup dialog
+        if (mounted) Navigator.of(context).pop();
+
+        // Tampilkan snackbar sukses
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaksi berhasil dihapus')),
+        );
+
+        // Kembali ke halaman tabel
+        widget.onBackPressed();
+      } else {
+        _updateModalWithError('Gagal menghapus transaksi');
+      }
+    } catch (e) {
+      _updateModalWithError('Error menghapus transaksi: $e');
+      debugPrint('Error deleting transaction: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+      }
+    }
+  }
+
+// Method untuk update modal dengan error (menggunakan Navigator untuk update state)
+  void _updateModalWithError(String errorMessage) {
+    // Karena kita tidak bisa langsung update state dialog dari sini,
+    // kita gunakan Navigator untuk push modal baru dengan error
+    Navigator.of(context).pop(); // Tutup modal lama
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return _DeleteConfirmationDialog(
+          onConfirm: (password, isConfirmed) =>
+              _deleteTransaction(password, isConfirmed),
+          onCancel: () => Navigator.of(context).pop(),
+          isLoading: false, // Reset loading state karena ada error
+          externalError: errorMessage,
+        );
+      },
+    );
+  }
+
+  Future<void> _saveCustomerChanges(int customerId) async {
+    if (_nameController.text.isEmpty || _phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama dan nomor HP harus diisi')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final db = await DatabaseHelper.instance.database;
+
+      // Update customer langsung ke database
+      final result = await db.update(
+        'Data_Customer',
+        {
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [customerId],
+      );
+
+      if (result > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data customer berhasil diperbarui')),
+        );
+
+        setState(() {
+          _isEditingCustomer = false;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memperbarui data customer')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui data customer: $e')),
+      );
+      debugPrint('Error updating customer: $e');
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
 
   String _formatPrice(int price) {
     final formatter =
@@ -32,16 +227,15 @@ class TransactionDetail extends StatelessWidget {
     final transaction = transactionData.transaction;
 
     final masterDataItems = await Future.wait(
-      items.map(
-          (item) => transactionRepository.getItemDetails(item.masterDataId)),
+      items.map((item) =>
+          widget.transactionRepository.getItemDetails(item.masterDataId)),
     );
 
     final formattedData = {
       'name': transactionData.customerName,
       'phone': transactionData.customerPhone,
       'date': DateFormat('d MMM y, HH:mm:ss').format(transaction.createdAt),
-      'invoice':
-          transactionData.transaction.invoiceNumber, // Gunakan format baru
+      'invoice': transactionData.transaction.invoiceNumber,
       'discount_nominal': transaction.discountPrice ?? 0,
       'discount_percent': 0,
       'discount_price': transaction.discountPrice ?? 0,
@@ -90,8 +284,8 @@ class TransactionDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<TransactionWithCustomerUser>(
-      future:
-          transactionRepository.getTransactionWithCustomerUser(transactionId),
+      future: widget.transactionRepository
+          .getTransactionWithCustomerUser(widget.transactionId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -102,7 +296,8 @@ class TransactionDetail extends StatelessWidget {
         }
 
         return FutureBuilder<List<TransactionItem>>(
-          future: transactionRepository.getTransactionItems(transactionId),
+          future: widget.transactionRepository
+              .getTransactionItems(widget.transactionId),
           builder: (context, itemsSnapshot) {
             if (itemsSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -112,6 +307,7 @@ class TransactionDetail extends StatelessWidget {
             final transaction = transactionData.transaction;
             final customerName = transactionData.customerName;
             final customerPhone = transactionData.customerPhone;
+            final customerId = transactionData.transaction.customerId;
 
             if (!itemsSnapshot.hasData || itemsSnapshot.hasError) {
               return const Center(child: Text('Gagal memuat item transaksi'));
@@ -151,16 +347,151 @@ class TransactionDetail extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Expanded(
-                                              child: _buildReadOnlyField(
-                                            label: 'No. Hp',
-                                            value: customerPhone,
-                                          )),
+                                            child: _buildCustomerField(
+                                              label: 'No. Hp',
+                                              value: customerPhone,
+                                              isEditing: _isEditingCustomer,
+                                              controller: _phoneController,
+                                            ),
+                                          ),
                                           const SizedBox(width: 24),
                                           Expanded(
-                                              child: _buildReadOnlyField(
-                                            label: 'Nama',
-                                            value: customerName,
-                                          )),
+                                            child: _buildCustomerField(
+                                              label: 'Nama',
+                                              value: customerName,
+                                              isEditing: _isEditingCustomer,
+                                              controller: _nameController,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          // Edit/Save Button - sekarang sejajar dengan field
+                                          Container(
+                                            margin:
+                                                const EdgeInsets.only(top: 25),
+                                            child: _isEditingCustomer
+                                                ? Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      ElevatedButton(
+                                                        onPressed: _isSaving
+                                                            ? null
+                                                            : _cancelEditing,
+                                                        style: ElevatedButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              const Color(
+                                                                  0xFFED143B),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      16,
+                                                                  vertical: 11),
+                                                          shape:
+                                                              RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        6),
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Batal',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w400,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      ElevatedButton(
+                                                        onPressed: _isSaving
+                                                            ? null
+                                                            : () =>
+                                                                _saveCustomerChanges(
+                                                                    customerId!),
+                                                        style: ElevatedButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              Colors.green,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      16,
+                                                                  vertical: 11),
+                                                          shape:
+                                                              RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        6),
+                                                          ),
+                                                        ),
+                                                        child: _isSaving
+                                                            ? const SizedBox(
+                                                                width: 16,
+                                                                height: 16,
+                                                                child:
+                                                                    CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  valueColor: AlwaysStoppedAnimation<
+                                                                          Color>(
+                                                                      Colors
+                                                                          .white),
+                                                                ),
+                                                              )
+                                                            : const Text(
+                                                                'Simpan',
+                                                                style:
+                                                                    TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 14,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w400,
+                                                                ),
+                                                              ),
+                                                      ),
+                                                    ],
+                                                  )
+                                                : ElevatedButton(
+                                                    onPressed: () =>
+                                                        _startEditing(
+                                                            customerName,
+                                                            customerPhone),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFF1379F0),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 11),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(6),
+                                                      ),
+                                                    ),
+                                                    child: const Text(
+                                                      'Edit',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                      ),
+                                                    ),
+                                                  ),
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -323,8 +654,9 @@ class TransactionDetail extends StatelessWidget {
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
                                         children: [
+                                          // Tombol Kembali (selalu tampil)
                                           ElevatedButton(
-                                            onPressed: onBackPressed,
+                                            onPressed: widget.onBackPressed,
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   const Color(0xFF1379F0),
@@ -345,9 +677,52 @@ class TransactionDetail extends StatelessWidget {
                                                   fontWeight: FontWeight.w400),
                                             ),
                                           ),
-                                          const SizedBox(
-                                              width:
-                                                  10), // Add spacing between buttons
+                                          const SizedBox(width: 10),
+
+                                          // Tombol Hapus (hanya untuk admin)
+                                          if (_isAdmin) ...[
+                                            ElevatedButton(
+                                              onPressed: _isDeleting
+                                                  ? null
+                                                  : _showDeleteConfirmation,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 10),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                              ),
+                                              child: _isDeleting
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                                Colors.white),
+                                                      ),
+                                                    )
+                                                  : const Text(
+                                                      'Hapus',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                      ),
+                                                    ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                          ],
+
+                                          // Tombol Cetak (selalu tampil)
                                           ElevatedButton(
                                             onPressed: () {
                                               _showPrintOptions(
@@ -357,8 +732,7 @@ class TransactionDetail extends StatelessWidget {
                                               );
                                             },
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors
-                                                  .green, // Different color for print button
+                                              backgroundColor: Colors.green,
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 16,
@@ -394,6 +768,100 @@ class TransactionDetail extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  Widget _buildCustomerField({
+    required String label,
+    required String value,
+    required bool isEditing,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w400,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 5),
+        isEditing
+            ? SizedBox(
+                height: 36, // Sesuaikan tinggi dengan container non-edit
+                child: TextFormField(
+                  controller: controller,
+                  enabled: isEditing,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7, // Sesuaikan padding
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: CustomColors.borderInputColor,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: CustomColors.borderInputColor,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: CustomColors.fontSubColor,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: CustomColors.cardColor,
+                    // Tambahkan constraint untuk konsistensi
+                    constraints: const BoxConstraints(
+                      minHeight: 36,
+                    ),
+                  ),
+                ),
+              )
+            : Container(
+                height: 36, // Tinggi yang sama dengan TextFormField
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7, // Padding yang sama
+                ),
+                decoration: BoxDecoration(
+                  color: CustomColors.cardColor,
+                  border: Border.all(
+                    color: CustomColors.borderInputColor,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+      ],
     );
   }
 
@@ -446,33 +914,6 @@ class TransactionDetail extends StatelessWidget {
     );
   }
 
-  Widget _buildReadOnlyField({required String label, required String value}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w400,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildOrderTable(List<TransactionItem> transactionItems) {
     return Container(
       decoration: BoxDecoration(
@@ -517,7 +958,7 @@ class TransactionDetail extends StatelessWidget {
           else
             ...transactionItems
                 .map((item) => FutureBuilder<Map<String, dynamic>>(
-                      future: transactionRepository
+                      future: widget.transactionRepository
                           .getItemDetails(item.masterDataId),
                       builder: (context, detailsSnapshot) {
                         final itemDetails = detailsSnapshot.hasData
@@ -612,6 +1053,7 @@ class TransactionDetail extends StatelessWidget {
   }
 }
 
+// _PrintOptionsDialog class remains the same...
 class _PrintOptionsDialog extends StatelessWidget {
   final Map<String, dynamic> transactionData;
   final String customerPhone;
@@ -782,6 +1224,424 @@ class _PrintOptionsDialog extends StatelessWidget {
             Text(
               label,
               style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatefulWidget {
+  final Function(String password, bool isConfirmed) onConfirm;
+  final VoidCallback onCancel;
+  final bool isLoading;
+  final String? externalError; // Tambahkan untuk error dari parent
+
+  const _DeleteConfirmationDialog({
+    required this.onConfirm,
+    required this.onCancel,
+    required this.isLoading,
+    this.externalError, // Tambahkan parameter ini
+  });
+
+  @override
+  State<_DeleteConfirmationDialog> createState() =>
+      _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isConfirmed = false;
+  bool _obscurePassword = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Set initial error message dari external error jika ada
+    if (widget.externalError != null) {
+      _errorMessage = widget.externalError!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_DeleteConfirmationDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update error message ketika external error berubah
+    if (widget.externalError != oldWidget.externalError) {
+      setState(() {
+        _errorMessage = widget.externalError ?? '';
+      });
+    }
+  }
+
+  void _clearError() {
+    if (_errorMessage.isNotEmpty) {
+      setState(() {
+        _errorMessage = '';
+      });
+    }
+  }
+
+  void _validateAndSubmit() async {
+    // Clear previous errors
+    _clearError();
+
+    // Validasi checkbox
+    if (!_isConfirmed) {
+      setState(() {
+        _errorMessage = 'Harus menyetujui tindakan yang dilakukan';
+      });
+      return;
+    }
+
+    // Validasi password
+    if (_passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Password harus diisi';
+      });
+      return;
+    }
+
+    // Jika semua valid, panggil onConfirm
+    widget.onConfirm(_passwordController.text, _isConfirmed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        width: 400,
+        decoration: BoxDecoration(
+          color: CustomColors.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: CustomColors.borderCardColor),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: CustomColors.borderCardColor,
+                    width: 1.0,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hapus Transaksi',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: CustomColors.fontSubColor,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: widget.isLoading ? null : widget.onCancel,
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Warning Icon and Message
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Tindakan ini akan menghapus transaksi secara permanen. Data yang sudah dihapus tidak dapat dikembalikan.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withOpacity(0.8),
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Error Message (jika ada)
+                  if (_errorMessage.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Password Input
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Password',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        enabled: !widget.isLoading,
+                        onChanged: (_) => _clearError(),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: _errorMessage.isNotEmpty
+                                  ? Colors.red
+                                  : CustomColors.borderInputColor,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: _errorMessage.isNotEmpty
+                                  ? Colors.red
+                                  : CustomColors.borderInputColor,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: _errorMessage.isNotEmpty
+                                  ? Colors.red
+                                  : CustomColors.fontSubColor,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: CustomColors.cardColor,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: CustomColors.fontSubColor,
+                              size: 20,
+                            ),
+                            onPressed: widget.isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                          ),
+                          hintText: 'Masukkan password Anda',
+                          hintStyle: TextStyle(
+                            color: CustomColors.fontSubColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Confirmation Checkbox
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _isConfirmed,
+                          onChanged: widget.isLoading
+                              ? null
+                              : (bool? value) {
+                                  setState(() {
+                                    _isConfirmed = value ?? false;
+                                    _clearError();
+                                  });
+                                },
+                          checkColor: Colors.white,
+                          fillColor: MaterialStateProperty.resolveWith<Color>(
+                            (Set<MaterialState> states) {
+                              if (states.contains(MaterialState.selected)) {
+                                return Colors.blueAccent;
+                              }
+                              return CustomColors.borderInputColor;
+                            },
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: widget.isLoading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _isConfirmed = !_isConfirmed;
+                                    _clearError();
+                                  });
+                                },
+                          child: const Text(
+                            'Saya mengerti dengan tindakan yang saya lakukan',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Footer Buttons
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: CustomColors.borderCardColor,
+                    width: 1.0,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Cancel Button
+                  ElevatedButton(
+                    onPressed: widget.isLoading ? null : widget.onCancel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        side: BorderSide(
+                          color: CustomColors.borderInputColor,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Delete Button
+                  ElevatedButton(
+                    onPressed: widget.isLoading ? null : _validateAndSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: widget.isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Hapus',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
