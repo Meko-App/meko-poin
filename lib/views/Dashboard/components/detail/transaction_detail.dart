@@ -4,8 +4,10 @@ import 'package:meko_poin/models/additional/transaction_with_customer_user.dart'
 import 'package:meko_poin/models/transaction_item.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TransactionDetail extends StatefulWidget {
   final int transactionId;
@@ -28,6 +30,7 @@ class _TransactionDetailState extends State<TransactionDetail> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   bool _isSaving = false;
+  bool _isDeleting = false;
 
   @override
   void dispose() {
@@ -50,6 +53,95 @@ class _TransactionDetailState extends State<TransactionDetail> {
       _nameController.clear();
       _phoneController.clear();
     });
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return _DeleteConfirmationDialog(
+          onConfirm: (password, isConfirmed) =>
+              _deleteTransaction(password, isConfirmed),
+          onCancel: () => Navigator.of(context).pop(),
+          isLoading: _isDeleting,
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteTransaction(String password, bool isConfirmed) async {
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      // Dapatkan user ID dari SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getInt('userId');
+
+      if (currentUserId == null) {
+        // Tampilkan error di modal tanpa menutup
+        _updateModalWithError('User tidak terautentikasi');
+        return;
+      }
+
+      // Buat UserRepository instance langsung
+      final userRepository = UserRepository(DatabaseHelper.instance);
+      final isValidPassword =
+          await userRepository.verifyPassword(currentUserId, password);
+
+      if (!isValidPassword) {
+        _updateModalWithError('Password salah');
+        return;
+      }
+
+      // Hapus transaksi
+      final result = await widget.transactionRepository
+          .deleteTransaction(widget.transactionId);
+
+      if (result > 0) {
+        // Tutup dialog
+        if (mounted) Navigator.of(context).pop();
+
+        // Tampilkan snackbar sukses
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaksi berhasil dihapus')),
+        );
+
+        // Kembali ke halaman tabel
+        widget.onBackPressed();
+      } else {
+        _updateModalWithError('Gagal menghapus transaksi');
+      }
+    } catch (e) {
+      _updateModalWithError('Error menghapus transaksi: $e');
+      debugPrint('Error deleting transaction: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+      }
+    }
+  }
+
+// Method untuk update modal dengan error (menggunakan Navigator untuk update state)
+  void _updateModalWithError(String errorMessage) {
+    // Karena kita tidak bisa langsung update state dialog dari sini,
+    // kita gunakan Navigator untuk push modal baru dengan error
+    Navigator.of(context).pop(); // Tutup modal lama
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return _DeleteConfirmationDialog(
+          onConfirm: (password, isConfirmed) =>
+              _deleteTransaction(password, isConfirmed),
+          onCancel: () => Navigator.of(context).pop(),
+          isLoading: false, // Reset loading state karena ada error
+          externalError: errorMessage,
+        );
+      },
+    );
   }
 
   Future<void> _saveCustomerChanges(int customerId) async {
@@ -541,10 +633,12 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                       const SizedBox(height: 16),
 
                                       // Buttons
+                                      // Di dalam bagian "Pembayaran Section Card", update bagian buttons:
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.end,
                                         children: [
+                                          // Tombol Kembali
                                           ElevatedButton(
                                             onPressed: widget.onBackPressed,
                                             style: ElevatedButton.styleFrom(
@@ -562,12 +656,56 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                             child: const Text(
                                               'Kembali',
                                               style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400),
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400,
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 10),
+
+                                          // Tombol Hapus (Delete)
+                                          ElevatedButton(
+                                            onPressed: _isDeleting
+                                                ? null
+                                                : _showDeleteConfirmation,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 10),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                            child: _isDeleting
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                              Colors.white),
+                                                    ),
+                                                  )
+                                                : const Text(
+                                                    'Hapus',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                    ),
+                                                  ),
+                                          ),
+                                          const SizedBox(width: 10),
+
+                                          // Tombol Cetak
                                           ElevatedButton(
                                             onPressed: () {
                                               _showPrintOptions(
@@ -590,9 +728,10 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                             child: const Text(
                                               'Cetak',
                                               style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400),
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -1069,6 +1208,424 @@ class _PrintOptionsDialog extends StatelessWidget {
             Text(
               label,
               style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatefulWidget {
+  final Function(String password, bool isConfirmed) onConfirm;
+  final VoidCallback onCancel;
+  final bool isLoading;
+  final String? externalError; // Tambahkan untuk error dari parent
+
+  const _DeleteConfirmationDialog({
+    required this.onConfirm,
+    required this.onCancel,
+    required this.isLoading,
+    this.externalError, // Tambahkan parameter ini
+  });
+
+  @override
+  State<_DeleteConfirmationDialog> createState() =>
+      _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isConfirmed = false;
+  bool _obscurePassword = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Set initial error message dari external error jika ada
+    if (widget.externalError != null) {
+      _errorMessage = widget.externalError!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_DeleteConfirmationDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update error message ketika external error berubah
+    if (widget.externalError != oldWidget.externalError) {
+      setState(() {
+        _errorMessage = widget.externalError ?? '';
+      });
+    }
+  }
+
+  void _clearError() {
+    if (_errorMessage.isNotEmpty) {
+      setState(() {
+        _errorMessage = '';
+      });
+    }
+  }
+
+  void _validateAndSubmit() async {
+    // Clear previous errors
+    _clearError();
+
+    // Validasi checkbox
+    if (!_isConfirmed) {
+      setState(() {
+        _errorMessage = 'Harus menyetujui tindakan yang dilakukan';
+      });
+      return;
+    }
+
+    // Validasi password
+    if (_passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Password harus diisi';
+      });
+      return;
+    }
+
+    // Jika semua valid, panggil onConfirm
+    widget.onConfirm(_passwordController.text, _isConfirmed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        width: 400,
+        decoration: BoxDecoration(
+          color: CustomColors.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: CustomColors.borderCardColor),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: CustomColors.borderCardColor,
+                    width: 1.0,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hapus Transaksi',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: CustomColors.fontSubColor,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: widget.isLoading ? null : widget.onCancel,
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Warning Icon and Message
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Tindakan ini akan menghapus transaksi secara permanen. Data yang sudah dihapus tidak dapat dikembalikan.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withOpacity(0.8),
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Error Message (jika ada)
+                  if (_errorMessage.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Password Input
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Password',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        enabled: !widget.isLoading,
+                        onChanged: (_) => _clearError(),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: _errorMessage.isNotEmpty
+                                  ? Colors.red
+                                  : CustomColors.borderInputColor,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: _errorMessage.isNotEmpty
+                                  ? Colors.red
+                                  : CustomColors.borderInputColor,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: _errorMessage.isNotEmpty
+                                  ? Colors.red
+                                  : CustomColors.fontSubColor,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: CustomColors.cardColor,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: CustomColors.fontSubColor,
+                              size: 20,
+                            ),
+                            onPressed: widget.isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                          ),
+                          hintText: 'Masukkan password Anda',
+                          hintStyle: TextStyle(
+                            color: CustomColors.fontSubColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Confirmation Checkbox
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _isConfirmed,
+                          onChanged: widget.isLoading
+                              ? null
+                              : (bool? value) {
+                                  setState(() {
+                                    _isConfirmed = value ?? false;
+                                    _clearError();
+                                  });
+                                },
+                          checkColor: Colors.white,
+                          fillColor: MaterialStateProperty.resolveWith<Color>(
+                            (Set<MaterialState> states) {
+                              if (states.contains(MaterialState.selected)) {
+                                return Colors.blueAccent;
+                              }
+                              return CustomColors.borderInputColor;
+                            },
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: widget.isLoading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _isConfirmed = !_isConfirmed;
+                                    _clearError();
+                                  });
+                                },
+                          child: const Text(
+                            'Saya mengerti dengan tindakan yang saya lakukan',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Footer Buttons
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: CustomColors.borderCardColor,
+                    width: 1.0,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Cancel Button
+                  ElevatedButton(
+                    onPressed: widget.isLoading ? null : widget.onCancel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        side: BorderSide(
+                          color: CustomColors.borderInputColor,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Delete Button
+                  ElevatedButton(
+                    onPressed: widget.isLoading ? null : _validateAndSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: widget.isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Hapus',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
