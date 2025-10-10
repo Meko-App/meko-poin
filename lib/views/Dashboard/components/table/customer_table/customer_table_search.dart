@@ -4,12 +4,14 @@ import 'package:meko_poin/utils/custom_colors.dart';
 class CustomerTableSearch extends StatelessWidget {
   final List<dynamic> currentPageData;
   final List<dynamic> data;
+  final VoidCallback onAddNew;
   final Function(String) onSearch;
 
   const CustomerTableSearch({
     super.key,
     required this.currentPageData,
     required this.data,
+    required this.onAddNew,
     required this.onSearch,
   });
 
@@ -45,7 +47,7 @@ class CustomerTableSearch extends StatelessWidget {
                       color: Colors.white,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Cari Nama',
+                      hintText: 'Cari Nama atau No. HP',
                       hintStyle: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w400,
@@ -73,6 +75,28 @@ class CustomerTableSearch extends StatelessWidget {
                         borderSide:
                             BorderSide(color: CustomColors.borderCardColor),
                       ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 30),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1379F0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  onPressed: onAddNew,
+                  child: const Text(
+                    'Buat Baru',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      height: 1.0,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
