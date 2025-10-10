@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
+import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
 
-class TransactionDetail extends StatelessWidget {
+class TransactionDetail extends StatefulWidget {
   final int transactionId;
   final TransactionRepository transactionRepository;
   final VoidCallback onBackPressed;
@@ -17,6 +18,91 @@ class TransactionDetail extends StatelessWidget {
     required this.transactionRepository,
     required this.onBackPressed,
   });
+
+  @override
+  State<TransactionDetail> createState() => _TransactionDetailState();
+}
+
+class _TransactionDetailState extends State<TransactionDetail> {
+  bool _isEditingCustomer = false;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  void _startEditing(String currentName, String currentPhone) {
+    setState(() {
+      _isEditingCustomer = true;
+      _nameController.text = currentName;
+      _phoneController.text = currentPhone;
+    });
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _isEditingCustomer = false;
+      _nameController.clear();
+      _phoneController.clear();
+    });
+  }
+
+  Future<void> _saveCustomerChanges(int customerId) async {
+    if (_nameController.text.isEmpty || _phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama dan nomor HP harus diisi')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final db = await DatabaseHelper.instance.database;
+
+      // Update customer langsung ke database
+      final result = await db.update(
+        'Data_Customer',
+        {
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [customerId],
+      );
+
+      if (result > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data customer berhasil diperbarui')),
+        );
+
+        setState(() {
+          _isEditingCustomer = false;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memperbarui data customer')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui data customer: $e')),
+      );
+      debugPrint('Error updating customer: $e');
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
 
   String _formatPrice(int price) {
     final formatter =
@@ -32,16 +118,15 @@ class TransactionDetail extends StatelessWidget {
     final transaction = transactionData.transaction;
 
     final masterDataItems = await Future.wait(
-      items.map(
-          (item) => transactionRepository.getItemDetails(item.masterDataId)),
+      items.map((item) =>
+          widget.transactionRepository.getItemDetails(item.masterDataId)),
     );
 
     final formattedData = {
       'name': transactionData.customerName,
       'phone': transactionData.customerPhone,
       'date': DateFormat('d MMM y, HH:mm:ss').format(transaction.createdAt),
-      'invoice':
-          transactionData.transaction.invoiceNumber, // Gunakan format baru
+      'invoice': transactionData.transaction.invoiceNumber,
       'discount_nominal': transaction.discountPrice ?? 0,
       'discount_percent': 0,
       'discount_price': transaction.discountPrice ?? 0,
@@ -90,8 +175,8 @@ class TransactionDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<TransactionWithCustomerUser>(
-      future:
-          transactionRepository.getTransactionWithCustomerUser(transactionId),
+      future: widget.transactionRepository
+          .getTransactionWithCustomerUser(widget.transactionId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -102,7 +187,8 @@ class TransactionDetail extends StatelessWidget {
         }
 
         return FutureBuilder<List<TransactionItem>>(
-          future: transactionRepository.getTransactionItems(transactionId),
+          future: widget.transactionRepository
+              .getTransactionItems(widget.transactionId),
           builder: (context, itemsSnapshot) {
             if (itemsSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -112,6 +198,7 @@ class TransactionDetail extends StatelessWidget {
             final transaction = transactionData.transaction;
             final customerName = transactionData.customerName;
             final customerPhone = transactionData.customerPhone;
+            final customerId = transactionData.transaction.customerId;
 
             if (!itemsSnapshot.hasData || itemsSnapshot.hasError) {
               return const Center(child: Text('Gagal memuat item transaksi'));
@@ -151,16 +238,151 @@ class TransactionDetail extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Expanded(
-                                              child: _buildReadOnlyField(
-                                            label: 'No. Hp',
-                                            value: customerPhone,
-                                          )),
+                                            child: _buildCustomerField(
+                                              label: 'No. Hp',
+                                              value: customerPhone,
+                                              isEditing: _isEditingCustomer,
+                                              controller: _phoneController,
+                                            ),
+                                          ),
                                           const SizedBox(width: 24),
                                           Expanded(
-                                              child: _buildReadOnlyField(
-                                            label: 'Nama',
-                                            value: customerName,
-                                          )),
+                                            child: _buildCustomerField(
+                                              label: 'Nama',
+                                              value: customerName,
+                                              isEditing: _isEditingCustomer,
+                                              controller: _nameController,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          // Edit/Save Button - sekarang sejajar dengan field
+                                          Container(
+                                            margin:
+                                                const EdgeInsets.only(top: 25),
+                                            child: _isEditingCustomer
+                                                ? Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      ElevatedButton(
+                                                        onPressed: _isSaving
+                                                            ? null
+                                                            : _cancelEditing,
+                                                        style: ElevatedButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              const Color(
+                                                                  0xFFED143B),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      16,
+                                                                  vertical: 11),
+                                                          shape:
+                                                              RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        6),
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Batal',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w400,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      ElevatedButton(
+                                                        onPressed: _isSaving
+                                                            ? null
+                                                            : () =>
+                                                                _saveCustomerChanges(
+                                                                    customerId!),
+                                                        style: ElevatedButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              Colors.green,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      16,
+                                                                  vertical: 11),
+                                                          shape:
+                                                              RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        6),
+                                                          ),
+                                                        ),
+                                                        child: _isSaving
+                                                            ? const SizedBox(
+                                                                width: 16,
+                                                                height: 16,
+                                                                child:
+                                                                    CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  valueColor: AlwaysStoppedAnimation<
+                                                                          Color>(
+                                                                      Colors
+                                                                          .white),
+                                                                ),
+                                                              )
+                                                            : const Text(
+                                                                'Simpan',
+                                                                style:
+                                                                    TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 14,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w400,
+                                                                ),
+                                                              ),
+                                                      ),
+                                                    ],
+                                                  )
+                                                : ElevatedButton(
+                                                    onPressed: () =>
+                                                        _startEditing(
+                                                            customerName,
+                                                            customerPhone),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFF1379F0),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 11),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(6),
+                                                      ),
+                                                    ),
+                                                    child: const Text(
+                                                      'Edit',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                      ),
+                                                    ),
+                                                  ),
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -324,7 +546,7 @@ class TransactionDetail extends StatelessWidget {
                                             MainAxisAlignment.end,
                                         children: [
                                           ElevatedButton(
-                                            onPressed: onBackPressed,
+                                            onPressed: widget.onBackPressed,
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   const Color(0xFF1379F0),
@@ -345,9 +567,7 @@ class TransactionDetail extends StatelessWidget {
                                                   fontWeight: FontWeight.w400),
                                             ),
                                           ),
-                                          const SizedBox(
-                                              width:
-                                                  10), // Add spacing between buttons
+                                          const SizedBox(width: 10),
                                           ElevatedButton(
                                             onPressed: () {
                                               _showPrintOptions(
@@ -357,8 +577,7 @@ class TransactionDetail extends StatelessWidget {
                                               );
                                             },
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors
-                                                  .green, // Different color for print button
+                                              backgroundColor: Colors.green,
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 16,
@@ -394,6 +613,100 @@ class TransactionDetail extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  Widget _buildCustomerField({
+    required String label,
+    required String value,
+    required bool isEditing,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w400,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 5),
+        isEditing
+            ? SizedBox(
+                height: 36, // Sesuaikan tinggi dengan container non-edit
+                child: TextFormField(
+                  controller: controller,
+                  enabled: isEditing,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7, // Sesuaikan padding
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: CustomColors.borderInputColor,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: CustomColors.borderInputColor,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: CustomColors.fontSubColor,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: CustomColors.cardColor,
+                    // Tambahkan constraint untuk konsistensi
+                    constraints: const BoxConstraints(
+                      minHeight: 36,
+                    ),
+                  ),
+                ),
+              )
+            : Container(
+                height: 36, // Tinggi yang sama dengan TextFormField
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7, // Padding yang sama
+                ),
+                decoration: BoxDecoration(
+                  color: CustomColors.cardColor,
+                  border: Border.all(
+                    color: CustomColors.borderInputColor,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+      ],
     );
   }
 
@@ -446,33 +759,6 @@ class TransactionDetail extends StatelessWidget {
     );
   }
 
-  Widget _buildReadOnlyField({required String label, required String value}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w400,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildOrderTable(List<TransactionItem> transactionItems) {
     return Container(
       decoration: BoxDecoration(
@@ -517,7 +803,7 @@ class TransactionDetail extends StatelessWidget {
           else
             ...transactionItems
                 .map((item) => FutureBuilder<Map<String, dynamic>>(
-                      future: transactionRepository
+                      future: widget.transactionRepository
                           .getItemDetails(item.masterDataId),
                       builder: (context, detailsSnapshot) {
                         final itemDetails = detailsSnapshot.hasData
@@ -612,6 +898,7 @@ class TransactionDetail extends StatelessWidget {
   }
 }
 
+// _PrintOptionsDialog class remains the same...
 class _PrintOptionsDialog extends StatelessWidget {
   final Map<String, dynamic> transactionData;
   final String customerPhone;
