@@ -28,6 +28,8 @@ class TransactionDetail extends StatefulWidget {
 
 class _TransactionDetailState extends State<TransactionDetail> {
   bool _isEditingCustomer = false;
+  bool _isEditingPayment = false;
+  String? _editingPaymentMethod;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   bool _isSaving = false;
@@ -160,6 +162,61 @@ class _TransactionDetailState extends State<TransactionDetail> {
         );
       },
     );
+  }
+
+  Future<void> _savePaymentMethod(int transactionId) async {
+    if (_editingPaymentMethod == null) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final db = await DatabaseHelper.instance.database;
+
+      final result = await db.update(
+        'Data_Transaction',
+        {
+          'payment_method': _editingPaymentMethod!.toLowerCase(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [transactionId],
+      );
+
+      if (result > 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Metode pembayaran berhasil diperbarui')),
+          );
+          setState(() {
+            _isEditingPayment = false;
+            _editingPaymentMethod = null;
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Gagal memperbarui metode pembayaran')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memperbarui metode pembayaran: $e')),
+        );
+        debugPrint('Error updating payment method: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveCustomerChanges(int customerId) async {
@@ -626,26 +683,184 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                       const SizedBox(height: 20),
 
                                       // Metode Pembayaran
-                                      const Text(
-                                        'Metode Pembayaran',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white,
-                                        ),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          const Expanded(
+                                            child: Text(
+                                              'Metode Pembayaran',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontFamily: 'Inter',
+                                                fontWeight: FontWeight.w400,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          if (_isAdmin && !_isEditingPayment)
+                                            GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  _isEditingPayment = true;
+                                                  _editingPaymentMethod =
+                                                      transaction.paymentMethod
+                                                          .toLowerCase();
+                                                });
+                                              },
+                                              child: const Text(
+                                                'Edit',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontFamily: 'Inter',
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Color(0xFF1379F0),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                       const SizedBox(height: 5),
-                                      Text(
-                                        transaction.paymentMethod.toUpperCase(),
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
+                                      if (_isEditingPayment) ...[
+                                        DropdownButtonFormField<String>(
+                                          value: _editingPaymentMethod,
+                                          isExpanded: true,
+                                          items: const ['cash', 'qris']
+                                              .map((method) =>
+                                                  DropdownMenuItem<String>(
+                                                    value: method,
+                                                    child: Text(
+                                                      method.toUpperCase(),
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.white,
+                                                        fontFamily: 'Inter',
+                                                      ),
+                                                    ),
+                                                  ))
+                                              .toList(),
+                                          onChanged: (v) => setState(
+                                              () => _editingPaymentMethod = v),
+                                          decoration: InputDecoration(
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 7),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: BorderSide(
+                                                  color: CustomColors
+                                                      .borderInputColor),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: BorderSide(
+                                                  color: CustomColors
+                                                      .fontSubColor),
+                                            ),
+                                            filled: true,
+                                            fillColor: CustomColors.cardColor,
+                                            isDense: true,
+                                          ),
+                                          dropdownColor: CustomColors.cardColor,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                            fontFamily: 'Inter',
+                                          ),
                                         ),
-                                      ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            ElevatedButton(
+                                              onPressed: _isSaving
+                                                  ? null
+                                                  : () => setState(() {
+                                                        _isEditingPayment =
+                                                            false;
+                                                        _editingPaymentMethod =
+                                                            null;
+                                                      }),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    const Color(0xFFED143B),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Batal',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            ElevatedButton(
+                                              onPressed: _isSaving
+                                                  ? null
+                                                  : () => _savePaymentMethod(
+                                                      transaction.id),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.green,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                              ),
+                                              child: _isSaving
+                                                  ? const SizedBox(
+                                                      width: 14,
+                                                      height: 14,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                                Color>(
+                                                          Colors.white,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : const Text(
+                                                      'Simpan',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                      ),
+                                                    ),
+                                            ),
+                                          ],
+                                        ),
+                                      ] else
+                                        Text(
+                                          transaction.paymentMethod
+                                              .toUpperCase(),
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'Inter',
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                       const SizedBox(height: 20),
 
                                       // Catatan (read-only)
@@ -1023,7 +1238,7 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                         2),
                                   ],
                                 ),
-                            ),
+                              ),
                               if (item.bundleSnapshot != null)
                                 _buildBundleSnapshotDetail(
                                   item.bundleSnapshot!,
