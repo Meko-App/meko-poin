@@ -88,32 +88,15 @@ class _InventoryFormState extends State<InventoryForm> {
       return;
     }
 
-    try {
-      final masterData =
-          await _masterDataRepository.getMasterDataById(_selectedItem!);
+    final int stock = int.tryParse(_stockController.text) ?? 0;
 
-      int stock = int.tryParse(_stockController.text) ?? 0;
+    final Map<String, dynamic> inventoryData = {
+      'master_data_id': _selectedItem,
+      'stock': stock,
+      'notes': _notesController.text,
+    };
 
-      final isPaper =
-          (masterData?.categoryCode ?? '').toLowerCase() == 'paper' ||
-              masterData?.category.toLowerCase() == 'paper';
-      if (isPaper) {
-        stock = stock * 20;
-      }
-
-      final Map<String, dynamic> inventoryData = {
-        'master_data_id': _selectedItem,
-        'stock': stock,
-        'notes': _notesController.text,
-      };
-
-      widget.onSubmit(inventoryData);
-    } catch (e) {
-      setState(() {
-        _selectedError = 'Gagal memvalidasi data barang';
-      });
-      return;
-    }
+    widget.onSubmit(inventoryData);
   }
 
   @override
