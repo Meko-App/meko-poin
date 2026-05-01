@@ -70,14 +70,16 @@ class TransactionItemRepository {
   Future<List<TransactionItem>> getTransactionItemsByDateRange(
       DateTime startDate, DateTime endDate) async {
     final db = await dbHelper.database;
-    final result = await db.query(
-      'Data_Transaction_Item',
-      where: 'created_at BETWEEN ? AND ?',
-      whereArgs: [
-        startDate.toIso8601String(),
-        endDate.toIso8601String(),
-      ],
-    );
+    final result = await db.rawQuery('''
+      SELECT ti.*
+      FROM Data_Transaction_Item ti
+      JOIN Data_Transaction t ON ti.transaction_id = t.id
+      WHERE t.created_at BETWEEN ? AND ?
+      ORDER BY t.created_at DESC
+    ''', [
+      startDate.toIso8601String(),
+      endDate.add(const Duration(days: 1)).toIso8601String(),
+    ]);
     return result.map((map) => TransactionItem.fromMap(map)).toList();
   }
 }

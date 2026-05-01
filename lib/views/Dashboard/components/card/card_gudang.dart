@@ -6,8 +6,13 @@ import 'package:meko_poin/utils/custom_colors.dart';
 
 class CardGudang extends StatefulWidget {
   final InventoryLogRepository inventoryLogRepo;
+  final DateTimeRange dateRange;
 
-  const CardGudang({super.key, required this.inventoryLogRepo});
+  const CardGudang({
+    super.key,
+    required this.inventoryLogRepo,
+    required this.dateRange,
+  });
 
   @override
   State<CardGudang> createState() => _CardGudangState();
@@ -28,6 +33,15 @@ class _CardGudangState extends State<CardGudang> {
     _loadLogs();
   }
 
+  @override
+  void didUpdateWidget(covariant CardGudang oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange.start != widget.dateRange.start ||
+        oldWidget.dateRange.end != widget.dateRange.end) {
+      _loadLogs();
+    }
+  }
+
   Future<void> _loadLogs() async {
     try {
       setState(() {
@@ -35,11 +49,14 @@ class _CardGudangState extends State<CardGudang> {
         errorMessage = '';
       });
 
-      // Menggunakan method baru untuk ambil data hari ini
-      final results = await widget.inventoryLogRepo.getTodayInventoryLogs();
+      final results = await widget.inventoryLogRepo.getInventoryLogsByDateRange(
+        widget.dateRange.start,
+        widget.dateRange.end,
+      );
 
       setState(() {
         logs = results;
+        currentPage = 1;
         isLoading = false;
       });
     } catch (e) {

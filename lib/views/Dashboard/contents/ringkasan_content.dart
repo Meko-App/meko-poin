@@ -4,6 +4,7 @@ import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/date_range_filter.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_gudang.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_kertas_terjual.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_pelanggan.dart';
@@ -13,8 +14,26 @@ import 'package:meko_poin/views/Dashboard/components/card/card_plastik_terpakai.
 import 'package:meko_poin/views/Dashboard/components/card/card_produk.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_produk_terjual.dart';
 
-class RingkasanContent extends StatelessWidget {
+class RingkasanContent extends StatefulWidget {
   const RingkasanContent({super.key});
+
+  @override
+  State<RingkasanContent> createState() => _RingkasanContentState();
+}
+
+class _RingkasanContentState extends State<RingkasanContent> {
+  late DateTimeRange _selectedDateRange;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _selectedDateRange = DateTimeRange(
+      start: today.subtract(const Duration(days: 30)),
+      end: today,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +48,31 @@ class RingkasanContent extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                   color: Colors.white)),
           const SizedBox(height: 4),
-          Text("Data ringkasan berdasarkan hari ini",
+          Text("Data ringkasan berdasarkan rentang tanggal terpilih",
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
                   color: Color(0xFF9A9CAE))),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: DateRangeFilter(
+              key: const ValueKey('dashboard-summary-date-range-filter'),
+              initialStartDate: _selectedDateRange.start,
+              initialEndDate: _selectedDateRange.end,
+              width: 260,
+              onDateRangeSelected: (start, end) {
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                setState(() {
+                  _selectedDateRange = DateTimeRange(
+                    start: start ?? today.subtract(const Duration(days: 30)),
+                    end: end ?? today,
+                  );
+                });
+              },
+            ),
+          ),
           const SizedBox(height: 24),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -48,9 +87,12 @@ class RingkasanContent extends StatelessWidget {
                             child: CardPelanggan(
                           transactionRepo:
                               TransactionRepository(DatabaseHelper.instance),
+                          dateRange: _selectedDateRange,
                         )),
                         const SizedBox(width: 24),
-                        const Expanded(child: CardPenjualan()),
+                        Expanded(
+                            child:
+                                CardPenjualan(dateRange: _selectedDateRange)),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -61,12 +103,14 @@ class RingkasanContent extends StatelessWidget {
                             child: CardGudang(
                           inventoryLogRepo:
                               InventoryLogRepository(DatabaseHelper.instance),
+                          dateRange: _selectedDateRange,
                         )),
                         const SizedBox(width: 24),
                         Expanded(
                             child: CardProduk(
                           transactionRepo:
                               TransactionRepository(DatabaseHelper.instance),
+                          dateRange: _selectedDateRange,
                         )),
                       ],
                     ),
@@ -79,21 +123,24 @@ class RingkasanContent extends StatelessWidget {
                                 masterDataRepo: MasterDataRepository(
                                     DatabaseHelper.instance),
                                 transactionItemRepo: TransactionItemRepository(
-                                    DatabaseHelper.instance))),
+                                    DatabaseHelper.instance),
+                                dateRange: _selectedDateRange)),
                         const SizedBox(width: 24),
                         Expanded(
                             child: CardKertasTerjual(
                                 masterDataRepo: MasterDataRepository(
                                     DatabaseHelper.instance),
                                 transactionItemRepo: TransactionItemRepository(
-                                    DatabaseHelper.instance))),
+                                    DatabaseHelper.instance),
+                                dateRange: _selectedDateRange)),
                         const SizedBox(width: 24),
                         Expanded(
                             child: CardPlastikTerjual(
                                 masterDataRepo: MasterDataRepository(
                                     DatabaseHelper.instance),
                                 transactionItemRepo: TransactionItemRepository(
-                                    DatabaseHelper.instance))),
+                                    DatabaseHelper.instance),
+                                dateRange: _selectedDateRange)),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -116,37 +163,48 @@ class RingkasanContent extends StatelessWidget {
                     CardPelanggan(
                       transactionRepo:
                           TransactionRepository(DatabaseHelper.instance),
+                      dateRange: _selectedDateRange,
                     ),
                     const SizedBox(height: 16),
-                    const CardPenjualan(),
+                    CardPenjualan(dateRange: _selectedDateRange),
                     const SizedBox(height: 16),
                     CardGudang(
                       inventoryLogRepo:
                           InventoryLogRepository(DatabaseHelper.instance),
+                      dateRange: _selectedDateRange,
                     ),
                     const SizedBox(height: 16),
                     CardProduk(
                       transactionRepo:
                           TransactionRepository(DatabaseHelper.instance),
+                      dateRange: _selectedDateRange,
                     ),
                     const SizedBox(height: 16),
                     CardProdukTerjual(
                         masterDataRepo:
                             MasterDataRepository(DatabaseHelper.instance),
                         transactionItemRepo:
-                            TransactionItemRepository(DatabaseHelper.instance)),
+                            TransactionItemRepository(DatabaseHelper.instance),
+                        dateRange: _selectedDateRange),
                     const SizedBox(height: 16),
                     CardKertasTerjual(
                         masterDataRepo:
                             MasterDataRepository(DatabaseHelper.instance),
                         transactionItemRepo:
-                            TransactionItemRepository(DatabaseHelper.instance)),
+                            TransactionItemRepository(DatabaseHelper.instance),
+                        dateRange: _selectedDateRange),
                     const SizedBox(height: 16),
                     CardPlastikTerjual(
                         masterDataRepo:
                             MasterDataRepository(DatabaseHelper.instance),
                         transactionItemRepo:
-                            TransactionItemRepository(DatabaseHelper.instance)),
+                            TransactionItemRepository(DatabaseHelper.instance),
+                        dateRange: _selectedDateRange),
+                    const SizedBox(height: 16),
+                    CardPenjualanHarian(
+                      transactionRepository:
+                          TransactionRepository(DatabaseHelper.instance),
+                    ),
                   ],
                 );
               }

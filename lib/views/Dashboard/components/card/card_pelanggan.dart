@@ -16,8 +16,13 @@ extension StringCaseExtension on String {
 
 class CardPelanggan extends StatefulWidget {
   final TransactionRepository transactionRepo;
+  final DateTimeRange dateRange;
 
-  const CardPelanggan({super.key, required this.transactionRepo});
+  const CardPelanggan({
+    super.key,
+    required this.transactionRepo,
+    required this.dateRange,
+  });
 
   @override
   State<CardPelanggan> createState() => _CardPelangganState();
@@ -38,6 +43,15 @@ class _CardPelangganState extends State<CardPelanggan> {
     _loadTransactions();
   }
 
+  @override
+  void didUpdateWidget(covariant CardPelanggan oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange.start != widget.dateRange.start ||
+        oldWidget.dateRange.end != widget.dateRange.end) {
+      _loadTransactions();
+    }
+  }
+
   Future<void> _loadTransactions() async {
     try {
       setState(() {
@@ -45,12 +59,14 @@ class _CardPelangganState extends State<CardPelanggan> {
         errorMessage = '';
       });
 
-      // Menggunakan method baru untuk ambil data hari ini
-      final results =
-          await widget.transactionRepo.getTodayTransactionsWithCustomer();
+      final results = await widget.transactionRepo.getTransactionsByDateRange(
+        widget.dateRange.start,
+        widget.dateRange.end,
+      );
 
       setState(() {
         transactions = results;
+        currentPage = 1;
         isLoading = false;
       });
     } catch (e) {

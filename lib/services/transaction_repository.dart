@@ -186,6 +186,24 @@ class TransactionRepository {
     return result.map((map) => Transaction.fromMap(map)).toList();
   }
 
+  Future<List<Transaction>> getGraphTransactionsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+    SELECT * FROM Data_Transaction
+    WHERE created_at BETWEEN ? AND ?
+    ORDER BY created_at DESC
+  ''', [
+      startDate.toIso8601String(),
+      endDate.add(const Duration(days: 1)).toIso8601String(),
+    ]);
+
+    return result.map((map) => Transaction.fromMap(map)).toList();
+  }
+
   Future<List<Map<String, dynamic>>> getFavoriteProducts() async {
     final db = await dbHelper.database;
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -208,6 +226,37 @@ class TransactionRepository {
     ORDER BY total_qty DESC
     LIMIT 18
   ''', [today]);
+
+    return result;
+  }
+
+  Future<List<Map<String, dynamic>>> getFavoriteProductsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+    SELECT 
+      m.id,
+      m.name,
+      COALESCE(c.name, m.category) as category,
+      SUM(ti.qty) as total_qty,
+      SUM(ti.total_price) as total_sales
+    FROM Data_Transaction_Item ti
+    JOIN Data_Master m ON ti.master_data_id = m.id
+    LEFT JOIN Data_Category c ON m.category_id = c.id
+    JOIN Data_Transaction t ON ti.transaction_id = t.id
+    WHERE m.deleted_at IS NULL
+    AND t.created_at BETWEEN ? AND ?
+    AND LOWER(COALESCE(c.code, m.category)) IN ('product', 'background')
+    GROUP BY m.id, m.name, category
+    ORDER BY total_qty DESC
+    LIMIT 18
+  ''', [
+      startDate.toIso8601String(),
+      endDate.add(const Duration(days: 1)).toIso8601String(),
+    ]);
 
     return result;
   }
@@ -303,6 +352,65 @@ class TransactionRepository {
           totalSales: 0,
         );
       }
+    }).toList();
+  }
+
+  Future<List<DailyReport>> getDailyReportsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final db = await dbHelper.database;
+    final firstDay = DateTime(startDate.year, startDate.month, startDate.day);
+    final lastDay = DateTime(endDate.year, endDate.month, endDate.day);
+
+    final totalDays = lastDay.difference(firstDay).inDays + 1;
+    final allDates = List.generate(
+        totalDays, (index) => firstDay.add(Duration(days: index)));
+
+    final result = await db.rawQuery('''
+    SELECT 
+      date(t.created_at) as report_date,
+      COUNT(DISTINCT t.customer_id) as customer_count,
+      SUM(t.final_price) as total_revenue,
+      SUM(CASE WHEN t.payment_method = 'cash' THEN t.final_price ELSE 0 END) as total_cash,
+      SUM(CASE WHEN t.payment_method = 'qris' THEN t.final_price ELSE 0 END) as total_qris,
+      COUNT(t.id) as total_sales
+    FROM Data_Transaction t
+    WHERE t.created_at BETWEEN ? AND ?
+    GROUP BY date(t.created_at)
+    ORDER BY report_date DESC
+  ''', [
+      firstDay.toIso8601String(),
+      lastDay.add(const Duration(days: 1)).toIso8601String(),
+    ]);
+
+    final resultMap = {
+      for (var row in result) row['report_date'] as String: row,
+    };
+
+    return allDates.map((date) {
+      final dateString = date.toIso8601String().split('T')[0];
+      final rowData = resultMap[dateString];
+
+      if (rowData != null) {
+        return DailyReport(
+          date: date,
+          customerCount: rowData['customer_count'] as int? ?? 0,
+          totalRevenue: (rowData['total_revenue'] as num?)?.toDouble() ?? 0,
+          totalCash: (rowData['total_cash'] as num?)?.toDouble() ?? 0,
+          totalQris: (rowData['total_qris'] as num?)?.toDouble() ?? 0,
+          totalSales: (rowData['total_sales'] as num?)?.toDouble() ?? 0,
+        );
+      }
+
+      return DailyReport(
+        date: date,
+        customerCount: 0,
+        totalRevenue: 0,
+        totalCash: 0,
+        totalQris: 0,
+        totalSales: 0,
+      );
     }).toList();
   }
 

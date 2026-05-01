@@ -6,11 +6,13 @@ import 'package:meko_poin/utils/custom_colors.dart';
 class CardPlastikTerjual extends StatefulWidget {
   final MasterDataRepository masterDataRepo;
   final TransactionItemRepository transactionItemRepo;
+  final DateTimeRange dateRange;
 
   const CardPlastikTerjual(
       {super.key,
       required this.masterDataRepo,
-      required this.transactionItemRepo});
+      required this.transactionItemRepo,
+      required this.dateRange});
 
   @override
   State<CardPlastikTerjual> createState() => _CardPlastikTerjualState();
@@ -31,17 +33,21 @@ class _CardPlastikTerjualState extends State<CardPlastikTerjual> {
     _loadSummaryData();
   }
 
+  @override
+  void didUpdateWidget(covariant CardPlastikTerjual oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange.start != widget.dateRange.start ||
+        oldWidget.dateRange.end != widget.dateRange.end) {
+      _loadSummaryData();
+    }
+  }
+
   Future<void> _loadSummaryData() async {
     try {
       setState(() {
         isLoading = true;
         errorMessage = '';
       });
-
-      // Get current month and year
-      final now = DateTime.now();
-      final firstDayOfMonth = DateTime(now.year, now.month, 1);
-      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
 
       // Get master data with category 'Product' and 'Background'
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
@@ -52,7 +58,8 @@ class _CardPlastikTerjualState extends State<CardPlastikTerjual> {
 
       // Get transaction items for this month
       final transactionItems = await widget.transactionItemRepo
-          .getTransactionItemsByDateRange(firstDayOfMonth, lastDayOfMonth);
+          .getTransactionItemsByDateRange(
+              widget.dateRange.start, widget.dateRange.end);
 
       // Create summary data
       final List<Map<String, dynamic>> tempSummaryData = [];
@@ -75,6 +82,7 @@ class _CardPlastikTerjualState extends State<CardPlastikTerjual> {
 
       setState(() {
         summaryData = tempSummaryData;
+        currentPage = 1;
         isLoading = false;
       });
     } catch (e) {
@@ -168,7 +176,7 @@ class _CardPlastikTerjualState extends State<CardPlastikTerjual> {
         children: [
           const SizedBox(height: 16),
           const Text(
-            'Plastik Terpakai Bulan ini',
+            'Plastik Terpakai',
             style: TextStyle(
               fontSize: 16,
               height: 1.0,

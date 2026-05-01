@@ -58,6 +58,45 @@ class InventoryLogRepository {
         .toList();
   }
 
+  Future<List<LogInventoryWithMasterData>> getInventoryLogsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+    SELECT 
+      l.*,
+      m.name AS product_name
+    FROM Data_Inventory_Log l
+    LEFT JOIN Data_Inventory i ON l.inventory_id = i.id
+    LEFT JOIN Data_Master m ON i.master_data_id = m.id
+    WHERE l.created_at BETWEEN ? AND ?
+    ORDER BY l.created_at DESC
+  ''', [
+      startDate.toIso8601String(),
+      endDate.add(const Duration(days: 1)).toIso8601String(),
+    ]);
+
+    return result
+        .map((row) => LogInventoryWithMasterData(
+              inventoryLog: InventoryLog(
+                id: row['id'] as int,
+                userId: row['user_id'] as int,
+                inventoryId: row['inventory_id'] as int,
+                type: row['type'] as String,
+                initialStock: row['initial_stock'] as int,
+                currentStock: row['current_stock'] as int,
+                difference: row['difference'] as int,
+                notes: row['notes'] as String,
+                createdAt: DateTime.parse(row['created_at'] as String),
+                updatedAt: DateTime.parse(row['updated_at'] as String),
+              ),
+              productName: row['product_name'] as String,
+            ))
+        .toList();
+  }
+
   Future<void> printAllInventoryLogs() async {
     final db = await dbHelper.database;
     final List<Map<String, dynamic>> maps =

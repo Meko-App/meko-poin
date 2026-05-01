@@ -15,7 +15,9 @@ class SalesData {
 }
 
 class CardPenjualan extends StatefulWidget {
-  const CardPenjualan({super.key});
+  final DateTimeRange dateRange;
+
+  const CardPenjualan({super.key, required this.dateRange});
 
   @override
   State<CardPenjualan> createState() => _CardPenjualanState();
@@ -33,7 +35,10 @@ class _CardPenjualanState extends State<CardPenjualan> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Transaction>>(
-      future: transactionRepo.getGraphTodayTransaction(),
+      future: transactionRepo.getGraphTransactionsByDateRange(
+        widget.dateRange.start,
+        widget.dateRange.end,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -55,7 +60,7 @@ class _CardPenjualanState extends State<CardPenjualan> {
 
     for (final transaction in transactions) {
       final hour = DateFormat('HH').format(transaction.createdAt);
-      final formattedHour = '${hour}.00';
+      final formattedHour = '$hour.00';
 
       hourlySales.update(
         formattedHour,
@@ -68,13 +73,13 @@ class _CardPenjualanState extends State<CardPenjualan> {
     final List<SalesData> chartData = [];
     for (int i = 0; i < 24; i++) {
       final hour = i.toString().padLeft(2, '0');
-      final formattedHour = '${hour}.00';
+      final formattedHour = '$hour.00';
       final currentSales = hourlySales[formattedHour] ?? 0.0;
 
       double change = 0.0;
       if (i > 0) {
         final prevHour = (i - 1).toString().padLeft(2, '0');
-        final prevFormattedHour = '${prevHour}.00';
+        final prevFormattedHour = '$prevHour.00';
         final prevSales = hourlySales[prevFormattedHour] ?? 0.0;
 
         if (prevSales > 0) {
@@ -94,7 +99,7 @@ class _CardPenjualanState extends State<CardPenjualan> {
         border: Border.all(color: CustomColors.borderCardColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           )
@@ -105,7 +110,7 @@ class _CardPenjualanState extends State<CardPenjualan> {
         children: [
           const Center(
             child: Text(
-              'Penjualan Hari Ini',
+              'Penjualan',
               style: TextStyle(
                 fontSize: 16,
                 height: 1.0,
@@ -130,7 +135,7 @@ class _CardPenjualanState extends State<CardPenjualan> {
                       borderRadius: BorderRadius.circular(5),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),

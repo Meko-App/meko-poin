@@ -6,11 +6,13 @@ import 'package:meko_poin/utils/custom_colors.dart';
 class CardProdukTerjual extends StatefulWidget {
   final MasterDataRepository masterDataRepo;
   final TransactionItemRepository transactionItemRepo;
+  final DateTimeRange dateRange;
 
   const CardProdukTerjual(
       {super.key,
       required this.masterDataRepo,
-      required this.transactionItemRepo});
+      required this.transactionItemRepo,
+      required this.dateRange});
 
   @override
   State<CardProdukTerjual> createState() => _CardProdukTerjualState();
@@ -31,17 +33,21 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
     _loadSummaryData();
   }
 
+  @override
+  void didUpdateWidget(covariant CardProdukTerjual oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange.start != widget.dateRange.start ||
+        oldWidget.dateRange.end != widget.dateRange.end) {
+      _loadSummaryData();
+    }
+  }
+
   Future<void> _loadSummaryData() async {
     try {
       setState(() {
         isLoading = true;
         errorMessage = '';
       });
-
-      // Get current month and year
-      final now = DateTime.now();
-      final firstDayOfMonth = DateTime(now.year, now.month, 1);
-      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
 
       // Get master data with category 'Product' and 'Background'
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
@@ -57,7 +63,8 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
 
       // Get transaction items for this month
       final transactionItems = await widget.transactionItemRepo
-          .getTransactionItemsByDateRange(firstDayOfMonth, lastDayOfMonth);
+          .getTransactionItemsByDateRange(
+              widget.dateRange.start, widget.dateRange.end);
 
       // Create summary data
       final List<Map<String, dynamic>> tempSummaryData = [];
@@ -80,6 +87,7 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
 
       setState(() {
         summaryData = tempSummaryData;
+        currentPage = 1;
         isLoading = false;
       });
     } catch (e) {
@@ -173,7 +181,7 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
         children: [
           const SizedBox(height: 16),
           const Text(
-            'Produk Terjual Bulan ini',
+            'Produk Terjual',
             style: TextStyle(
               fontSize: 16,
               height: 1.0,
