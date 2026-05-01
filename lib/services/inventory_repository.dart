@@ -257,6 +257,69 @@ class InventoryRepository {
     return rowsAffected;
   }
 
+  Future<int> addStock(
+    Inventory inventory,
+    int addAmount, {
+    String? note,
+  }) async {
+    if (addAmount <= 0) {
+      throw ArgumentError('Jumlah stok harus lebih dari 0');
+    }
+
+    final db = await dbHelper.database;
+
+    final oldInventoryMap = await db.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventory.id],
+      limit: 1,
+    );
+
+    if (oldInventoryMap.isEmpty) {
+      return 0;
+    }
+
+    final oldStock = oldInventoryMap.first['stock'] as int;
+    final oldRejectStock = oldInventoryMap.first['stock_reject'] as int;
+
+    final updatedInventory = inventory.copyWith(
+      stock: oldStock + addAmount,
+      stockReject: oldRejectStock,
+      updatedAt: DateTime.now(),
+    );
+
+    final data = updatedInventory.toMap()
+      ..remove('created_at')
+      ..['updated_at'] = DateTime.now().toIso8601String();
+
+    final rowsAffected = await db.update(
+      'Data_Inventory',
+      data,
+      where: 'id = ?',
+      whereArgs: [inventory.id],
+    );
+
+    if (rowsAffected > 0) {
+      final log = InventoryLog(
+        id: null,
+        inventoryId: inventory.id!,
+        userId: inventory.userId,
+        type: 'increment',
+        initialStock: oldStock,
+        currentStock: oldStock + addAmount,
+        notes: (note != null && note.trim().isNotEmpty)
+            ? note.trim()
+            : 'Penambahan stok sebesar $addAmount',
+        difference: addAmount,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await _inventoryLogRepository.insertInventoryLog(log);
+    }
+
+    return rowsAffected;
+  }
+
   Future<int> deleteInventory(int id) async {
     final db = await dbHelper.database;
     return await db.delete(
