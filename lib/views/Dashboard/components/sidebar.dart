@@ -7,11 +7,13 @@ import 'package:meko_poin/utils/custom_colors.dart';
 class Sidebar extends StatefulWidget {
   final Function(String) onMenuSelected;
   final String? activeMenu;
+  final bool showSidebar;
 
   const Sidebar({
     super.key,
     required this.onMenuSelected,
     this.activeMenu = "Ringkasan",
+    this.showSidebar = true,
   });
 
   @override
@@ -48,60 +50,63 @@ class _SidebarState extends State<Sidebar> {
     }
 
     return Container(
-      width: 280,
-      height: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 25),
-      decoration: BoxDecoration(
-        color: CustomColors.background,
-        border: Border(
-          right: BorderSide(color: CustomColors.borderCardColor, width: 1.0),
+        width: 280,
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 25),
+        decoration: BoxDecoration(
+          color: CustomColors.background,
+          border: Border(
+            right: BorderSide(color: CustomColors.borderCardColor, width: 1.0),
+          ),
         ),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // LOGO
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              child: Row(
-                children: [
-                  Image.asset(
-                    'assets/logo-photorism.png',
-                    width: 204,
-                    height: 37.36,
+        child: Visibility(
+          visible: widget.showSidebar,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // LOGO
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    children: [
+                      Image.asset(
+                        'assets/logo-photorism.png',
+                        width: 204,
+                        height: 37.36,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 25),
+
+                if (_userRole == '1')
+                  _buildAccordionMenu("Dashboards", Icons.dashboard_outlined,
+                      ["Ringkasan", "Pelanggan"]),
+
+                if (_userRole == '1')
+                  _buildAccordionMenu("Managements", Icons.layers_outlined, [
+                    "Master Data",
+                    "Category",
+                    "Inventori",
+                    "Transaksi",
+                    "Pengguna",
+                    "Kas Tunai"
+                  ])
+                else
+                  _buildAccordionMenu("Managements", Icons.layers_outlined,
+                      ["Tambah Transaksi", "Transaksi", "Kas Tunai"]),
+
+                if (_userRole == '1')
+                  _buildAccordionMenu("Settings", Icons.settings_outlined,
+                      ["Database", "Logout"])
+                else
+                  _buildAccordionMenu(
+                      "Settings", Icons.settings_outlined, ["Logout"]),
+              ],
             ),
-            const SizedBox(height: 25),
-
-            if (_userRole == '1')
-              _buildAccordionMenu("Dashboards", Icons.dashboard_outlined,
-                  ["Ringkasan", "Pelanggan"]),
-
-            if (_userRole == '1')
-              _buildAccordionMenu("Managements", Icons.layers_outlined, [
-                "Master Data",
-                "Inventori",
-                "Transaksi",
-                "Pengguna",
-                "Kas Tunai"
-              ])
-            else
-              _buildAccordionMenu("Managements", Icons.layers_outlined,
-                  ["Tambah Transaksi", "Transaksi", "Kas Tunai"]),
-
-            if (_userRole == '1')
-              _buildAccordionMenu(
-                  "Settings", Icons.settings_outlined, ["Database", "Logout"])
-            else
-              _buildAccordionMenu(
-                  "Settings", Icons.settings_outlined, ["Logout"]),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   Widget _buildAccordionMenu(

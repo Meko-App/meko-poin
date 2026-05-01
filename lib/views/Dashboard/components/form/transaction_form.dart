@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/customer.dart';
 import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/models/transaction_item.dart';
+import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
@@ -56,12 +58,15 @@ class _TransactionFormState extends State<TransactionForm> {
       MasterDataRepository(DatabaseHelper.instance);
   final TransactionItemRepository _transactionItemRepo =
       TransactionItemRepository(DatabaseHelper.instance);
+  final BundleRepository _bundleRepository =
+      BundleRepository(DatabaseHelper.instance);
 
   TransactionItem? _selectedCartItem;
   List<TransactionItem> _cartItems = [];
   List<MasterData> _masterDataItems = [];
   List<MasterData> _backgroundDataItems = [];
   List<MasterData> _filteredMasterDataItems = [];
+  Map<int, List<Map<String, dynamic>>> _bundleDetailByBundleId = {};
 
   int _totalPrice = 0;
   int _finalPrice = 0;
@@ -97,6 +102,72 @@ class _TransactionFormState extends State<TransactionForm> {
     _discountPercentController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  bool _isCategoryCode(MasterData data, String code) {
+    return (data.categoryCode ?? '').toLowerCase() == code.toLowerCase() ||
+        data.category.toLowerCase() == code.toLowerCase();
+  }
+
+  String? _selectedCategoryCode() {
+    if (_selectedOrderCategory == null) {
+      return null;
+    }
+
+    for (final item in _masterDataItems) {
+      if (item.category == _selectedOrderCategory) {
+        return (item.categoryCode ?? '').toLowerCase();
+      }
+    }
+
+    return null;
+  }
+
+  bool _selectedBundleHasPaperComponent() {
+    if (_selectedOrderItem == null) return false;
+    final selectedMd = _filteredMasterDataItems.cast<MasterData?>().firstWhere(
+          (item) => item?.name == _selectedOrderItem,
+          orElse: () => null,
+        );
+    if (selectedMd?.id == null) return false;
+    final details = _bundleDetailByBundleId[selectedMd!.id] ?? [];
+    return details.any((d) =>
+        (d['component_type'] as String?)?.toLowerCase() == 'paper' ||
+        (d['component_type'] as String?)?.toLowerCase() == 'print');
+  }
+
+  Future<void> _ensureBundleDetailsLoadedForSelectedItem(
+      String? itemName) async {
+    if (itemName == null) {
+      return;
+    }
+
+    MasterData? selectedMd;
+    for (final item in _filteredMasterDataItems) {
+      if (item.name == itemName) {
+        selectedMd = item;
+        break;
+      }
+    }
+
+    if (selectedMd == null || !selectedMd.isBundle || selectedMd.id == null) {
+      return;
+    }
+
+    if ((_bundleDetailByBundleId[selectedMd.id!] ?? []).isNotEmpty) {
+      return;
+    }
+
+    final bundleItems =
+        await _bundleRepository.getBundleItemsWithMasterData(selectedMd.id!);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _bundleDetailByBundleId[selectedMd!.id!] = bundleItems;
+    });
   }
 
   Future<void> _processTransaction(Map<String, dynamic> transactionData) async {
@@ -267,59 +338,125 @@ class _TransactionFormState extends State<TransactionForm> {
     for (final item in items) {
       final masterDataId = item['master_data_id'] as int;
       final qty = item['qty'] as int;
+      final bundleSnapshot = item['bundle_snapshot'] as String?;
 
       // Dapatkan data master untuk mengetahui kategorinya
       final masterData = await _masterDataRepo.getMasterDataById(masterDataId);
 
       if (masterData == null) continue;
 
-      // Skip stock reduction hanya untuk Paper items dengan "gunakan sisa kertas"
-      // Packaging TETAP harus berkurang stoknya meskipun checkbox dicentang
-      if (masterData.category == "Paper" && _useRemainingPaper) {
+      // Untuk bundle, stok dikurangi berdasarkan komponen bundle.
+      if (masterData.isBundle) {
+        var bundleComponents = <Map<String, dynamic>>[];
+
+        if (bundleSnapshot != null && bundleSnapshot.isNotEmpty) {
+          bundleComponents = _parseBundleSnapshot(bundleSnapshot);
+        }
+
+        if (bundleComponents.isEmpty && masterData.id != null) {
+          bundleComponents = await _bundleRepository
+              .getBundleItemsWithMasterData(masterData.id!);
+        }
+
+        for (final component in bundleComponents) {
+          final componentMasterDataId =
+              component['component_master_data_id'] as int?;
+          if (componentMasterDataId == null) {
+            continue;
+          }
+
+          final componentMasterData =
+              await _masterDataRepo.getMasterDataById(componentMasterDataId);
+          if (componentMasterData == null || !componentMasterData.isCountable) {
+            continue;
+          }
+
+          // Jika pakai sisa kertas, komponen paper tidak dikurangi.
+          if (_isCategoryCode(componentMasterData, 'paper') &&
+              _useRemainingPaper) {
+            continue;
+          }
+
+          final componentQty = (component['qty'] as int? ?? 1) * qty;
+
+          await _decrementInventoryAndLog(
+            db: db,
+            userId: userId,
+            masterDataId: componentMasterDataId,
+            qty: componentQty,
+            notes:
+                'Transaksi bundle ${masterData.name} dengan pengurangan sebesar $componentQty',
+          );
+        }
+
         continue;
       }
 
-      // Dapatkan data inventory
-      final inventory = await db.query(
-        'Data_Inventory',
-        where: 'master_data_id = ?',
-        whereArgs: [masterDataId],
-        limit: 1,
-      );
-
-      if (inventory.isNotEmpty) {
-        final initialStock = inventory.first['stock'] as int;
-        final currentStock = initialStock - qty;
-
-        // Update stok inventory
-        await db.update(
-          'Data_Inventory',
-          {
-            'stock': currentStock,
-            'updated_at': DateTime.now().toIso8601String(),
-          },
-          where: 'master_data_id = ?',
-          whereArgs: [masterDataId],
-        );
-
-        // Buat log inventory
-        final now = DateTime.now();
-        final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
-
-        await db.insert('Data_Inventory_Log', {
-          'inventory_id': inventory.first['id'],
-          'user_id': userId,
-          'type': 'decrement',
-          'initial_stock': initialStock,
-          'current_stock': currentStock,
-          'difference': qty,
-          'notes':
-              'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
-          'created_at': now.toIso8601String(),
-          'updated_at': now.toIso8601String(),
-        });
+      // Lewati update stok untuk kategori yang tidak countable.
+      if (!masterData.isCountable) {
+        continue;
       }
+
+      // Skip stock reduction untuk Paper jika "gunakan sisa kertas" aktif.
+      if (_isCategoryCode(masterData, 'paper') && _useRemainingPaper) {
+        continue;
+      }
+
+      await _decrementInventoryAndLog(
+        db: db,
+        userId: userId,
+        masterDataId: masterDataId,
+        qty: qty,
+      );
     }
+  }
+
+  Future<void> _decrementInventoryAndLog({
+    required dynamic db,
+    required int userId,
+    required int masterDataId,
+    required int qty,
+    String? notes,
+  }) async {
+    final inventory = await db.query(
+      'Data_Inventory',
+      where: 'master_data_id = ?',
+      whereArgs: [masterDataId],
+      limit: 1,
+    );
+
+    if (inventory.isEmpty) {
+      return;
+    }
+
+    final initialStock = inventory.first['stock'] as int;
+    final currentStock = initialStock - qty;
+
+    await db.update(
+      'Data_Inventory',
+      {
+        'stock': currentStock,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'master_data_id = ?',
+      whereArgs: [masterDataId],
+    );
+
+    final now = DateTime.now();
+    final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
+
+    await db.insert('Data_Inventory_Log', {
+      'inventory_id': inventory.first['id'],
+      'user_id': userId,
+      'type': 'decrement',
+      'initial_stock': initialStock,
+      'current_stock': currentStock,
+      'difference': qty,
+      'notes': notes ??
+          'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
+      'created_at': now.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    });
   }
 
   Future<Map<String, int>> _getDailyTransactionCount() async {
@@ -409,12 +546,84 @@ class _TransactionFormState extends State<TransactionForm> {
 
   Future<void> _loadCartItems() async {
     final items = await _transactionItemRepo.getAllCartItems();
+    final bundleDetails = await _loadBundleDetails(items);
+
     if (mounted) {
       setState(() {
         _cartItems = items;
+        _bundleDetailByBundleId = bundleDetails;
       });
       _calculateTotalPrice();
     }
+  }
+
+  Future<Map<int, List<Map<String, dynamic>>>> _loadBundleDetails(
+      List<TransactionItem> items) async {
+    final details = <int, List<Map<String, dynamic>>>{};
+
+    for (final item in items) {
+      if (item.bundleId != null && item.bundleSnapshot != null) {
+        final parsed = _parseBundleSnapshot(item.bundleSnapshot!);
+        if (parsed.isNotEmpty) {
+          details[item.bundleId!] = parsed;
+          continue;
+        }
+      }
+
+      final master = await _masterDataRepo.getMasterDataById(item.masterDataId);
+      if (master == null || !master.isBundle || master.id == null) {
+        continue;
+      }
+
+      final bundleItems =
+          await _bundleRepository.getBundleItemsWithMasterData(master.id!);
+      details[master.id!] = bundleItems;
+    }
+
+    return details;
+  }
+
+  List<Map<String, dynamic>> _parseBundleSnapshot(String snapshot) {
+    try {
+      final decoded = jsonDecode(snapshot);
+      if (decoded is! List) {
+        return [];
+      }
+
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => item.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<String?> _buildBundleSnapshot(MasterData selectedMasterData) async {
+    if (!selectedMasterData.isBundle || selectedMasterData.id == null) {
+      return null;
+    }
+
+    final bundleItems = await _bundleRepository
+        .getBundleItemsWithMasterData(selectedMasterData.id!);
+
+    final snapshot = bundleItems
+        .map(
+          (item) => {
+            'component_master_data_id': item['component_master_data_id'],
+            'component_type': item['component_type'],
+            'component_name': item['component_name'],
+            'qty': item['qty'],
+            'component_price': item['component_price'],
+          },
+        )
+        .toList();
+
+    return jsonEncode(snapshot);
   }
 
   void _filterMasterDataItems(String? category) {
@@ -478,8 +687,11 @@ class _TransactionFormState extends State<TransactionForm> {
         orElse: () => throw Exception('Item tidak ditemukan'),
       );
 
+      final isPaper = _isCategoryCode(selectedMasterData, 'paper');
+      final isProduct = _isCategoryCode(selectedMasterData, 'product');
+
       // 2. Validasi khusus untuk Paper: harus memiliki packaging
-      if (selectedMasterData.category == "Paper") {
+      if (isPaper) {
         if (selectedMasterData.packagingId == 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -490,10 +702,8 @@ class _TransactionFormState extends State<TransactionForm> {
         }
       }
 
-      // 3. Lakukan pengecekan stok untuk item utama
-      const stockCheckedCategories = ["Paper", "Packaging"];
-      final needStockCheck =
-          stockCheckedCategories.contains(selectedMasterData.category);
+      // 3. Lakukan pengecekan stok berdasarkan flag is_countable.
+      final needStockCheck = selectedMasterData.isCountable;
 
       int? availableStock;
       if (needStockCheck) {
@@ -519,7 +729,7 @@ class _TransactionFormState extends State<TransactionForm> {
       }
 
       // 4. Jika kategori Paper, lakukan pengecekan stok packaging terlebih dahulu
-      if (_selectedOrderCategory == "Paper") {
+      if (isPaper) {
         final packagingStockValid =
             await _checkPackagingStock(selectedMasterData, qty);
         if (!packagingStockValid) {
@@ -531,12 +741,12 @@ class _TransactionFormState extends State<TransactionForm> {
       await _addItemToCart(_selectedOrderItem!, qty, isNewItem);
 
       // 6. Jika kategori Product, tambahkan background juga
-      if (_selectedOrderCategory == "Product" && _selectedBackground != null) {
+      if (isProduct && _selectedBackground != null) {
         await _addItemToCart(_selectedBackground!, qty, isNewItem);
       }
 
       // 7. Jika kategori Paper, tambahkan packaging secara otomatis
-      if (_selectedOrderCategory == "Paper") {
+      if (isPaper) {
         await _addPackagingForPaper(_selectedOrderItem!, qty, isNewItem);
       }
 
@@ -572,7 +782,12 @@ class _TransactionFormState extends State<TransactionForm> {
       final packagingData =
           await _masterDataRepo.getMasterDataById(paperData.packagingId);
 
-      if (packagingData != null && packagingData.category == "Packaging") {
+      if (packagingData != null &&
+          _isCategoryCode(packagingData, 'packaging')) {
+        if (!packagingData.isCountable) {
+          return true;
+        }
+
         // Cek stok packaging
         final packagingStock =
             await _masterDataRepo.getStockByMasterDataId(packagingData.id!);
@@ -618,7 +833,7 @@ class _TransactionFormState extends State<TransactionForm> {
     try {
       // Cari data paper yang dipilih
       final selectedPaper = _backgroundDataItems.firstWhere(
-        (item) => item.name == paperName && item.category == "Paper",
+        (item) => item.name == paperName && _isCategoryCode(item, 'paper'),
         orElse: () => throw Exception('Paper $paperName tidak ditemukan'),
       );
 
@@ -628,7 +843,8 @@ class _TransactionFormState extends State<TransactionForm> {
         final packagingData =
             await _masterDataRepo.getMasterDataById(selectedPaper.packagingId);
 
-        if (packagingData != null && packagingData.category == "Packaging") {
+        if (packagingData != null &&
+            _isCategoryCode(packagingData, 'packaging')) {
           // Cek apakah packaging sudah ada di keranjang
           final existingPackagingItem = await _transactionItemRepo
               .findExistingCartItem(packagingData.id!);
@@ -686,6 +902,9 @@ class _TransactionFormState extends State<TransactionForm> {
 
       final existingItem = await _transactionItemRepo
           .findExistingCartItem(selectedMasterData.id!);
+      final bundleSnapshot = await _buildBundleSnapshot(selectedMasterData);
+      final bundleId =
+          selectedMasterData.isBundle ? selectedMasterData.id : null;
 
       if (existingItem != null) {
         final int totalQty;
@@ -701,6 +920,8 @@ class _TransactionFormState extends State<TransactionForm> {
         final updatedItem = TransactionItem(
           id: existingItem.id,
           masterDataId: existingItem.masterDataId,
+          bundleId: bundleId,
+          bundleSnapshot: bundleSnapshot,
           qty: totalQty,
           totalPrice: totalPrice,
           createdAt: existingItem.createdAt,
@@ -713,6 +934,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
         final newItem = TransactionItem(
           masterDataId: selectedMasterData.id!,
+          bundleId: bundleId,
+          bundleSnapshot: bundleSnapshot,
           qty: qty,
           totalPrice: totalPrice,
           createdAt: DateTime.now(),
@@ -738,6 +961,8 @@ class _TransactionFormState extends State<TransactionForm> {
       _selectedOrderItem = masterData?.name;
       _orderQuantityController.text = item.qty.toString();
     });
+
+    await _ensureBundleDetailsLoadedForSelectedItem(masterData?.name);
   }
 
   Future<void> _deleteCartItem(int id) async {
@@ -1118,6 +1343,9 @@ class _TransactionFormState extends State<TransactionForm> {
         'qty': item.qty,
         'price': masterData.price,
         'total_price': item.totalPrice,
+        'bundle_components': item.bundleSnapshot != null
+            ? _parseBundleSnapshot(item.bundleSnapshot!)
+            : [],
       };
     }).toList();
 
@@ -1655,6 +1883,7 @@ class _TransactionFormState extends State<TransactionForm> {
         setState(() {
           _selectedOrderCategory = value;
           _filterMasterDataItems(value);
+          _useRemainingPaper = false;
           _selectedOrderItem = null;
         });
       },
@@ -1717,10 +1946,13 @@ class _TransactionFormState extends State<TransactionForm> {
             }).toList(),
       onChanged: _filteredMasterDataItems.isEmpty
           ? null
-          : (value) {
+          : (value) async {
               setState(() {
                 _selectedOrderItem = value;
+                _useRemainingPaper = false;
               });
+
+              await _ensureBundleDetailsLoadedForSelectedItem(value);
             },
       decoration: InputDecoration(
         contentPadding:
@@ -1959,13 +2191,13 @@ class _TransactionFormState extends State<TransactionForm> {
         ),
 
         // Tampilkan info packaging jika paper dipilih dan memiliki packaging
-        if (_selectedOrderCategory == "Paper" && _selectedOrderItem != null)
+        if (_selectedCategoryCode() == 'paper' && _selectedOrderItem != null)
           FutureBuilder<MasterData?>(
             future: () async {
               try {
                 final paper = _backgroundDataItems.firstWhere((item) =>
                     item.name == _selectedOrderItem &&
-                    item.category == "Paper");
+                    _isCategoryCode(item, 'paper'));
 
                 if (paper.packagingId > 0) {
                   return await _masterDataRepo
@@ -2006,7 +2238,9 @@ class _TransactionFormState extends State<TransactionForm> {
         //       ),
         //     ),
         //   ),
-        if (_selectedOrderCategory == "Paper") ...[
+        if (_selectedCategoryCode() == 'paper' ||
+            (_selectedCategoryCode() == 'bundle' &&
+                _selectedBundleHasPaperComponent())) ...[
           const SizedBox(height: 8),
           Row(
             children: [
@@ -2032,7 +2266,7 @@ class _TransactionFormState extends State<TransactionForm> {
           ),
         ],
         // Add background selection for Product category
-        if (_selectedOrderCategory == "Product") ...[
+        if (_selectedCategoryCode() == 'product') ...[
           const SizedBox(height: 15),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2063,7 +2297,7 @@ class _TransactionFormState extends State<TransactionForm> {
   Widget _buildBackgroundRadioButtons() {
     // Filter master data to get only background items
     final backgroundItems = _backgroundDataItems
-        .where((item) => item.category == "Background")
+        .where((item) => _isCategoryCode(item, 'background'))
         .toList();
 
     // Jika tidak ada data background
@@ -2252,27 +2486,34 @@ class _TransactionFormState extends State<TransactionForm> {
                             bottom: BorderSide(
                                 color: CustomColors.borderCardColor)),
                       ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            _buildTableCell(masterData.category, 2),
-                            VerticalDivider(
-                                thickness: 1,
-                                width: 1,
-                                color: CustomColors.borderCardColor),
-                            _buildTableCell(masterData.name, 3),
-                            VerticalDivider(
-                                thickness: 1,
-                                width: 1,
-                                color: CustomColors.borderCardColor),
-                            _buildTableCell(item.qty.toString(), 1),
-                            VerticalDivider(
-                                thickness: 1,
-                                width: 1,
-                                color: CustomColors.borderCardColor),
-                            _buildTableCell(_formatPrice(item.totalPrice), 2),
-                          ],
-                        ),
+                      child: Column(
+                        children: [
+                          IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                _buildTableCell(masterData.category, 2),
+                                VerticalDivider(
+                                    thickness: 1,
+                                    width: 1,
+                                    color: CustomColors.borderCardColor),
+                                _buildTableCell(masterData.name, 3),
+                                VerticalDivider(
+                                    thickness: 1,
+                                    width: 1,
+                                    color: CustomColors.borderCardColor),
+                                _buildTableCell(item.qty.toString(), 1),
+                                VerticalDivider(
+                                    thickness: 1,
+                                    width: 1,
+                                    color: CustomColors.borderCardColor),
+                                _buildTableCell(
+                                    _formatPrice(item.totalPrice), 2),
+                              ],
+                            ),
+                          ),
+                          if (masterData.isBundle && masterData.id != null)
+                            _buildBundleDetailCell(masterData.id!, item.qty),
+                        ],
                       ),
                     ),
                   ));
@@ -2324,6 +2565,45 @@ class _TransactionFormState extends State<TransactionForm> {
             fontFamily: 'Inter',
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBundleDetailCell(int bundleId, int bundleQty) {
+    final details = _bundleDetailByBundleId[bundleId] ?? [];
+    if (details.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Komponen Bundle:',
+            style: TextStyle(
+              fontSize: 12,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...details.map((detail) {
+            final type = (detail['component_type'] ?? '-') as String;
+            final name = (detail['component_name'] ?? '-') as String;
+            final qty = (detail['qty'] as int? ?? 1) * bundleQty;
+            return Text(
+              '- ${type[0].toUpperCase()}${type.substring(1)}: $name x$qty',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+                fontFamily: 'Inter',
+              ),
+            );
+          }),
+        ],
       ),
     );
   }

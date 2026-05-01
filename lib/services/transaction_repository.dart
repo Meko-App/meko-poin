@@ -194,16 +194,17 @@ class TransactionRepository {
     SELECT 
       m.id,
       m.name,
-      m.category,
+      COALESCE(c.name, m.category) as category,
       SUM(ti.qty) as total_qty,
       SUM(ti.total_price) as total_sales
     FROM Data_Transaction_Item ti
     JOIN Data_Master m ON ti.master_data_id = m.id
+    LEFT JOIN Data_Category c ON m.category_id = c.id
     JOIN Data_Transaction t ON ti.transaction_id = t.id
     WHERE m.deleted_at IS NULL
     AND date(t.created_at) = ?
-    AND m.category IN ('Product', 'Background')
-    GROUP BY m.id, m.name, m.category
+    AND LOWER(COALESCE(c.code, m.category)) IN ('product', 'background')
+    GROUP BY m.id, m.name, category
     ORDER BY total_qty DESC
     LIMIT 18
   ''', [today]);

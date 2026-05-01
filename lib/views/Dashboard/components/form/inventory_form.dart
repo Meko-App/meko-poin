@@ -94,7 +94,10 @@ class _InventoryFormState extends State<InventoryForm> {
 
       int stock = int.tryParse(_stockController.text) ?? 0;
 
-      if (masterData?.category.toLowerCase() == 'paper') {
+      final isPaper =
+          (masterData?.categoryCode ?? '').toLowerCase() == 'paper' ||
+              masterData?.category.toLowerCase() == 'paper';
+      if (isPaper) {
         stock = stock * 20;
       }
 

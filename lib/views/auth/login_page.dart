@@ -183,6 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         validator: Validators.validateEmail,
                         keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 20.0),
                       Text(
@@ -250,6 +251,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         validator: Validators.validatePassword,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _login(),
                       ),
                       const SizedBox(height: 30.0),
                       SizedBox(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
@@ -219,6 +220,26 @@ class _TransactionDetailState extends State<TransactionDetail> {
     return formatter.format(price);
   }
 
+  List<Map<String, dynamic>> _parseBundleSnapshot(String snapshot) {
+    try {
+      final decoded = jsonDecode(snapshot);
+      if (decoded is! List) {
+        return [];
+      }
+
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => item.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   void _showPrintOptions(
       BuildContext context,
       TransactionWithCustomerUser transactionData,
@@ -259,6 +280,9 @@ class _TransactionDetailState extends State<TransactionDetail> {
           'qty': item.qty,
           'price': masterData['price'],
           'total_price': item.totalPrice,
+          'bundle_components': item.bundleSnapshot != null
+              ? _parseBundleSnapshot(item.bundleSnapshot!)
+              : [],
         };
       }).toList(),
     };
@@ -974,33 +998,81 @@ class _TransactionDetailState extends State<TransactionDetail> {
                               border: Border(
                                   bottom: BorderSide(
                                       color: CustomColors.borderCardColor))),
-                          child: IntrinsicHeight(
-                            child: Row(
-                              children: [
-                                _buildTableCell(itemDetails['category'], 2),
-                                VerticalDivider(
-                                    thickness: 1,
-                                    width: 1,
-                                    color: CustomColors.borderCardColor),
-                                _buildTableCell(itemDetails['name'], 3),
-                                VerticalDivider(
-                                    thickness: 1,
-                                    width: 1,
-                                    color: CustomColors.borderCardColor),
-                                _buildTableCell(item.qty.toString(), 1),
-                                VerticalDivider(
-                                    thickness: 1,
-                                    width: 1,
-                                    color: CustomColors.borderCardColor),
-                                _buildTableCell(
-                                    'Rp ${NumberFormat('#,###').format(itemDetails['price'])}',
-                                    2),
-                              ],
+                          child: Column(
+                            children: [
+                              IntrinsicHeight(
+                                child: Row(
+                                  children: [
+                                    _buildTableCell(itemDetails['category'], 2),
+                                    VerticalDivider(
+                                        thickness: 1,
+                                        width: 1,
+                                        color: CustomColors.borderCardColor),
+                                    _buildTableCell(itemDetails['name'], 3),
+                                    VerticalDivider(
+                                        thickness: 1,
+                                        width: 1,
+                                        color: CustomColors.borderCardColor),
+                                    _buildTableCell(item.qty.toString(), 1),
+                                    VerticalDivider(
+                                        thickness: 1,
+                                        width: 1,
+                                        color: CustomColors.borderCardColor),
+                                    _buildTableCell(
+                                        'Rp ${NumberFormat('#,###').format(itemDetails['price'])}',
+                                        2),
+                                  ],
+                                ),
                             ),
+                              if (item.bundleSnapshot != null)
+                                _buildBundleSnapshotDetail(
+                                  item.bundleSnapshot!,
+                                  item.qty,
+                                ),
+                            ],
                           ),
                         );
                       },
                     )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBundleSnapshotDetail(String snapshot, int bundleQty) {
+    final details = _parseBundleSnapshot(snapshot);
+    if (details.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Komponen Bundle:',
+            style: TextStyle(
+              fontSize: 12,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...details.map((detail) {
+            final type = (detail['component_type'] ?? '-') as String;
+            final name = (detail['component_name'] ?? '-') as String;
+            final qty = (detail['qty'] as int? ?? 1) * bundleQty;
+            return Text(
+              '- ${type[0].toUpperCase()}${type.substring(1)}: $name x$qty',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+                fontFamily: 'Inter',
+              ),
+            );
+          }),
         ],
       ),
     );
