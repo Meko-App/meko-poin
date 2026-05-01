@@ -33,12 +33,13 @@ class TransactionForm extends StatefulWidget {
 class _TransactionFormState extends State<TransactionForm> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  bool _isNameEnabled = false;
   List<Customer> _searchResults = [];
   OverlayEntry? _overlayEntry;
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _nameFocusNode = FocusNode();
   final GlobalKey _phoneFieldKey = GlobalKey();
+  final GlobalKey _nameFieldKey = GlobalKey();
+  String _overlaySource = 'phone';
 
   final TextEditingController _orderQuantityController =
       TextEditingController();
@@ -81,6 +82,7 @@ class _TransactionFormState extends State<TransactionForm> {
     _loadCartItems();
     _clearCartItem();
     _phoneController.addListener(_onPhoneChanged);
+    _nameController.addListener(_onNameChanged);
     _phoneFocusNode.addListener(_onPhoneFocusChanged);
     _nameFocusNode.addListener(_onNameFocusChanged);
     _selectedBackground = null;
@@ -89,6 +91,7 @@ class _TransactionFormState extends State<TransactionForm> {
   @override
   void dispose() {
     _phoneController.removeListener(_onPhoneChanged);
+    _nameController.removeListener(_onNameChanged);
     _phoneFocusNode.removeListener(_onPhoneFocusChanged);
     _nameFocusNode.removeListener(_onNameFocusChanged);
     _phoneController.dispose();
@@ -1014,30 +1017,46 @@ class _TransactionFormState extends State<TransactionForm> {
           .searchCustomers(text);
       setState(() {
         _searchResults = results;
+        _overlaySource = 'phone';
       });
       if (_phoneFocusNode.hasFocus) {
         _showOverlay();
       }
     } else {
       _removeOverlay();
-      if (_nameController.text.isNotEmpty) {
-        _nameController.clear();
-      }
+    }
+  }
+
+  Future<void> _onNameChanged() async {
+    final text = _nameController.text;
+
+    if (text.length >= 3) {
+      final results = await CustomerRepository(DatabaseHelper.instance)
+          .searchCustomers(text);
       setState(() {
-        _isNameEnabled = false;
+        _searchResults = results;
+        _overlaySource = 'name';
       });
+      if (_nameFocusNode.hasFocus) {
+        _showOverlay();
+      }
+    } else {
+      _removeOverlay();
     }
   }
 
   void _showOverlay() {
     _removeOverlay();
 
+    final activeKey = _overlaySource == 'name' ? _nameFieldKey : _phoneFieldKey;
     final renderBox =
-        _phoneFieldKey.currentContext?.findRenderObject() as RenderBox?;
+        activeKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
+    final searchText =
+        _overlaySource == 'name' ? _nameController.text : _phoneController.text;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Stack(
@@ -1047,6 +1066,7 @@ class _TransactionFormState extends State<TransactionForm> {
               onTap: () {
                 _removeOverlay();
                 _phoneFocusNode.unfocus();
+                _nameFocusNode.unfocus();
               },
               behavior: HitTestBehavior.translucent,
             ),
@@ -1086,7 +1106,7 @@ class _TransactionFormState extends State<TransactionForm> {
                       if (_searchResults.isEmpty)
                         _buildDropdownItem(
                           title: 'Tambahkan pelanggan baru',
-                          subtitle: _phoneController.text,
+                          subtitle: searchText,
                           onTap: _selectAddNewOption,
                         )
                       else
@@ -1169,21 +1189,21 @@ class _TransactionFormState extends State<TransactionForm> {
     setState(() {
       _phoneController.text = customer.phone;
       _nameController.text = customer.name;
-      _isNameEnabled = false;
     });
     _phoneFocusNode.unfocus();
+    _nameFocusNode.unfocus();
     _removeOverlay();
   }
 
   void _selectAddNewOption() {
-    setState(() {
-      _isNameEnabled = true;
-      _nameController.clear();
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(_nameFocusNode);
-    });
     _removeOverlay();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_overlaySource == 'name') {
+        FocusScope.of(context).requestFocus(_phoneFocusNode);
+      } else {
+        FocusScope.of(context).requestFocus(_nameFocusNode);
+      }
+    });
   }
 
   Widget _buildPhoneField() {
@@ -1250,51 +1270,57 @@ class _TransactionFormState extends State<TransactionForm> {
       children: [
         _buildFormLabel('Nama'),
         const SizedBox(height: 8),
-        TextField(
-          controller: _nameController,
-          focusNode: _nameFocusNode,
-          enabled: _isNameEnabled,
-          decoration: InputDecoration(
-            hintText: 'Masukkan nama',
-            hintStyle: TextStyle(
+        SizedBox(
+          key: _nameFieldKey,
+          child: TextField(
+            controller: _nameController,
+            focusNode: _nameFocusNode,
+            onTap: () {
+              if (_nameController.text.length >= 3) {
+                setState(() => _overlaySource = 'name');
+                _showOverlay();
+              }
+            },
+            decoration: InputDecoration(
+              hintText: 'Masukkan nama',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                fontFamily: 'Inter',
+                color: CustomColors.fontSubColor,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: CustomColors.borderInputColor,
+                  width: 1.0,
+                ),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: CustomColors.borderInputColor,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1379F0),
+                  width: 1.0,
+                ),
+              ),
+              filled: true,
+              fillColor: CustomColors.inputColor,
+              isDense: true,
+            ),
+            style: const TextStyle(
               fontSize: 14,
-              fontFamily: 'Inter',
-              color: CustomColors.fontSubColor,
+              color: Colors.white,
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: CustomColors.borderInputColor,
-                width: 1.0,
-              ),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: CustomColors.borderInputColor,
-                width: 1.0,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color(0xFF1379F0),
-                width: 1.0,
-              ),
-            ),
-            filled: true,
-            fillColor: _isNameEnabled
-                ? CustomColors.inputColor
-                : CustomColors.borderCardColor,
-            isDense: true,
-          ),
-          style: TextStyle(
-            fontSize: 14,
-            color: _isNameEnabled ? Colors.white : CustomColors.fontSubColor,
           ),
         ),
       ],
