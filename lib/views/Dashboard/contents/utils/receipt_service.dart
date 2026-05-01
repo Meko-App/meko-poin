@@ -112,30 +112,50 @@ class ReceiptService {
                   style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold, fontSize: 10)),
               pw.SizedBox(height: 4),
-              ...(transactionData['cart_items'] as List).map((item) {
-                return pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Expanded(
-                      flex: 3,
-                      child: pw.Text(item['name'],
-                          style: pw.TextStyle(fontSize: 10)),
-                    ),
-                    pw.Expanded(
-                      flex: 1,
-                      child: pw.Text(item['qty'].toString(),
-                          style: pw.TextStyle(fontSize: 10)),
-                    ),
-                    pw.Expanded(
-                      flex: 2,
+              ...(transactionData['cart_items'] as List).expand((item) {
+                final bundleComponents =
+                    item['bundle_components'] as List? ?? [];
+                final widgets = <pw.Widget>[
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Expanded(
+                        flex: 3,
+                        child: pw.Text(item['name'],
+                            style: pw.TextStyle(fontSize: 10)),
+                      ),
+                      pw.Expanded(
+                        flex: 1,
+                        child: pw.Text(item['qty'].toString(),
+                            style: pw.TextStyle(fontSize: 10)),
+                      ),
+                      pw.Expanded(
+                        flex: 2,
+                        child: pw.Text(
+                          _formatPrice(item['total_price'] ?? 0),
+                          style: pw.TextStyle(fontSize: 10),
+                          textAlign: pw.TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                ];
+                for (final component in bundleComponents) {
+                  final bundleQty = (item['qty'] as num?)?.toInt() ?? 1;
+                  final componentQty =
+                      (component['qty'] as num?)?.toInt() ?? 1;
+                  final totalComponentQty = bundleQty * componentQty;
+                  widgets.add(
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(left: 8),
                       child: pw.Text(
-                        _formatPrice(item['total_price'] ?? 0),
-                        style: pw.TextStyle(fontSize: 10),
-                        textAlign: pw.TextAlign.right,
+                        '- ${component['component_name']} (x$totalComponentQty)',
+                        style: pw.TextStyle(fontSize: 9),
                       ),
                     ),
-                  ],
-                );
+                  );
+                }
+                return widgets;
               }).toList(),
 
               pw.Divider(thickness: 1),

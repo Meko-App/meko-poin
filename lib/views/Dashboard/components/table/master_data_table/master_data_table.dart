@@ -172,7 +172,9 @@ class _MasterDataTableState extends State<MasterDataTable> {
   }
 
   void _handlePackagingAction(MasterData masterData) async {
-    if (masterData.category == 'Paper') {
+    final isPaper = (masterData.categoryCode ?? '').toLowerCase() == 'paper' ||
+        masterData.category.toLowerCase() == 'paper';
+    if (isPaper) {
       final result = await showDialog<bool>(
         context: context,
         builder: (context) => PackagingDialog(
@@ -247,6 +249,8 @@ class _MasterDataTableState extends State<MasterDataTable> {
                                 .map((data) => MasterDataTableRow(
                                       name: data.masterData.name,
                                       category: data.masterData.category,
+                                      categoryCode:
+                                          data.masterData.categoryCode,
                                       price: data.masterData.price ?? 0,
                                       addedBy: data.addedBy,
                                       packagingId: data.masterData.packagingId,

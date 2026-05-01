@@ -1,6 +1,8 @@
 class TransactionItem {
   final int? id;
   final int masterDataId;
+  final int? bundleId;
+  final String? bundleSnapshot;
   final int qty;
   final int totalPrice;
   final DateTime createdAt;
@@ -10,6 +12,8 @@ class TransactionItem {
   TransactionItem({
     this.id,
     required this.masterDataId,
+    this.bundleId,
+    this.bundleSnapshot,
     required this.qty,
     required this.totalPrice,
     required this.createdAt,
@@ -21,6 +25,8 @@ class TransactionItem {
     return TransactionItem(
       id: map['id'],
       masterDataId: map['master_data_id'],
+      bundleId: map['bundle_id'] as int?,
+      bundleSnapshot: map['bundle_snapshot'] as String?,
       qty: map['qty'],
       totalPrice: map['total_price'],
       createdAt: DateTime.parse(map['created_at']),
@@ -33,6 +39,8 @@ class TransactionItem {
     return {
       'id': id,
       'master_data_id': masterDataId,
+      'bundle_id': bundleId,
+      'bundle_snapshot': bundleSnapshot,
       'qty': qty,
       'total_price': totalPrice,
       'created_at': createdAt.toIso8601String(),

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:meko_poin/models/bundle_item.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/bundle_repository.dart';
+import 'package:meko_poin/services/category_repository.dart';
+import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/components/table/master_data_table/master_data_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
@@ -24,11 +28,15 @@ class _MasterdataContentState extends State<MasterdataContent> {
   ContentState _currentState = ContentState.table;
   Map<String, dynamic>? _dataToEdit;
   late final MasterDataRepository masterDataRepository;
+  late final BundleRepository _bundleRepository;
+  final CategoryRepository _categoryRepository =
+      CategoryRepository(DatabaseHelper.instance);
 
   @override
   void initState() {
     super.initState();
     masterDataRepository = widget.masterDataRepository;
+    _bundleRepository = BundleRepository(DatabaseHelper.instance);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onStateChanged(_currentState);
     });
@@ -41,9 +49,11 @@ class _MasterdataContentState extends State<MasterdataContent> {
           ? {
               'id': data.id,
               'name': data.name,
-              'category': data.category,
+              'category_id': data.categoryId,
+              'category_name': data.category,
               'price': data.price,
               'id_user': data.userId,
+              'id_packaging': data.packagingId,
             }
           : null;
       widget.onStateChanged(_currentState);
@@ -62,20 +72,65 @@ class _MasterdataContentState extends State<MasterdataContent> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('userId') ?? 0;
     try {
+      final categories = await _categoryRepository.getAllCategories();
+      final selectedCategory = categories.where(
+        (category) => category.id == data['category_id'],
+      );
+
+      if (selectedCategory.isEmpty) {
+        throw Exception('Kategori tidak ditemukan');
+      }
+
+      final selectedCategoryData = selectedCategory.first;
+      final name = (data['name'] ?? '').toString().trim();
+      final isNameUsed = await masterDataRepository.isNameAlreadyUsed(
+        name,
+        excludeId: _dataToEdit?['id'] as int?,
+      );
+
+      if (isNameUsed) {
+        throw Exception('Nama bundle/menu sudah digunakan');
+      }
+
       final priceString = data['price']?.toString() ?? '';
       final cleanedPrice = priceString.replaceAll(RegExp(r'[^0-9]'), '');
       final priceValue = cleanedPrice.isEmpty ? 0 : int.parse(cleanedPrice);
+      final bundleItemsRaw =
+          (data['bundle_items'] as List<Map<String, dynamic>>?) ?? [];
+
+      Future<void> saveBundleItems(int masterDataId) async {
+        if (!selectedCategoryData.isBundle) {
+          await _bundleRepository.deleteBundleItems(masterDataId);
+          return;
+        }
+
+        final bundleItems = bundleItemsRaw
+            .where((item) => (item['component_master_data_id'] as int?) != null)
+            .map(
+              (item) => BundleItem(
+                bundleId: masterDataId,
+                componentMasterDataId: item['component_master_data_id'] as int,
+                componentType: (item['component_type'] as String).toLowerCase(),
+                qty: (item['qty'] as int?) ?? 1,
+              ),
+            )
+            .toList();
+
+        await _bundleRepository.replaceBundleItems(masterDataId, bundleItems);
+      }
 
       if (_dataToEdit == null) {
         final newData = MasterData(
           id: null,
-          name: data['name'],
-          category: data['category'],
+          name: name,
+          categoryId: data['category_id'],
+          category: data['category_name'] ?? '',
           price: priceValue,
           userId: userId,
           packagingId: 0,
         );
-        await masterDataRepository.insertMasterData(newData);
+        final createdId = await masterDataRepository.insertMasterData(newData);
+        await saveBundleItems(createdId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Data baru berhasil ditambahkan')),
@@ -85,13 +140,15 @@ class _MasterdataContentState extends State<MasterdataContent> {
         // Edit existing data
         final updatedData = MasterData(
           id: _dataToEdit!['id'],
-          name: data['name'],
-          category: data['category'],
+          name: name,
+          categoryId: data['category_id'],
+          category: data['category_name'] ?? '',
           price: priceValue,
           userId: _dataToEdit!['id_user'],
           packagingId: _dataToEdit!['id_packaging'] ?? 0,
         );
         await masterDataRepository.updateMasterData(updatedData);
+        await saveBundleItems(_dataToEdit!['id'] as int);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Data berhasil diperbarui')),
@@ -272,9 +329,16 @@ class _MasterdataContentState extends State<MasterdataContent> {
 
                       if (confirmed == true) {
                         try {
-                          // await masterDataRepository.deleteMasterData(data.id!);
+                          final canDelete = await masterDataRepository
+                              .canDeleteMasterData(data.id!);
+                          if (!canDelete) {
+                            throw Exception(
+                                'Data digunakan pada transaksi atau bundle aktif');
+                          }
+
                           await masterDataRepository
                               .softDeleteMasterData(data.id!);
+
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(

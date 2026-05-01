@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:meko_poin/services/category_repository.dart';
+import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/kas_repository.dart';
 import 'package:meko_poin/views/Dashboard/contents/kas_content.dart';
 import 'package:path/path.dart' as path;
@@ -17,6 +19,7 @@ import 'package:meko_poin/views/Dashboard/components/sidebar.dart';
 import 'package:meko_poin/views/Dashboard/contents/ringkasan_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pelanggan_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/masterdata_content.dart';
+import 'package:meko_poin/views/Dashboard/contents/category_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/inventory_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/transaksi_content.dart';
 import 'package:meko_poin/views/Dashboard/contents/pengguna_content.dart';
@@ -267,6 +270,7 @@ class _DashboardPageState extends State<DashboardPage> {
       if (menu == 'Ringkasan' || menu == 'Pelanggan') {
         return 'Dashboards';
       } else if (menu == 'Master Data' ||
+          menu == 'Category' ||
           menu == 'Inventori' ||
           menu == 'Transaksi' ||
           menu == 'Tambah Transaksi' ||
@@ -286,6 +290,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     if (_selectedMenu == 'Pengguna' ||
         _selectedMenu == 'Master Data' ||
+        _selectedMenu == 'Category' ||
         _selectedMenu == 'Inventori' ||
         _selectedMenu == 'Transaksi' ||
         _selectedMenu == 'Kas Tunai') {
@@ -349,6 +354,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             onContentStateChanged: (state) {
                               if (_selectedMenu == 'Pengguna' ||
                                   _selectedMenu == 'Master Data' ||
+                                  _selectedMenu == 'Category' ||
                                   _selectedMenu == 'Inventori' ||
                                   _selectedMenu == 'Transaksi' ||
                                   _selectedMenu == 'Kas Tunai') {
@@ -481,6 +487,12 @@ class DashboardContent extends StatelessWidget {
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           masterDataRepository: masterDataRepository,
+        );
+      case 'Category':
+        return CategoryContent(
+          key: ValueKey(contentKey),
+          onStateChanged: onContentStateChanged!,
+          categoryRepository: CategoryRepository(DatabaseHelper.instance),
         );
       case 'Inventori':
         return InventoryContent(
