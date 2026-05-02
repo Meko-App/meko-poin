@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meko_poin/models/additional/log_inventory_with_master_data.dart';
 // import 'package:meko_poin/models/inventory_log.dart';
 import 'package:meko_poin/services/inventory_log_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_table_pagination.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 
 class CardGudang extends StatefulWidget {
@@ -20,7 +21,7 @@ class CardGudang extends StatefulWidget {
 
 class _CardGudangState extends State<CardGudang> {
   int currentPage = 1;
-  final int itemsPerPage = 4;
+  int itemsPerPage = 4;
   List<LogInventoryWithMasterData> logs = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -381,85 +382,21 @@ class _CardGudangState extends State<CardGudang> {
                 )),
 
           // Pagination
-          if (logs.length > 4)
-            Container(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    '$startItem-$endItem of ${logs.length}',
-                    style: TextStyle(
-                        fontSize: 13,
-                        height: 14 / 13,
-                        color: CustomColors.fontSubColor,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w400),
-                  ),
-                  const SizedBox(width: 20),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: currentPage > 1
-                            ? () => setState(() => currentPage--)
-                            : null,
-                        icon: Transform.rotate(
-                          angle: 3.1416,
-                          child: Icon(Icons.arrow_right_alt,
-                              size: 18,
-                              color: currentPage > 1
-                                  ? Colors.white
-                                  : CustomColors.fontSubColor),
-                        ),
-                      ),
-                      ...List.generate(totalPages, (index) {
-                        final page = index + 1;
-                        final isActive = currentPage == page;
-                        return MouseRegion(
-                          cursor:
-                              SystemMouseCursors.click, // pointer saat hover
-                          child: GestureDetector(
-                            onTap: () => setState(() => currentPage = page),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? CustomColors.borderCardColor
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '$page',
-                                style: TextStyle(
-                                  fontWeight: isActive
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                  color: isActive
-                                      ? Colors.white
-                                      : CustomColors.fontSubColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                      IconButton(
-                        onPressed: currentPage < totalPages
-                            ? () => setState(() => currentPage++)
-                            : null,
-                        icon: Icon(Icons.arrow_right_alt,
-                            size: 18,
-                            color: currentPage < totalPages
-                                ? Colors.white
-                                : CustomColors.fontSubColor),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          if (logs.length > itemsPerPage)
+            CardTablePagination(
+              currentPage: currentPage,
+              totalPages: totalPages,
+              startItem: startItem,
+              endItem: endItem,
+              totalItems: logs.length,
+              itemsPerPage: itemsPerPage,
+              onItemsPerPageChanged: (value) {
+                setState(() {
+                  itemsPerPage = value;
+                  currentPage = 1;
+                });
+              },
+              onPageChanged: (page) => setState(() => currentPage = page),
             ),
         ],
       ),
