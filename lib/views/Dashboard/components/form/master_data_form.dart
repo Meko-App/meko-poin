@@ -29,26 +29,21 @@ class _MasterDataFormState extends State<MasterDataForm> {
   final TextEditingController _priceController = TextEditingController();
   final CategoryRepository _categoryRepository =
       CategoryRepository(DatabaseHelper.instance);
-    final MasterDataRepository _masterDataRepository =
+  final MasterDataRepository _masterDataRepository =
       MasterDataRepository(DatabaseHelper.instance);
-    final BundleRepository _bundleRepository =
+  final BundleRepository _bundleRepository =
       BundleRepository(DatabaseHelper.instance);
   List<Category> _categories = [];
-    List<MasterData> _productItems = [];
-    List<MasterData> _paperItems = [];
-    List<MasterData> _packagingItems = [];
+  final Map<int, List<MasterData>> _bundleItemsByCategoryId = {};
+  List<_BundleComponentEntry> _bundleComponents = [];
   bool _isLoadingCategories = true;
-    bool _isLoadingBundleData = false;
+  bool _isLoadingBundleData = false;
   int? _selectedCategoryId;
-    int? _selectedBundleProductId;
-    int? _selectedBundlePaperId;
-    int? _selectedBundlePackagingId;
-    bool _isManualPriceOverride = false;
+  bool _isManualPriceOverride = false;
 
   String? _nameError;
   String? _priceError;
   String? _selectedError;
-    String? _bundleProductError;
 
   @override
   void initState() {
@@ -71,22 +66,16 @@ class _MasterDataFormState extends State<MasterDataForm> {
   Future<void> _loadCategories() async {
     try {
       final categories = await _categoryRepository.getAllCategories();
-      final productItems =
-          await _masterDataRepository.getMasterDataByCategoryCode('product');
-      final paperItems =
-          await _masterDataRepository.getMasterDataByCategoryCode('paper');
-      final packagingItems =
-          await _masterDataRepository.getMasterDataByCategoryCode('packaging');
 
       if (mounted) {
         setState(() {
           _categories = categories;
-          _productItems = productItems;
-          _paperItems = paperItems;
-          _packagingItems = packagingItems;
         });
 
         await _loadInitialBundleComponents();
+        if (_isSelectedCategoryBundle() && _bundleComponents.isEmpty) {
+          _addBundleComponent();
+        }
       }
     } finally {
       if (mounted) {
@@ -138,18 +127,32 @@ class _MasterDataFormState extends State<MasterDataForm> {
 
     final items = await _bundleRepository.getBundleItems(id);
 
+    final loadedEntries = <_BundleComponentEntry>[];
     for (final item in items) {
-      switch (item.componentType.toLowerCase()) {
-        case 'product':
-          _selectedBundleProductId = item.componentMasterDataId;
-          break;
-        case 'paper':
-          _selectedBundlePaperId = item.componentMasterDataId;
-          break;
-        case 'packaging':
-          _selectedBundlePackagingId = item.componentMasterDataId;
-          break;
+      final componentType = item.componentType.toLowerCase();
+      final category = _findCategoryByCode(componentType);
+      if (category?.id == null) {
+        continue;
       }
+
+      final categoryItems = await _getItemsForCategory(category!.id!);
+      loadedEntries.add(
+        _BundleComponentEntry(
+          categoryId: category.id,
+          categoryCode: category.code,
+          categoryName: category.name,
+          selectedItemId: item.componentMasterDataId,
+          items: categoryItems,
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _bundleComponents = loadedEntries.isEmpty
+            ? <_BundleComponentEntry>[_BundleComponentEntry()]
+            : loadedEntries;
+      });
     }
 
     _autoCalculateBundlePrice();
@@ -159,6 +162,15 @@ class _MasterDataFormState extends State<MasterDataForm> {
         _isLoadingBundleData = false;
       });
     }
+  }
+
+  Category? _findCategoryByCode(String code) {
+    for (final category in _categories) {
+      if (category.code.toLowerCase() == code.toLowerCase()) {
+        return category;
+      }
+    }
+    return null;
   }
 
   MasterData? _findMasterDataById(List<MasterData> items, int? id) {
@@ -180,6 +192,19 @@ class _MasterDataFormState extends State<MasterDataForm> {
     return selected?.name ?? '';
   }
 
+  Future<List<MasterData>> _getItemsForCategory(int categoryId) async {
+    final cached = _bundleItemsByCategoryId[categoryId];
+    if (cached != null) {
+      return cached;
+    }
+
+    final items = await _masterDataRepository.getMasterDataByCategoryId(
+      categoryId,
+    );
+    _bundleItemsByCategoryId[categoryId] = items;
+    return items;
+  }
+
   Future<int?> _openMasterDataSearchDialog({
     required String title,
     required List<MasterData> items,
@@ -191,6 +216,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
 
     int? localSelectedId = selectedId;
     String query = '';
+    DateTime? lastTapAt;
+    int? lastTappedItemId;
 
     return showDialog<int>(
       context: context,
@@ -213,7 +240,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 side: const BorderSide(color: CustomColors.borderCardColor),
               ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460, maxHeight: 520),
+                constraints:
+                    const BoxConstraints(maxWidth: 460, maxHeight: 520),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -304,9 +332,27 @@ class _MasterDataFormState extends State<MasterDataForm> {
                                     final active = localSelectedId == item.id;
                                     return InkWell(
                                       onTap: () {
+                                        final now = DateTime.now();
+                                        final isDoubleClick =
+                                            lastTappedItemId == item.id &&
+                                                lastTapAt != null &&
+                                                now
+                                                        .difference(lastTapAt!)
+                                                        .inMilliseconds <
+                                                    300;
+
                                         setDialogState(() {
                                           localSelectedId = item.id;
                                         });
+
+                                        if (isDoubleClick) {
+                                          Navigator.of(dialogContext)
+                                              .pop(item.id);
+                                          return;
+                                        }
+
+                                        lastTapAt = now;
+                                        lastTappedItemId = item.id;
                                       },
                                       child: Container(
                                         color: active
@@ -379,12 +425,11 @@ class _MasterDataFormState extends State<MasterDataForm> {
       return;
     }
 
-    final product = _findMasterDataById(_productItems, _selectedBundleProductId);
-    final paper = _findMasterDataById(_paperItems, _selectedBundlePaperId);
-
-    final productPrice = product?.price ?? 0;
-    final paperPrice = paper?.price ?? 0;
-    final total = productPrice + paperPrice;
+    var total = 0;
+    for (final entry in _bundleComponents) {
+      final selected = _findMasterDataById(entry.items, entry.selectedItemId);
+      total += selected?.price ?? 0;
+    }
 
     _priceController.text = _formatWithThousandSeparator(total);
   }
@@ -410,6 +455,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
 
     int? selectedId = _selectedCategoryId;
     String query = '';
+    DateTime? lastTapAt;
+    int? lastTappedCategoryId;
 
     final pickedId = await showDialog<int>(
       context: context,
@@ -524,9 +571,28 @@ class _MasterDataFormState extends State<MasterDataForm> {
                                     final active = selectedId == category.id;
                                     return InkWell(
                                       onTap: () {
+                                        final now = DateTime.now();
+                                        final isDoubleClick =
+                                            lastTappedCategoryId ==
+                                                    category.id &&
+                                                lastTapAt != null &&
+                                                now
+                                                        .difference(lastTapAt!)
+                                                        .inMilliseconds <
+                                                    300;
+
                                         setDialogState(() {
                                           selectedId = category.id;
                                         });
+
+                                        if (isDoubleClick) {
+                                          Navigator.of(dialogContext)
+                                              .pop(category.id);
+                                          return;
+                                        }
+
+                                        lastTapAt = now;
+                                        lastTappedCategoryId = category.id;
                                       },
                                       child: Container(
                                         color: active
@@ -594,20 +660,337 @@ class _MasterDataFormState extends State<MasterDataForm> {
     );
 
     if (pickedId != null && mounted) {
+      final isBundleCategory = _categories.any(
+        (category) => category.id == pickedId && category.isBundle,
+      );
+
       setState(() {
         _selectedCategoryId = pickedId;
         _selectedError = null;
 
-        if (!_isSelectedCategoryBundle()) {
-          _selectedBundleProductId = null;
-          _selectedBundlePaperId = null;
-          _selectedBundlePackagingId = null;
-          _bundleProductError = null;
+        if (!isBundleCategory) {
+          _bundleComponents = [];
           _isManualPriceOverride = false;
         } else {
+          _bundleComponents = [_BundleComponentEntry()];
+          _isManualPriceOverride = false;
           _autoCalculateBundlePrice();
         }
       });
+    }
+  }
+
+  List<Category> _availableBundleSourceCategories({int? currentCategoryId}) {
+    final usedIds = _bundleComponents
+        .where((entry) =>
+            entry.categoryId != null && entry.categoryId != currentCategoryId)
+        .map((entry) => entry.categoryId!)
+        .toSet();
+
+    return _categories.where((category) {
+      if (category.isBundle) return false;
+      if (category.id == _selectedCategoryId) return false;
+      if (usedIds.contains(category.id)) return false;
+      return true;
+    }).toList();
+  }
+
+  Future<int?> _openBundleSourceCategoryDialog({
+    required int? selectedCategoryId,
+  }) async {
+    final options = _availableBundleSourceCategories(
+      currentCategoryId: selectedCategoryId,
+    );
+    if (options.isEmpty && selectedCategoryId == null) {
+      return null;
+    }
+
+    int? localSelectedId = selectedCategoryId;
+    String query = '';
+    DateTime? lastTapAt;
+    int? lastTappedCategoryId;
+
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final normalizedQuery = query.trim().toLowerCase();
+            final filtered = options.where((category) {
+              if (normalizedQuery.isEmpty) {
+                return true;
+              }
+              return category.name.toLowerCase().contains(normalizedQuery) ||
+                  category.code.toLowerCase().contains(normalizedQuery);
+            }).toList();
+
+            return Dialog(
+              backgroundColor: CustomColors.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: CustomColors.borderCardColor),
+              ),
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: 460, maxHeight: 520),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pilih Kategori Komponen',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 36,
+                        child: TextField(
+                          onChanged: (value) {
+                            setDialogState(() {
+                              query = value;
+                            });
+                          },
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Cari kategori atau kode...',
+                            hintStyle: const TextStyle(
+                              color: CustomColors.fontSubColor,
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            prefixIcon: const Icon(Icons.search,
+                                size: 18, color: CustomColors.fontSubColor),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            filled: true,
+                            fillColor: CustomColors.inputColor,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: CustomColors.borderInputColor,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFF1379F0)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: CustomColors.inputColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: CustomColors.borderInputColor,
+                            ),
+                          ),
+                          child: filtered.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'Kategori tidak ditemukan',
+                                    style: TextStyle(
+                                      color: CustomColors.fontSubColor,
+                                      fontFamily: 'Inter',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  itemCount: filtered.length,
+                                  separatorBuilder: (_, __) => const Divider(
+                                    height: 1,
+                                    color: CustomColors.borderCardColor,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final category = filtered[index];
+                                    final active =
+                                        localSelectedId == category.id;
+                                    return InkWell(
+                                      onTap: () {
+                                        final now = DateTime.now();
+                                        final isDoubleClick =
+                                            lastTappedCategoryId ==
+                                                    category.id &&
+                                                lastTapAt != null &&
+                                                now
+                                                        .difference(lastTapAt!)
+                                                        .inMilliseconds <
+                                                    300;
+
+                                        setDialogState(() {
+                                          localSelectedId = category.id;
+                                        });
+
+                                        if (isDoubleClick) {
+                                          Navigator.of(dialogContext)
+                                              .pop(category.id);
+                                          return;
+                                        }
+
+                                        lastTapAt = now;
+                                        lastTappedCategoryId = category.id;
+                                      },
+                                      child: Container(
+                                        color: active
+                                            ? const Color(0xFF0A1726)
+                                            : Colors.transparent,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 10),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                category.name,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ),
+                                            if (active)
+                                              const Icon(Icons.check,
+                                                  size: 16,
+                                                  color: Color(0xFF1379F0)),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: const Text('Batal'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: localSelectedId == null
+                                ? null
+                                : () => Navigator.of(dialogContext)
+                                    .pop(localSelectedId),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1379F0),
+                            ),
+                            child: const Text(
+                              'Pilih',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _addBundleComponent() {
+    setState(() {
+      _bundleComponents = [..._bundleComponents, _BundleComponentEntry()];
+    });
+  }
+
+  void _removeBundleComponent(int index) {
+    setState(() {
+      _bundleComponents = [
+        for (var i = 0; i < _bundleComponents.length; i++)
+          if (i != index) _bundleComponents[i],
+      ];
+      if (_bundleComponents.isEmpty && _isSelectedCategoryBundle()) {
+        _bundleComponents = [_BundleComponentEntry()];
+      }
+    });
+    _autoCalculateBundlePrice();
+  }
+
+  Future<void> _selectBundleSourceCategory(int index) async {
+    final current = _bundleComponents[index];
+    final pickedCategoryId = await _openBundleSourceCategoryDialog(
+      selectedCategoryId: current.categoryId,
+    );
+    if (pickedCategoryId == null) {
+      return;
+    }
+
+    Category? category;
+    for (final item in _categories) {
+      if (item.id == pickedCategoryId) {
+        category = item;
+        break;
+      }
+    }
+    if (category == null) {
+      return;
+    }
+
+    final items = await _getItemsForCategory(pickedCategoryId);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _bundleComponents[index] = current.copyWith(
+        categoryId: category!.id,
+        categoryCode: category.code,
+        categoryName: category.name,
+        selectedItemId: null,
+        items: items,
+        categoryError: null,
+        itemError: null,
+      );
+    });
+    _autoCalculateBundlePrice();
+  }
+
+  Future<void> _selectBundleItem(int index) async {
+    final current = _bundleComponents[index];
+    if (current.categoryId == null || current.items.isEmpty) {
+      return;
+    }
+
+    final pickedId = await _openMasterDataSearchDialog(
+      title: 'Pilih Item',
+      items: current.items,
+      selectedId: current.selectedItemId,
+    );
+
+    if (pickedId != null && mounted) {
+      setState(() {
+        _bundleComponents[index] = current.copyWith(
+          selectedItemId: pickedId,
+          itemError: null,
+        );
+      });
+      _autoCalculateBundlePrice();
     }
   }
 
@@ -639,11 +1022,40 @@ class _MasterDataFormState extends State<MasterDataForm> {
       return;
     }
 
-    if (_isSelectedCategoryBundle() && _selectedBundleProductId == null) {
-      setState(() {
-        _bundleProductError = 'Produk wajib dipilih untuk bundle';
-      });
-      return;
+    if (_isSelectedCategoryBundle()) {
+      if (_bundleComponents.isEmpty) {
+        setState(() {
+          _bundleComponents = [
+            _BundleComponentEntry(itemError: 'Item wajib dipilih')
+          ];
+        });
+        return;
+      }
+
+      var hasError = false;
+      final validatedEntries = <_BundleComponentEntry>[];
+      for (final entry in _bundleComponents) {
+        final categoryError =
+            entry.categoryId == null ? 'Kategori wajib dipilih' : null;
+        final itemError =
+            entry.selectedItemId == null ? 'Item wajib dipilih' : null;
+        if (categoryError != null || itemError != null) {
+          hasError = true;
+        }
+        validatedEntries.add(
+          entry.copyWith(
+            categoryError: categoryError,
+            itemError: itemError,
+          ),
+        );
+      }
+
+      if (hasError) {
+        setState(() {
+          _bundleComponents = validatedEntries;
+        });
+        return;
+      }
     }
 
     final selectedCategory =
@@ -657,32 +1069,16 @@ class _MasterDataFormState extends State<MasterDataForm> {
 
     final bundleItems = <Map<String, dynamic>>[];
     if (_isSelectedCategoryBundle()) {
-      if (_selectedBundleProductId != null) {
-        bundleItems.add(
-          {
-            'component_master_data_id': _selectedBundleProductId,
-            'component_type': 'product',
-            'qty': 1,
-          },
-        );
-      }
-      if (_selectedBundlePaperId != null) {
-        bundleItems.add(
-          {
-            'component_master_data_id': _selectedBundlePaperId,
-            'component_type': 'paper',
-            'qty': 1,
-          },
-        );
-      }
-      if (_selectedBundlePackagingId != null) {
-        bundleItems.add(
-          {
-            'component_master_data_id': _selectedBundlePackagingId,
-            'component_type': 'packaging',
-            'qty': 1,
-          },
-        );
+      for (final entry in _bundleComponents) {
+        if (entry.selectedItemId != null && entry.categoryCode.isNotEmpty) {
+          bundleItems.add(
+            {
+              'component_master_data_id': entry.selectedItemId,
+              'component_type': entry.categoryCode,
+              'qty': 1,
+            },
+          );
+        }
       }
     }
 
@@ -1082,80 +1478,125 @@ class _MasterDataFormState extends State<MasterDataForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMasterDataPicker(
-          label: 'Produk (wajib)',
-          value: _selectedMasterDataName(_productItems, _selectedBundleProductId),
-          errorText: _bundleProductError,
-          onTap: () async {
-            final pickedId = await _openMasterDataSearchDialog(
-              title: 'Pilih Produk',
-              items: _productItems,
-              selectedId: _selectedBundleProductId,
-            );
-
-            if (pickedId != null && mounted) {
-              setState(() {
-                _selectedBundleProductId = pickedId;
-                _bundleProductError = null;
-              });
-              _autoCalculateBundlePrice();
-            }
-          },
-        ),
-        const SizedBox(height: 8),
-        _buildMasterDataPicker(
-          label: 'Paper (opsional)',
-          value: _selectedMasterDataName(_paperItems, _selectedBundlePaperId),
-          onTap: () async {
-            final pickedId = await _openMasterDataSearchDialog(
-              title: 'Pilih Paper',
-              items: _paperItems,
-              selectedId: _selectedBundlePaperId,
-            );
-
-            if (mounted) {
-              setState(() {
-                _selectedBundlePaperId = pickedId;
-              });
-              _autoCalculateBundlePrice();
-            }
-          },
-          onClear: _selectedBundlePaperId == null
+        for (var index = 0; index < _bundleComponents.length; index++) ...[
+          _buildBundleComponentRepeater(index),
+          if (index != _bundleComponents.length - 1) const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _availableBundleSourceCategories().isEmpty
               ? null
-              : () {
-                  setState(() {
-                    _selectedBundlePaperId = null;
-                  });
-                  _autoCalculateBundlePrice();
-                },
-        ),
-        const SizedBox(height: 8),
-        _buildMasterDataPicker(
-          label: 'Packaging (opsional)',
-          value: _selectedMasterDataName(
-              _packagingItems, _selectedBundlePackagingId),
-          onTap: () async {
-            final pickedId = await _openMasterDataSearchDialog(
-              title: 'Pilih Packaging',
-              items: _packagingItems,
-              selectedId: _selectedBundlePackagingId,
-            );
-
-            if (mounted) {
-              setState(() {
-                _selectedBundlePackagingId = pickedId;
-              });
-            }
-          },
-          onClear: _selectedBundlePackagingId == null
-              ? null
-              : () {
-                  setState(() {
-                    _selectedBundlePackagingId = null;
-                  });
-                },
+              : _addBundleComponent,
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: CustomColors.borderInputColor),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text(
+            'Tambah Komponen',
+            style: TextStyle(fontFamily: 'Inter', fontSize: 12),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBundleComponentRepeater(int index) {
+    final entry = _bundleComponents[index];
+    final itemValue =
+        _selectedMasterDataName(entry.items, entry.selectedItemId);
+    final categoryPicker = _buildMasterDataPicker(
+      label: 'Kategori',
+      value: entry.categoryName,
+      errorText: entry.categoryError,
+      onTap: () => _selectBundleSourceCategory(index),
+      emptyLabel: 'Pilih kategori (bisa dicari)',
+    );
+    final itemPicker = _buildMasterDataPicker(
+      label: 'Item',
+      value: itemValue,
+      errorText: entry.itemError,
+      onTap: entry.categoryId == null ? () {} : () => _selectBundleItem(index),
+      emptyLabel: entry.categoryId == null
+          ? 'Pilih kategori terlebih dahulu'
+          : 'Pilih item',
+      enabled: entry.categoryId != null,
+      onClear: entry.selectedItemId == null
+          ? null
+          : () {
+              setState(() {
+                _bundleComponents[index] = entry.copyWith(
+                  selectedItemId: null,
+                  itemError: null,
+                );
+              });
+              _autoCalculateBundlePrice();
+            },
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CustomColors.inputColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: CustomColors.borderInputColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Komponen ${index + 1}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              if (_bundleComponents.length > 1)
+                InkWell(
+                  onTap: () => _removeBundleComponent(index),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: CustomColors.fontSubColor,
+                      size: 18,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 560) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    categoryPicker,
+                    const SizedBox(height: 8),
+                    itemPicker,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: categoryPicker),
+                  const SizedBox(width: 10),
+                  Expanded(child: itemPicker),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -1165,6 +1606,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
     required VoidCallback onTap,
     VoidCallback? onClear,
     String? errorText,
+    String emptyLabel = 'Pilih item',
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1184,10 +1627,12 @@ class _MasterDataFormState extends State<MasterDataForm> {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: onTap,
+              onTap: enabled ? onTap : null,
               child: Ink(
                 decoration: BoxDecoration(
-                  color: CustomColors.inputColor,
+                  color: enabled
+                      ? CustomColors.inputColor
+                      : CustomColors.borderInputColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: errorText != null
@@ -1203,7 +1648,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     children: [
                       Expanded(
                         child: Text(
-                          value.isEmpty ? 'Pilih item' : value,
+                          value.isEmpty ? emptyLabel : value,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'Inter',
@@ -1251,6 +1696,46 @@ class _MasterDataFormState extends State<MasterDataForm> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _BundleComponentEntry {
+  final int? categoryId;
+  final String categoryCode;
+  final String categoryName;
+  final int? selectedItemId;
+  final List<MasterData> items;
+  final String? categoryError;
+  final String? itemError;
+
+  const _BundleComponentEntry({
+    this.categoryId,
+    this.categoryCode = '',
+    this.categoryName = '',
+    this.selectedItemId,
+    this.items = const [],
+    this.categoryError,
+    this.itemError,
+  });
+
+  _BundleComponentEntry copyWith({
+    int? categoryId,
+    String? categoryCode,
+    String? categoryName,
+    int? selectedItemId,
+    List<MasterData>? items,
+    String? categoryError,
+    String? itemError,
+  }) {
+    return _BundleComponentEntry(
+      categoryId: categoryId ?? this.categoryId,
+      categoryCode: categoryCode ?? this.categoryCode,
+      categoryName: categoryName ?? this.categoryName,
+      selectedItemId: selectedItemId,
+      items: items ?? this.items,
+      categoryError: categoryError,
+      itemError: itemError,
     );
   }
 }

@@ -139,7 +139,7 @@ class MasterDataRepository {
 
     final result = await db.rawQuery('''
       $_masterDataJoinQuery
-      WHERE LOWER(c.code) IN ('paper', 'product', 'additional', 'bundle')
+      WHERE LOWER(c.code) IN ('paper', 'product', 'additional', 'bundling', 'service', 'frame', 'property')
       $deletedClause
       ORDER BY m.name ASC
     ''');
@@ -382,6 +382,21 @@ class MasterDataRepository {
       $deletedClause
       ORDER BY m.name ASC
     ''', [categoryCode.toLowerCase()]);
+
+    return result.map((map) => MasterData.fromMap(map)).toList();
+  }
+
+  Future<List<MasterData>> getMasterDataByCategoryId(int categoryId,
+      {bool includeDeleted = false}) async {
+    final db = await dbHelper.database;
+    final deletedClause = includeDeleted ? '' : 'AND m.deleted_at IS NULL';
+
+    final result = await db.rawQuery('''
+      $_masterDataJoinQuery
+      WHERE m.category_id = ?
+      $deletedClause
+      ORDER BY m.name ASC
+    ''', [categoryId]);
 
     return result.map((map) => MasterData.fromMap(map)).toList();
   }

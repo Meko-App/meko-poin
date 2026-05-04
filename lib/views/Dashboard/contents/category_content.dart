@@ -264,25 +264,6 @@ class _CategoryContentState extends State<CategoryContent> {
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     )),
-                ElevatedButton(
-                  onPressed: () => _openForm(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1379F0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 11),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: const Text(
-                    'Tambah Kategori',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12),
-                  ),
-                ),
               ],
             ),
           ),
@@ -329,27 +310,6 @@ class _CategoryContentState extends State<CategoryContent> {
                         fontSize: 12,
                         fontWeight: FontWeight.w400),
                   ),
-                  trailing: PopupMenuButton<String>(
-                    color: CustomColors.cardColor,
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _openForm(category);
-                      }
-                      if (value == 'delete') {
-                        _deleteCategory(category);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Text('Edit', style: TextStyle(color: Colors.white)),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Hapus', style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
                 );
               },
             ),
@@ -388,8 +348,8 @@ class _CategoryContentState extends State<CategoryContent> {
           SwitchListTile(
             value: _isBundle,
             onChanged: (value) => setState(() => _isBundle = value),
-            title:
-                const Text('Is Bundle', style: TextStyle(color: Colors.white, fontSize: 14)),
+            title: const Text('Is Bundle',
+                style: TextStyle(color: Colors.white, fontSize: 14)),
             subtitle: Text(
               'Khusus untuk bundle atau paketan',
               style: TextStyle(color: CustomColors.fontSubColor),

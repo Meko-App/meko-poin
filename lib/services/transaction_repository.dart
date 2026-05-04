@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/daily_report.dart';
+import 'package:meko_poin/models/additional/payment_method_change_history.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
 
@@ -112,6 +113,101 @@ class TransactionRepository {
       where: 'id = ?',
       whereArgs: [transaction.id],
     );
+  }
+
+  Future<int> updatePaymentMethodWithHistory({
+    required int transactionId,
+    required String newPaymentMethod,
+    required int actorUserId,
+  }) async {
+    final db = await dbHelper.database;
+
+    return db.transaction((txn) async {
+      final transactionResult = await txn.query(
+        'Data_Transaction',
+        columns: ['payment_method'],
+        where: 'id = ?',
+        whereArgs: [transactionId],
+        limit: 1,
+      );
+
+      if (transactionResult.isEmpty) {
+        throw Exception('Transaction not found');
+      }
+
+      final previousPaymentMethod =
+          (transactionResult.first['payment_method'] as String?)
+                  ?.toLowerCase() ??
+              '';
+      final normalizedNewPaymentMethod = newPaymentMethod.toLowerCase();
+
+      if (previousPaymentMethod == normalizedNewPaymentMethod) {
+        return 0;
+      }
+
+      final now = DateTime.now().toIso8601String();
+
+      final updatedRows = await txn.update(
+        'Data_Transaction',
+        {
+          'payment_method': normalizedNewPaymentMethod,
+          'updated_at': now,
+        },
+        where: 'id = ?',
+        whereArgs: [transactionId],
+      );
+
+      if (updatedRows > 0) {
+        await txn.insert(
+          'Data_Transaction_Payment_Method_History',
+          {
+            'transaction_id': transactionId,
+            'actor_user_id': actorUserId,
+            'previous_payment_method': previousPaymentMethod,
+            'updated_payment_method': normalizedNewPaymentMethod,
+            'changed_at': now,
+            'created_at': now,
+          },
+        );
+      }
+
+      return updatedRows;
+    });
+  }
+
+  Future<List<PaymentMethodChangeHistory>> getPaymentMethodHistory(
+    int transactionId, {
+    int limit = 10,
+    int offset = 0,
+  }) async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+      SELECT
+        h.*,
+        u.name AS actor_name
+      FROM Data_Transaction_Payment_Method_History h
+      LEFT JOIN Data_User u ON h.actor_user_id = u.id
+      WHERE h.transaction_id = ?
+      ORDER BY h.changed_at DESC, h.id DESC
+      LIMIT ? OFFSET ?
+    ''', [transactionId, limit, offset]);
+
+    return result
+        .map((row) => PaymentMethodChangeHistory.fromMap(row))
+        .toList();
+  }
+
+  Future<int> getPaymentMethodHistoryCount(int transactionId) async {
+    final db = await dbHelper.database;
+
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) AS total
+      FROM Data_Transaction_Payment_Method_History
+      WHERE transaction_id = ?
+    ''', [transactionId]);
+
+    return result.first['total'] as int? ?? 0;
   }
 
   Future<List<Transaction>> getTransactionsByCustomer(int customerId) async {

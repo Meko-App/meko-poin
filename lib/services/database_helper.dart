@@ -27,7 +27,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 6,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -48,6 +48,7 @@ class DatabaseHelper {
     await _createInventoryLogTable(db);
     await _createCustomerTable(db);
     await _createTransactionTable(db);
+    await _createTransactionPaymentMethodHistoryTable(db);
     await _createTransactionItemTable(db);
     await _createKasTable(db);
     await _createBundleItemTable(db);
@@ -81,6 +82,14 @@ class DatabaseHelper {
         'bundle_snapshot',
         'TEXT',
       );
+    }
+
+    if (oldVersion < 5) {
+      await _migrateBundleItemComponentTypeToFlexible(db);
+    }
+
+    if (oldVersion < 6) {
+      await _createTransactionPaymentMethodHistoryTable(db);
     }
   }
 
@@ -209,6 +218,31 @@ class DatabaseHelper {
     ''');
   }
 
+  Future<void> _createTransactionPaymentMethodHistoryTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS Data_Transaction_Payment_Method_History (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        transaction_id INTEGER NOT NULL,
+        actor_user_id INTEGER,
+        previous_payment_method TEXT CHECK(previous_payment_method IN ('cash', 'qris')),
+        updated_payment_method TEXT CHECK(updated_payment_method IN ('cash', 'qris')),
+        changed_at DATETIME,
+        created_at DATETIME,
+        FOREIGN KEY (transaction_id) REFERENCES Data_Transaction(id),
+        FOREIGN KEY (actor_user_id) REFERENCES Data_User(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_payment_history_transaction_changed_at
+      ON Data_Transaction_Payment_Method_History(transaction_id, changed_at DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_payment_history_actor_user
+      ON Data_Transaction_Payment_Method_History(actor_user_id)
+    ''');
+  }
+
   Future<void> _createTransactionItemTable(Database db) async {
     await db.execute('''
       CREATE TABLE Data_Transaction_Item (
@@ -251,7 +285,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         bundle_id INTEGER NOT NULL,
         component_master_data_id INTEGER NOT NULL,
-        component_type TEXT NOT NULL CHECK(component_type IN ('product', 'paper', 'packaging')),
+        component_type TEXT NOT NULL,
         qty INTEGER NOT NULL DEFAULT 1,
         created_at DATETIME,
         updated_at DATETIME,
@@ -265,6 +299,55 @@ class DatabaseHelper {
         'CREATE INDEX IF NOT EXISTS idx_bundle_item_bundle_id ON Data_Bundle_Item(bundle_id)');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_bundle_item_component_id ON Data_Bundle_Item(component_master_data_id)');
+  }
+
+  Future<void> _migrateBundleItemComponentTypeToFlexible(Database db) async {
+    await db.transaction((txn) async {
+      await txn.execute('''
+        CREATE TABLE IF NOT EXISTS Data_Bundle_Item_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bundle_id INTEGER NOT NULL,
+          component_master_data_id INTEGER NOT NULL,
+          component_type TEXT NOT NULL,
+          qty INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME,
+          updated_at DATETIME,
+          FOREIGN KEY (bundle_id) REFERENCES Data_Master(id),
+          FOREIGN KEY (component_master_data_id) REFERENCES Data_Master(id),
+          UNIQUE(bundle_id, component_type)
+        )
+      ''');
+
+      await txn.execute('''
+        INSERT INTO Data_Bundle_Item_v2 (
+          id,
+          bundle_id,
+          component_master_data_id,
+          component_type,
+          qty,
+          created_at,
+          updated_at
+        )
+        SELECT
+          id,
+          bundle_id,
+          component_master_data_id,
+          component_type,
+          qty,
+          created_at,
+          updated_at
+        FROM Data_Bundle_Item
+      ''');
+
+      await txn.execute('DROP TABLE Data_Bundle_Item');
+      await txn.execute(
+        'ALTER TABLE Data_Bundle_Item_v2 RENAME TO Data_Bundle_Item',
+      );
+      await txn.execute(
+          'CREATE INDEX IF NOT EXISTS idx_bundle_item_bundle_id ON Data_Bundle_Item(bundle_id)');
+      await txn.execute(
+          'CREATE INDEX IF NOT EXISTS idx_bundle_item_component_id ON Data_Bundle_Item(component_master_data_id)');
+    });
   }
 
   Future<void> _seedDefaultCategories(Database db) async {
@@ -301,10 +384,28 @@ class DatabaseHelper {
         'is_countable': 0,
       },
       {
-        'name': 'Bundle',
-        'code': 'bundle',
+        'name': 'Bundling',
+        'code': 'bundling',
         'is_bundle': 1,
         'is_countable': 0,
+      },
+      {
+        'name': 'Frame',
+        'code': 'frame',
+        'is_bundle': 0,
+        'is_countable': 0,
+      },
+      {
+        'name': 'Service',
+        'code': 'service',
+        'is_bundle': 0,
+        'is_countable': 0,
+      },
+      {
+        'name': 'Property',
+        'code': 'property',
+        'is_bundle': 0,
+        'is_countable': 1,
       },
     ];
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:meko_poin/models/additional/payment_method_change_history.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
 import 'package:meko_poin/models/transaction_item.dart';
 import 'package:meko_poin/services/database_helper.dart';
@@ -27,6 +28,8 @@ class TransactionDetail extends StatefulWidget {
 }
 
 class _TransactionDetailState extends State<TransactionDetail> {
+  static const int _historyPageSize = 10;
+
   bool _isEditingCustomer = false;
   bool _isEditingPayment = false;
   String? _editingPaymentMethod;
@@ -35,6 +38,15 @@ class _TransactionDetailState extends State<TransactionDetail> {
   bool _isSaving = false;
   bool _isDeleting = false;
   int? _currentUserRole;
+  int? _currentUserId;
+
+  final List<PaymentMethodChangeHistory> _paymentHistory = [];
+  bool _isHistoryLoading = false;
+  bool _isHistoryLoadingMore = false;
+  bool _hasMoreHistory = true;
+  int _historyOffset = 0;
+  String? _historyErrorMessage;
+  int _historyTotalCount = 0;
 
   @override
   void initState() {
@@ -45,12 +57,25 @@ class _TransactionDetailState extends State<TransactionDetail> {
   Future<void> _getCurrentUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     final role = prefs.getString('userRole');
+    final currentUserId = prefs.getInt('userId');
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _currentUserRole = role != null ? int.tryParse(role) : null;
+      _currentUserId = currentUserId;
     });
+
+    if (_canViewPaymentHistory) {
+      await _loadPaymentMethodHistory(reset: true);
+    }
   }
 
   bool get _isAdmin => _currentUserRole == 1;
+  bool get _canViewPaymentHistory =>
+      _currentUserRole == 1 || _currentUserRole == 2;
 
   @override
   void dispose() {
@@ -167,24 +192,29 @@ class _TransactionDetailState extends State<TransactionDetail> {
   Future<void> _savePaymentMethod(int transactionId) async {
     if (_editingPaymentMethod == null) return;
 
+    final currentUserId = _currentUserId;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User tidak terautentikasi')),
+      );
+      return;
+    }
+
     setState(() {
       _isSaving = true;
     });
 
     try {
-      final db = await DatabaseHelper.instance.database;
-
-      final result = await db.update(
-        'Data_Transaction',
-        {
-          'payment_method': _editingPaymentMethod!.toLowerCase(),
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        where: 'id = ?',
-        whereArgs: [transactionId],
+      final result =
+          await widget.transactionRepository.updatePaymentMethodWithHistory(
+        transactionId: transactionId,
+        newPaymentMethod: _editingPaymentMethod!,
+        actorUserId: currentUserId,
       );
 
       if (result > 0) {
+        await _loadPaymentMethodHistory(reset: true);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -199,7 +229,7 @@ class _TransactionDetailState extends State<TransactionDetail> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Gagal memperbarui metode pembayaran')),
+                content: Text('Tidak ada perubahan metode pembayaran')),
           );
         }
       }
@@ -217,6 +247,307 @@ class _TransactionDetailState extends State<TransactionDetail> {
         });
       }
     }
+  }
+
+  Future<void> _loadPaymentMethodHistory({bool reset = false}) async {
+    if (!_canViewPaymentHistory) {
+      return;
+    }
+
+    if (reset) {
+      setState(() {
+        _isHistoryLoading = true;
+        _historyErrorMessage = null;
+        _historyOffset = 0;
+        _paymentHistory.clear();
+        _hasMoreHistory = true;
+      });
+    } else {
+      if (_isHistoryLoading || _isHistoryLoadingMore || !_hasMoreHistory) {
+        return;
+      }
+      setState(() {
+        _isHistoryLoadingMore = true;
+        _historyErrorMessage = null;
+      });
+    }
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      final records =
+          await widget.transactionRepository.getPaymentMethodHistory(
+        widget.transactionId,
+        limit: _historyPageSize,
+        offset: _historyOffset,
+      );
+
+      final totalCount = await widget.transactionRepository
+          .getPaymentMethodHistoryCount(widget.transactionId);
+
+      stopwatch.stop();
+      debugPrint(
+          'Payment method history loaded in ${stopwatch.elapsedMilliseconds}ms');
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _paymentHistory.addAll(records);
+        _historyOffset = _paymentHistory.length;
+        _historyTotalCount = totalCount;
+        _hasMoreHistory = _paymentHistory.length < totalCount;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _historyErrorMessage = 'Gagal memuat riwayat metode pembayaran';
+      });
+      debugPrint('Error loading payment method history: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isHistoryLoading = false;
+          _isHistoryLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  String _formatPaymentMethod(String paymentMethod) {
+    if (paymentMethod.toLowerCase() == 'qris') {
+      return 'QRIS';
+    }
+
+    return paymentMethod.isNotEmpty
+        ? '${paymentMethod[0].toUpperCase()}${paymentMethod.substring(1).toLowerCase()}'
+        : '-';
+  }
+
+  Widget _buildPaymentMethodHistorySection() {
+    if (_isHistoryLoading && _paymentHistory.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_historyErrorMessage != null && _paymentHistory.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _historyErrorMessage!,
+            style: const TextStyle(
+              color: CustomColors.fontSubColor,
+              fontSize: 13,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => _loadPaymentMethodHistory(reset: true),
+            child: const Text('Muat Ulang'),
+          ),
+        ],
+      );
+    }
+
+    if (_paymentHistory.isEmpty) {
+      return const Text(
+        'No payment method changes recorded',
+        style: TextStyle(
+          fontSize: 13,
+          fontFamily: 'Inter',
+          color: CustomColors.fontSubColor,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: CustomColors.cardColor,
+            border: Border.all(color: CustomColors.borderCardColor),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: CustomColors.cardColor,
+                  border: Border(
+                    top: BorderSide(color: CustomColors.borderCardColor),
+                    bottom: BorderSide(color: CustomColors.borderCardColor),
+                  ),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      _buildHistoryTableHeaderCell('Previous', 2),
+                      _buildHistoryTableHeaderCell('Updated', 2),
+                      _buildHistoryTableHeaderCell('Changed At', 3),
+                      _buildHistoryTableHeaderCell('Actor', 2,
+                          withRightBorder: false),
+                    ],
+                  ),
+                ),
+              ),
+              ..._paymentHistory.asMap().entries.map((entry) {
+                final index = entry.key;
+                final history = entry.value;
+                final isLast = index == _paymentHistory.length - 1;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: isLast
+                          ? BorderSide.none
+                          : BorderSide(color: CustomColors.borderCardColor),
+                    ),
+                  ),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        _buildHistoryTableCell(
+                          _formatPaymentMethod(history.previousPaymentMethod),
+                          2,
+                          textColor: Colors.white,
+                        ),
+                        _buildHistoryTableCell(
+                          _formatPaymentMethod(history.updatedPaymentMethod),
+                          2,
+                          textColor: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        _buildHistoryTableCell(
+                          DateFormat('d MMM y, HH:mm:ss')
+                              .format(history.changedAt),
+                          3,
+                        ),
+                        _buildHistoryTableCell(
+                          history.actorName,
+                          2,
+                          withRightBorder: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        if (_historyTotalCount > 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            '${_paymentHistory.length} / $_historyTotalCount records',
+            style: const TextStyle(
+              color: CustomColors.fontSubColor,
+              fontSize: 12,
+              fontFamily: 'Inter',
+            ),
+          ),
+        ],
+        if (_hasMoreHistory) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _isHistoryLoadingMore
+                  ? null
+                  : () => _loadPaymentMethodHistory(),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: CustomColors.borderInputColor),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              child: _isHistoryLoadingMore
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Load More',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHistoryTableHeaderCell(
+    String text,
+    int flex, {
+    bool withRightBorder = true,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            right: withRightBorder
+                ? BorderSide(color: CustomColors.borderCardColor)
+                : BorderSide.none,
+          ),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            fontWeight: FontWeight.w400,
+            color: CustomColors.fontSubColor,
+            fontFamily: 'Inter',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryTableCell(
+    String text,
+    int flex, {
+    bool withRightBorder = true,
+    Color textColor = CustomColors.fontSubColor,
+    FontWeight fontWeight = FontWeight.w500,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+        decoration: BoxDecoration(
+          border: Border(
+            right: withRightBorder
+                ? BorderSide(color: CustomColors.borderCardColor)
+                : BorderSide.none,
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            fontWeight: fontWeight,
+            color: textColor,
+            fontFamily: 'Inter',
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _saveCustomerChanges(int customerId) async {
@@ -400,230 +731,444 @@ class _TransactionDetailState extends State<TransactionDetail> {
               decoration: BoxDecoration(
                 color: CustomColors.cardColor,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Left Column (2/3 width)
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Pelanggan Section Card
-                                _buildSectionCard(
-                                  title: 'Pelanggan',
-                                  content: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: _buildCustomerField(
-                                              label: 'No. Hp',
-                                              value: customerPhone,
-                                              isEditing: _isEditingCustomer,
-                                              controller: _phoneController,
-                                            ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 12,
+                      children: [
+                        // Left Column (2/3 width)
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Pelanggan Section Card
+                              _buildSectionCard(
+                                title: 'Pelanggan',
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _buildCustomerField(
+                                            label: 'No. Hp',
+                                            value: customerPhone,
+                                            isEditing: _isEditingCustomer,
+                                            controller: _phoneController,
                                           ),
-                                          const SizedBox(width: 24),
-                                          Expanded(
-                                            child: _buildCustomerField(
-                                              label: 'Nama',
-                                              value: customerName,
-                                              isEditing: _isEditingCustomer,
-                                              controller: _nameController,
-                                            ),
+                                        ),
+                                        const SizedBox(width: 24),
+                                        Expanded(
+                                          child: _buildCustomerField(
+                                            label: 'Nama',
+                                            value: customerName,
+                                            isEditing: _isEditingCustomer,
+                                            controller: _nameController,
                                           ),
-                                          const SizedBox(width: 16),
-                                          // Edit/Save Button - sekarang sejajar dengan field
-                                          Container(
-                                            margin:
-                                                const EdgeInsets.only(top: 25),
-                                            child: _isEditingCustomer
-                                                ? Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      ElevatedButton(
-                                                        onPressed: _isSaving
-                                                            ? null
-                                                            : _cancelEditing,
-                                                        style: ElevatedButton
-                                                            .styleFrom(
-                                                          backgroundColor:
-                                                              const Color(
-                                                                  0xFFED143B),
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  horizontal:
-                                                                      16,
-                                                                  vertical: 11),
-                                                          shape:
-                                                              RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        6),
-                                                          ),
-                                                        ),
-                                                        child: const Text(
-                                                          'Batal',
-                                                          style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                                FontWeight.w400,
-                                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        // Edit/Save Button - sekarang sejajar dengan field
+                                        Container(
+                                          margin:
+                                              const EdgeInsets.only(top: 25),
+                                          child: _isEditingCustomer
+                                              ? Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    ElevatedButton(
+                                                      onPressed: _isSaving
+                                                          ? null
+                                                          : _cancelEditing,
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            const Color(
+                                                                0xFFED143B),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 16,
+                                                                vertical: 11),
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(6),
                                                         ),
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      ElevatedButton(
-                                                        onPressed: _isSaving
-                                                            ? null
-                                                            : () =>
-                                                                _saveCustomerChanges(
-                                                                    customerId!),
-                                                        style: ElevatedButton
-                                                            .styleFrom(
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  horizontal:
-                                                                      16,
-                                                                  vertical: 11),
-                                                          shape:
-                                                              RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        6),
-                                                          ),
+                                                      child: const Text(
+                                                        'Batal',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w400,
                                                         ),
-                                                        child: _isSaving
-                                                            ? const SizedBox(
-                                                                width: 16,
-                                                                height: 16,
-                                                                child:
-                                                                    CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                  valueColor: AlwaysStoppedAnimation<
-                                                                          Color>(
-                                                                      Colors
-                                                                          .white),
-                                                                ),
-                                                              )
-                                                            : const Text(
-                                                                'Simpan',
-                                                                style:
-                                                                    TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontSize: 14,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w400,
-                                                                ),
-                                                              ),
-                                                      ),
-                                                    ],
-                                                  )
-                                                : ElevatedButton(
-                                                    onPressed: () =>
-                                                        _startEditing(
-                                                            customerName,
-                                                            customerPhone),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      backgroundColor:
-                                                          const Color(
-                                                              0xFF1379F0),
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 16,
-                                                          vertical: 11),
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(6),
                                                       ),
                                                     ),
-                                                    child: const Text(
-                                                      'Edit',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w400,
+                                                    const SizedBox(width: 8),
+                                                    ElevatedButton(
+                                                      onPressed: _isSaving
+                                                          ? null
+                                                          : () =>
+                                                              _saveCustomerChanges(
+                                                                  customerId!),
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            Colors.green,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 16,
+                                                                vertical: 11),
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(6),
+                                                        ),
                                                       ),
+                                                      child: _isSaving
+                                                          ? const SizedBox(
+                                                              width: 16,
+                                                              height: 16,
+                                                              child:
+                                                                  CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                                valueColor:
+                                                                    AlwaysStoppedAnimation<
+                                                                            Color>(
+                                                                        Colors
+                                                                            .white),
+                                                              ),
+                                                            )
+                                                          : const Text(
+                                                              'Simpan',
+                                                              style: TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w400,
+                                                              ),
+                                                            ),
+                                                    ),
+                                                  ],
+                                                )
+                                              : ElevatedButton(
+                                                  onPressed: () =>
+                                                      _startEditing(
+                                                          customerName,
+                                                          customerPhone),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        const Color(0xFF1379F0),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 11),
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              6),
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Edit',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                    ),
+                                                  ),
+                                                ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Pesanan Section Card
+                              _buildSectionCard(
+                                title: 'Pesanan',
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildOrderTable(transactionItems),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Right Column (1/3 width)
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Pembayaran Section Card
+                              _buildSectionCard(
+                                title: 'Pembayaran',
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    // Invoice Number
+                                    const Text(
+                                      'Invoice',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      transaction.invoiceNumber,
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Diskon Nominal
+                                    const Text(
+                                      'Diskon (Nominal)',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _formatPrice(transaction.discountPrice!),
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Total Harga
+                                    const Text(
+                                      'Total Harga',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _formatPrice(transaction.finalPrice),
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Metode Pembayaran
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        const Expanded(
+                                          child: Text(
+                                            'Metode Pembayaran',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.w400,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_isAdmin && !_isEditingPayment)
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _isEditingPayment = true;
+                                                _editingPaymentMethod =
+                                                    transaction.paymentMethod
+                                                        .toLowerCase();
+                                              });
+                                            },
+                                            child: const Text(
+                                              'Edit',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontFamily: 'Inter',
+                                                fontWeight: FontWeight.w400,
+                                                color: Color(0xFF1379F0),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 5),
+                                    if (_isEditingPayment) ...[
+                                      DropdownButtonFormField<String>(
+                                        value: _editingPaymentMethod,
+                                        isExpanded: true,
+                                        items: const ['cash', 'qris']
+                                            .map((method) =>
+                                                DropdownMenuItem<String>(
+                                                  value: method,
+                                                  child: Text(
+                                                    method.toUpperCase(),
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.white,
+                                                      fontFamily: 'Inter',
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (v) => setState(
+                                            () => _editingPaymentMethod = v),
+                                        decoration: InputDecoration(
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 12, vertical: 7),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            borderSide: BorderSide(
+                                                color: CustomColors
+                                                    .borderInputColor),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            borderSide: BorderSide(
+                                                color:
+                                                    CustomColors.fontSubColor),
+                                          ),
+                                          filled: true,
+                                          fillColor: CustomColors.cardColor,
+                                          isDense: true,
+                                        ),
+                                        dropdownColor: CustomColors.cardColor,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white,
+                                          fontFamily: 'Inter',
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          ElevatedButton(
+                                            onPressed: _isSaving
+                                                ? null
+                                                : () => setState(() {
+                                                      _isEditingPayment = false;
+                                                      _editingPaymentMethod =
+                                                          null;
+                                                    }),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color(0xFFED143B),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Batal',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton(
+                                            onPressed: _isSaving
+                                                ? null
+                                                : () => _savePaymentMethod(
+                                                    transaction.id),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.green,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                            child: _isSaving
+                                                ? const SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                              Color>(
+                                                        Colors.white,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const Text(
+                                                    'Simpan',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w400,
                                                     ),
                                                   ),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Pesanan Section Card
-                                _buildSectionCard(
-                                  title: 'Pesanan',
-                                  content: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildOrderTable(transactionItems),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          // Right Column (1/3 width)
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Pembayaran Section Card
-                                _buildSectionCard(
-                                  title: 'Pembayaran',
-                                  content: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 8),
-                                      // Invoice Number
-                                      const Text(
-                                        'Invoice',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
+                                    ] else
                                       Text(
-                                        transaction.invoiceNumber,
+                                        transaction.paymentMethod.toUpperCase(),
                                         textAlign: TextAlign.right,
                                         style: const TextStyle(
                                           fontSize: 14,
@@ -632,273 +1177,68 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                           color: Colors.white,
                                         ),
                                       ),
-                                      const SizedBox(height: 20),
+                                    const SizedBox(height: 20),
 
-                                      // Diskon Nominal
-                                      const Text(
-                                        'Diskon (Nominal)',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white,
-                                        ),
+                                    // Catatan (read-only)
+                                    const Text(
+                                      'Catatan',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.white,
                                       ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        _formatPrice(
-                                            transaction.discountPrice!),
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      transaction.notes.isNotEmpty == true
+                                          ? transaction.notes
+                                          : '-',
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
                                       ),
-                                      const SizedBox(height: 20),
+                                    ),
+                                    const SizedBox(height: 16),
 
-                                      // Total Harga
-                                      const Text(
-                                        'Total Harga',
-                                        textAlign: TextAlign.right,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        _formatPrice(transaction.finalPrice),
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 20),
-
-                                      // Metode Pembayaran
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          const Expanded(
-                                            child: Text(
-                                              'Metode Pembayaran',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontFamily: 'Inter',
-                                                fontWeight: FontWeight.w400,
+                                    // Buttons
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        // Tombol Kembali (selalu tampil)
+                                        ElevatedButton(
+                                          onPressed: widget.onBackPressed,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF1379F0),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Kembali',
+                                            style: TextStyle(
                                                 color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          if (_isAdmin && !_isEditingPayment)
-                                            GestureDetector(
-                                              onTap: () {
-                                                setState(() {
-                                                  _isEditingPayment = true;
-                                                  _editingPaymentMethod =
-                                                      transaction.paymentMethod
-                                                          .toLowerCase();
-                                                });
-                                              },
-                                              child: const Text(
-                                                'Edit',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontFamily: 'Inter',
-                                                  fontWeight: FontWeight.w400,
-                                                  color: Color(0xFF1379F0),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 5),
-                                      if (_isEditingPayment) ...[
-                                        DropdownButtonFormField<String>(
-                                          value: _editingPaymentMethod,
-                                          isExpanded: true,
-                                          items: const ['cash', 'qris']
-                                              .map((method) =>
-                                                  DropdownMenuItem<String>(
-                                                    value: method,
-                                                    child: Text(
-                                                      method.toUpperCase(),
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors.white,
-                                                        fontFamily: 'Inter',
-                                                      ),
-                                                    ),
-                                                  ))
-                                              .toList(),
-                                          onChanged: (v) => setState(
-                                              () => _editingPaymentMethod = v),
-                                          decoration: InputDecoration(
-                                            contentPadding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 7),
-                                            enabledBorder: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              borderSide: BorderSide(
-                                                  color: CustomColors
-                                                      .borderInputColor),
-                                            ),
-                                            focusedBorder: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              borderSide: BorderSide(
-                                                  color: CustomColors
-                                                      .fontSubColor),
-                                            ),
-                                            filled: true,
-                                            fillColor: CustomColors.cardColor,
-                                            isDense: true,
-                                          ),
-                                          dropdownColor: CustomColors.cardColor,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.white,
-                                            fontFamily: 'Inter',
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400),
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: [
-                                            ElevatedButton(
-                                              onPressed: _isSaving
-                                                  ? null
-                                                  : () => setState(() {
-                                                        _isEditingPayment =
-                                                            false;
-                                                        _editingPaymentMethod =
-                                                            null;
-                                                      }),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    const Color(0xFFED143B),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 12,
-                                                        vertical: 8),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                'Batal',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            ElevatedButton(
-                                              onPressed: _isSaving
-                                                  ? null
-                                                  : () => _savePaymentMethod(
-                                                      transaction.id),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.green,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 12,
-                                                        vertical: 8),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                              ),
-                                              child: _isSaving
-                                                  ? const SizedBox(
-                                                      width: 14,
-                                                      height: 14,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        valueColor:
-                                                            AlwaysStoppedAnimation<
-                                                                Color>(
-                                                          Colors.white,
-                                                        ),
-                                                      ),
-                                                    )
-                                                  : const Text(
-                                                      'Simpan',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w400,
-                                                      ),
-                                                    ),
-                                            ),
-                                          ],
-                                        ),
-                                      ] else
-                                        Text(
-                                          transaction.paymentMethod
-                                              .toUpperCase(),
-                                          textAlign: TextAlign.right,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontFamily: 'Inter',
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      const SizedBox(height: 20),
+                                        const SizedBox(width: 10),
 
-                                      // Catatan (read-only)
-                                      const Text(
-                                        'Catatan',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        transaction.notes.isNotEmpty == true
-                                            ? transaction.notes
-                                            : '-',
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-
-                                      // Buttons
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          // Tombol Kembali (selalu tampil)
+                                        // Tombol Hapus (hanya untuk admin)
+                                        if (_isAdmin) ...[
                                           ElevatedButton(
-                                            onPressed: widget.onBackPressed,
+                                            onPressed: _isDeleting
+                                                ? null
+                                                : _showDeleteConfirmation,
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  const Color(0xFF1379F0),
+                                              backgroundColor: Colors.red,
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 16,
@@ -908,100 +1248,77 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                                     BorderRadius.circular(6),
                                               ),
                                             ),
-                                            child: const Text(
-                                              'Kembali',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400),
-                                            ),
+                                            child: _isDeleting
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                              Colors.white),
+                                                    ),
+                                                  )
+                                                : const Text(
+                                                    'Hapus',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                    ),
+                                                  ),
                                           ),
                                           const SizedBox(width: 10),
+                                        ],
 
-                                          // Tombol Hapus (hanya untuk admin)
-                                          if (_isAdmin) ...[
-                                            ElevatedButton(
-                                              onPressed: _isDeleting
-                                                  ? null
-                                                  : _showDeleteConfirmation,
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                        vertical: 10),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                              ),
-                                              child: _isDeleting
-                                                  ? const SizedBox(
-                                                      width: 16,
-                                                      height: 16,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        valueColor:
-                                                            AlwaysStoppedAnimation<
-                                                                    Color>(
-                                                                Colors.white),
-                                                      ),
-                                                    )
-                                                  : const Text(
-                                                      'Hapus',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w400,
-                                                      ),
-                                                    ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                          ],
-
-                                          // Tombol Cetak (selalu tampil)
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              _showPrintOptions(
-                                                context,
-                                                snapshot.data!,
-                                                itemsSnapshot.data!,
-                                              );
-                                            },
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.green,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 10),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                              ),
-                                            ),
-                                            child: const Text(
-                                              'Cetak',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400),
+                                        // Tombol Cetak (selalu tampil)
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            _showPrintOptions(
+                                              context,
+                                              snapshot.data!,
+                                              itemsSnapshot.data!,
+                                            );
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.green,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                          child: const Text(
+                                            'Cetak',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    if (_canViewPaymentHistory) ...[
+                      const SizedBox(height: 16),
+                      _buildSectionCard(
+                        title: 'Payment Method History',
+                        content: _buildPaymentMethodHistorySection(),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             );
           },
