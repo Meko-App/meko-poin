@@ -27,7 +27,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 8,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -90,6 +90,14 @@ class DatabaseHelper {
 
     if (oldVersion < 6) {
       await _createTransactionPaymentMethodHistoryTable(db);
+    }
+
+    if (oldVersion < 7) {
+      await _removeCategoryCheckConstraint(db);
+    }
+
+    if (oldVersion < 8) {
+      await _removeCategoryCheckConstraint(db);
     }
   }
 
@@ -480,6 +488,40 @@ class DatabaseHelper {
         where: 'category_id IS NULL',
       );
     }
+  }
+
+  Future<void> _removeCategoryCheckConstraint(Database db) async {
+    // SQLite tidak support DROP CONSTRAINT, jadi harus recreate table
+    await db.execute('''
+    CREATE TABLE Data_Master_Temp (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      category_id INTEGER,
+      packaging_id INTEGER,
+      name TEXT,
+      category TEXT,
+      price INTEGER,
+      created_at DATETIME,
+      updated_at DATETIME,
+      deleted_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES Data_User(id),
+      FOREIGN KEY (category_id) REFERENCES Data_Category(id)
+    )
+  ''');
+
+    await db.execute('''
+    INSERT INTO Data_Master_Temp
+      (id, user_id, category_id, packaging_id, name, category, price, created_at, updated_at, deleted_at)
+    SELECT
+      id, user_id, category_id, packaging_id, name, category, price, created_at, updated_at, deleted_at
+    FROM Data_Master
+  ''');
+
+    await db.execute('DROP TABLE Data_Master');
+    await db.execute('ALTER TABLE Data_Master_Temp RENAME TO Data_Master');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_data_master_category_id ON Data_Master(category_id)',
+    );
   }
 
   Future<int?> _getCategoryIdByCode(Database db, String code) async {

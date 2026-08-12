@@ -2265,7 +2265,8 @@ class _TransactionFormState extends State<TransactionForm> {
         //     ),
         //   ),
         if (_selectedCategoryCode() == 'paper' ||
-            (_selectedCategoryCode() == 'bundle' &&
+            ((_selectedCategoryCode()?.startsWith('bundle') == true ||
+                    _selectedCategoryCode() == 'bundling') &&
                 _selectedBundleHasPaperComponent())) ...[
           const SizedBox(height: 8),
           Row(
