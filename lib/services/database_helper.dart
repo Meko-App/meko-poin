@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/password_hasher.dart';
 
@@ -19,10 +20,20 @@ class DatabaseHelper {
     return _database!;
   }
 
+  /// Returns a writable path for the database file.
+  /// On Windows, getDatabasesPath() points to the install dir (read-only when
+  /// installed under Program Files). We use getApplicationSupportDirectory()
+  /// instead, which resolves to %APPDATA%\Roaming\<app> — always writable.
+  Future<String> _getDbPath(String fileName) async {
+    final appSupportDir = await getApplicationSupportDirectory();
+    // Ensure the directory exists
+    await appSupportDir.create(recursive: true);
+    return join(appSupportDir.path, fileName);
+  }
+
   Future<Database> _initDB(String fileName) async {
     sqfliteFfiInit();
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, fileName);
+    final path = await _getDbPath(fileName);
 
     final db = await databaseFactoryFfi.openDatabase(
       path,
@@ -575,8 +586,8 @@ class DatabaseHelper {
 
   Future<void> backupDatabase(BuildContext context) async {
     try {
-      final dbPath = await getDatabasesPath();
-      final srcFile = File('$dbPath/app_database.db');
+      final dbPath = await _getDbPath('app_database.db');
+      final srcFile = File(dbPath);
 
       if (!await srcFile.exists()) {
         throw Exception('File database tidak ditemukan');
@@ -641,8 +652,8 @@ class DatabaseHelper {
       if (result == null) return; // User membatalkan
 
       final db = await instance.database;
-      final dbPath = await getDatabasesPath();
-      final destFile = File('$dbPath/app_database.db');
+      final destPath = await _getDbPath('app_database.db');
+      final destFile = File(destPath);
 
       // Tutup database sebelum restore
       await db.close();
