@@ -548,18 +548,28 @@ class TransactionRepository {
   Future<int> deleteTransaction(int transactionId) async {
     final db = await dbHelper.database;
 
-    // Hapus transaction items terlebih dahulu (foreign key constraint)
-    await db.delete(
-      'Data_Transaction_Item',
-      where: 'transaction_id = ?',
-      whereArgs: [transactionId],
-    );
+    return db.transaction((txn) async {
+      // Soft delete kas yang terkait dengan transaksi ini
+      await txn.update(
+        'Data_Kas',
+        {'deleted_at': DateTime.now().toIso8601String()},
+        where: 'transaction_id = ? AND deleted_at IS NULL',
+        whereArgs: [transactionId],
+      );
 
-    // Hapus transaction
-    return await db.delete(
-      'Data_Transaction',
-      where: 'id = ?',
-      whereArgs: [transactionId],
-    );
+      // Hapus transaction items terlebih dahulu (foreign key constraint)
+      await txn.delete(
+        'Data_Transaction_Item',
+        where: 'transaction_id = ?',
+        whereArgs: [transactionId],
+      );
+
+      // Hapus transaction
+      return await txn.delete(
+        'Data_Transaction',
+        where: 'id = ?',
+        whereArgs: [transactionId],
+      );
+    });
   }
 }

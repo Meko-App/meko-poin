@@ -38,7 +38,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 10,
+        version: 12,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -119,6 +119,19 @@ class DatabaseHelper {
       await _migrateMasterDataRemovePackaging(db);
       await _migrateBundleItemToInventoryReference(db);
     }
+
+    if (oldVersion < 11) {
+      await _addColumnIfNotExists(
+        db,
+        'Data_Kas',
+        'transaction_id',
+        'INTEGER',
+      );
+    }
+
+    if (oldVersion < 12) {
+      await _migrateInventoryAddNameAndCategory(db);
+    }
   }
 
   Future<void> _createUserTable(Database db) async {
@@ -174,6 +187,8 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         master_data_id INTEGER,
+        name TEXT,
+        category_id INTEGER,
         stock INTEGER,
         stock_reject INTEGER,
         notes TEXT,
@@ -181,7 +196,8 @@ class DatabaseHelper {
         updated_at DATETIME,
         deleted_at TEXT,
         FOREIGN KEY (user_id) REFERENCES Data_User(id),
-        FOREIGN KEY (master_data_id) REFERENCES Data_Master(id)
+        FOREIGN KEY (master_data_id) REFERENCES Data_Master(id),
+        FOREIGN KEY (category_id) REFERENCES Data_Category(id)
       )
     ''');
   }
@@ -290,12 +306,14 @@ class DatabaseHelper {
         description TEXT,
         type TEXT CHECK(type IN ('income', 'outcome')),
         cash_date DATE,
+        transaction_id INTEGER,
         created_at DATETIME,
         updated_at DATETIME,
         deleted_at TEXT,
         created_by INTEGER,
         updated_by INTEGER,
-        deleted_by INTEGER
+        deleted_by INTEGER,
+        FOREIGN KEY (transaction_id) REFERENCES Data_Transaction(id)
       )
     ''');
   }
@@ -620,6 +638,32 @@ class DatabaseHelper {
           'CREATE INDEX IF NOT EXISTS idx_bundle_item_bundle_id ON Data_Bundle_Item(bundle_id)');
       await txn.execute(
           'CREATE INDEX IF NOT EXISTS idx_bundle_item_component_id ON Data_Bundle_Item(component_inventory_id)');
+    });
+  }
+
+  Future<void> _migrateInventoryAddNameAndCategory(Database db) async {
+    final hasName = await _columnExists(db, 'Data_Inventory', 'name');
+    if (hasName) {
+      return;
+    }
+
+    await db.transaction((txn) async {
+      await txn.execute('ALTER TABLE Data_Inventory ADD COLUMN name TEXT');
+      await txn.execute('ALTER TABLE Data_Inventory ADD COLUMN category_id INTEGER');
+
+      // Backfill dari Data_Master untuk data lama yang punya master_data_id
+      await txn.rawUpdate('''
+        UPDATE Data_Inventory
+        SET name = (SELECT m.name FROM Data_Master m WHERE m.id = Data_Inventory.master_data_id),
+            category_id = (SELECT m.category_id FROM Data_Master m WHERE m.id = Data_Inventory.master_data_id)
+        WHERE master_data_id IS NOT NULL
+      ''');
+
+      await txn.rawUpdate(
+          'UPDATE Data_Inventory SET name = ? WHERE name IS NULL OR name = ?',
+          ['Unnamed', '']);
+      await txn.execute(
+          'CREATE INDEX IF NOT EXISTS idx_inventory_name_category ON Data_Inventory(name, category_id)');
     });
   }
 

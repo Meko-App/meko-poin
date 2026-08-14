@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:meko_poin/services/master_data_repository.dart';
-import 'package:meko_poin/services/transaction_item_repository.dart';
+import 'package:meko_poin/services/inventory_log_repository.dart';
 import 'package:meko_poin/views/Dashboard/components/card/card_table_pagination.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 
 class CardKertasTerjual extends StatefulWidget {
-  final MasterDataRepository masterDataRepo;
-  final TransactionItemRepository transactionItemRepo;
+  final InventoryLogRepository inventoryLogRepo;
   final DateTimeRange dateRange;
 
   const CardKertasTerjual(
       {super.key,
-      required this.masterDataRepo,
-      required this.transactionItemRepo,
+      required this.inventoryLogRepo,
       required this.dateRange});
 
   @override
@@ -50,35 +47,35 @@ class _CardKertasTerjualState extends State<CardKertasTerjual> {
         errorMessage = '';
       });
 
-      // Get master data with category 'Product' and 'Background'
-      final masterDataList = await widget.masterDataRepo.getAllMasterData();
-      final filteredMasterData = masterDataList
-          .where((data) => data.category.toLowerCase() == 'paper')
-          .toList();
+      final logs = await widget.inventoryLogRepo.getInventoryLogsByDateRange(
+          widget.dateRange.start, widget.dateRange.end);
 
-      // Get transaction items for this month
-      final transactionItems = await widget.transactionItemRepo
-          .getTransactionItemsByDateRange(
-              widget.dateRange.start, widget.dateRange.end);
+      // Hanya log pengurangan stok dari transaksi, untuk item inventori
+      // dengan kategori "kertas".
+      final Map<String, int> qtyByName = {};
 
-      // Create summary data
-      final List<Map<String, dynamic>> tempSummaryData = [];
-
-      for (final masterData in filteredMasterData) {
-        final relatedTransactions = transactionItems
-            .where((item) => item.masterDataId == masterData.id)
-            .toList();
-
-        final totalQty =
-            relatedTransactions.fold(0, (sum, item) => sum + item.qty);
-
-        if (totalQty > 0) {
-          tempSummaryData.add({
-            'masterData': masterData,
-            'totalQty': totalQty,
-          });
+      for (final entry in logs) {
+        final log = entry.inventoryLog;
+        if (log.type != 'decrement') {
+          continue;
         }
+        if (!log.notes.toLowerCase().contains('transaksi')) {
+          continue;
+        }
+        if (entry.categoryName.toLowerCase() != 'kertas') {
+          continue;
+        }
+        qtyByName[entry.productName] =
+            (qtyByName[entry.productName] ?? 0) + log.difference;
       }
+
+      final List<Map<String, dynamic>> tempSummaryData = qtyByName.entries
+          .where((entry) => entry.value > 0)
+          .map((entry) => {
+                'name': entry.key,
+                'totalQty': entry.value,
+              })
+          .toList();
 
       setState(() {
         summaryData = tempSummaryData;
@@ -99,13 +96,13 @@ class _CardKertasTerjualState extends State<CardKertasTerjual> {
       int result;
       switch (sortBy) {
         case 'item':
-          result = a['masterData'].name.compareTo(b['masterData'].name);
+          result = a['name'].compareTo(b['name']);
           break;
         case 'total':
           result = a['totalQty'].compareTo(b['totalQty']);
           break;
         default:
-          result = a['masterData'].name.compareTo(b['masterData'].name);
+          result = a['name'].compareTo(b['name']);
       }
       return isAscending ? result : -result;
     });
@@ -273,7 +270,7 @@ class _CardKertasTerjualState extends State<CardKertasTerjual> {
               padding: const EdgeInsets.symmetric(vertical: 40),
               child: const Center(
                 child: Text(
-                  'Tidak ada data transaksi bulan ini',
+                  'Tidak ada data transaksi pada rentang tanggal',
                   style: TextStyle(
                     fontSize: 14,
                     color: CustomColors.fontSubColor,
@@ -298,7 +295,7 @@ class _CardKertasTerjualState extends State<CardKertasTerjual> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 18.0, vertical: 18.0),
                             child: Text(
-                              data['masterData'].name,
+                              data['name'],
                               style: const TextStyle(
                                 fontSize: 14,
                                 height: 1.1,

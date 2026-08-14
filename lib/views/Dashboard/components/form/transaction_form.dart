@@ -111,6 +111,16 @@ class _TransactionFormState extends State<TransactionForm> {
     return data.category.toLowerCase() == code.toLowerCase();
   }
 
+  bool _isPaperComponent(Map<String, dynamic> component) {
+    final type = (component['component_type'] as String?)?.toLowerCase();
+    if (type == 'paper' || type == 'print') {
+      return true;
+    }
+    final categoryName =
+        (component['component_category_name'] as String?)?.toLowerCase();
+    return categoryName == 'paper' || categoryName == 'print';
+  }
+
   String? _selectedCategoryCode() {
     if (_selectedOrderCategory == null) {
       return null;
@@ -290,6 +300,7 @@ class _TransactionFormState extends State<TransactionForm> {
               'Pemasukan dari transaksi atas nama $customerName Invoice $invoiceNumber',
           'type': 'income',
           'cash_date': DateTime.now().toIso8601String(),
+          'transaction_id': transactionId,
           'created_by': userId,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
@@ -355,30 +366,23 @@ class _TransactionFormState extends State<TransactionForm> {
 
       if (bundleComponents.isNotEmpty) {
         for (final component in bundleComponents) {
-          final componentMasterDataId =
-              component['component_master_data_id'] as int?;
-          if (componentMasterDataId == null) {
-            continue;
-          }
-
-          final componentMasterData =
-              await _masterDataRepo.getMasterDataById(componentMasterDataId);
-          if (componentMasterData == null) {
+          final componentInventoryId =
+              component['component_inventory_id'] as int?;
+          if (componentInventoryId == null) {
             continue;
           }
 
           // Jika pakai sisa kertas, komponen paper tidak dikurangi.
-          if (_isCategoryCode(componentMasterData, 'paper') &&
-              _useRemainingPaper) {
+          if (_isPaperComponent(component) && _useRemainingPaper) {
             continue;
           }
 
           final componentQty = (component['qty'] as int? ?? 1) * qty;
 
-          await _decrementInventoryAndLog(
+          await _decrementInventoryByIdAndLog(
             db: db,
             userId: userId,
-            masterDataId: componentMasterDataId,
+            inventoryId: componentInventoryId,
             qty: componentQty,
             notes:
                 'Transaksi bundle ${masterData.name} dengan pengurangan sebesar $componentQty',
@@ -438,6 +442,54 @@ class _TransactionFormState extends State<TransactionForm> {
 
     await db.insert('Data_Inventory_Log', {
       'inventory_id': inventory.first['id'],
+      'user_id': userId,
+      'type': 'decrement',
+      'initial_stock': initialStock,
+      'current_stock': currentStock,
+      'difference': qty,
+      'notes': notes ??
+          'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
+      'created_at': now.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    });
+  }
+
+  Future<void> _decrementInventoryByIdAndLog({
+    required dynamic db,
+    required int userId,
+    required int inventoryId,
+    required int qty,
+    String? notes,
+  }) async {
+    final inventory = await db.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+      limit: 1,
+    );
+
+    if (inventory.isEmpty) {
+      return;
+    }
+
+    final initialStock = inventory.first['stock'] as int;
+    final currentStock = initialStock - qty;
+
+    await db.update(
+      'Data_Inventory',
+      {
+        'stock': currentStock,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+    );
+
+    final now = DateTime.now();
+    final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
+
+    await db.insert('Data_Inventory_Log', {
+      'inventory_id': inventoryId,
       'user_id': userId,
       'type': 'decrement',
       'initial_stock': initialStock,
@@ -611,11 +663,12 @@ class _TransactionFormState extends State<TransactionForm> {
     final snapshot = bundleItems
         .map(
           (item) => {
+            'component_inventory_id': item['component_inventory_id'],
             'component_master_data_id': item['component_master_data_id'],
             'component_type': item['component_type'],
             'component_name': item['component_name'],
+            'component_category_name': item['component_category_name'],
             'qty': item['qty'],
-            'component_price': item['component_price'],
           },
         )
         .toList();

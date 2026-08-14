@@ -5,6 +5,7 @@ import 'package:meko_poin/views/Dashboard/components/table/inventory_table/add_s
 
 class InventoryTableRow extends StatelessWidget {
   final String name;
+  final String categoryName;
   final int stock;
   final int stockReject;
   final String notes;
@@ -20,6 +21,7 @@ class InventoryTableRow extends StatelessWidget {
   const InventoryTableRow({
     super.key,
     required this.name,
+    this.categoryName = '',
     required this.stock,
     required this.stockReject,
     required this.notes,
@@ -71,6 +73,24 @@ class InventoryTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.2,
                     fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
+                  categoryName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.2,
+                    fontWeight: FontWeight.w400,
                     color: Colors.white,
                     fontFamily: 'Inter',
                   ),

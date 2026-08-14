@@ -61,10 +61,10 @@ class InventoryRepository {
       getAllInventoryWithUserMasterData() async {
     final db = await dbHelper.database;
     final result = await db.rawQuery('''
-    SELECT i.*, u.name AS addedBy, m.name AS name
+    SELECT i.*, u.name AS addedBy, COALESCE(c.name, '') AS category_name
     FROM Data_Inventory i
     JOIN Data_User u ON i.user_id = u.id
-    JOIN Data_Master m ON i.master_data_id = m.id
+    LEFT JOIN Data_Category c ON i.category_id = c.id
     WHERE i.deleted_at is NULL
   ''');
 
@@ -73,7 +73,9 @@ class InventoryRepository {
               inventoryData: Inventory(
                 id: row['id'] as int,
                 userId: row['user_id'] as int,
-                masterDataId: row['master_data_id'] as int,
+                masterDataId: row['master_data_id'] as int?,
+                name: (row['name'] ?? '') as String,
+                categoryId: row['category_id'] as int?,
                 stock: row['stock'] as int,
                 stockReject: row['stock_reject'] as int,
                 notes: row['notes'] as String,
@@ -81,7 +83,8 @@ class InventoryRepository {
                 updatedAt: DateTime.parse(row['updated_at'] as String),
               ),
               addedBy: row['addedBy'] as String,
-              name: row['name'] as String,
+              name: (row['name'] ?? '') as String,
+              categoryName: (row['category_name'] ?? '') as String,
             ))
         .toList();
   }
@@ -347,14 +350,11 @@ class InventoryRepository {
         i.id AS inventory_id,
         i.master_data_id,
         i.stock,
-        m.name AS name,
-        m.price AS price
+        i.name AS name
       FROM Data_Inventory i
-      INNER JOIN Data_Master m ON i.master_data_id = m.id
-      WHERE m.category_id = ?
+      WHERE i.category_id = ?
         AND i.deleted_at IS NULL
-        AND m.deleted_at IS NULL
-      ORDER BY m.name ASC
+      ORDER BY i.name ASC
     ''', [categoryId]);
 
     return result;
@@ -367,16 +367,40 @@ class InventoryRepository {
         i.id AS inventory_id,
         i.master_data_id,
         i.stock,
-        m.name AS name,
-        m.price AS price
+        i.name AS name
       FROM Data_Inventory i
-      INNER JOIN Data_Master m ON i.master_data_id = m.id
       WHERE i.id = ?
         AND i.deleted_at IS NULL
-        AND m.deleted_at IS NULL
       LIMIT 1
     ''', [inventoryId]);
 
     return result.isNotEmpty ? result.first : null;
+  }
+
+  Future<bool> isNameCategoryUsed(
+    String name,
+    int categoryId, {
+    int? excludeId,
+  }) async {
+    final db = await dbHelper.database;
+
+    final whereBuffer =
+        StringBuffer('LOWER(name) = ? AND category_id = ? AND deleted_at IS NULL');
+    final args = <Object>[name.toLowerCase(), categoryId];
+
+    if (excludeId != null) {
+      whereBuffer.write(' AND id != ?');
+      args.add(excludeId);
+    }
+
+    final result = await db.query(
+      'Data_Inventory',
+      columns: ['id'],
+      where: whereBuffer.toString(),
+      whereArgs: args,
+      limit: 1,
+    );
+
+    return result.isNotEmpty;
   }
 }

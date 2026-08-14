@@ -177,6 +177,10 @@ class _InventoryTableState extends State<InventoryTable> {
           valueA = a.name;
           valueB = b.name;
           break;
+        case 'category':
+          valueA = a.categoryName;
+          valueB = b.categoryName;
+          break;
         case 'stock':
           valueA = a.inventoryData.stock;
           valueB = b.inventoryData.stock;
@@ -289,6 +293,7 @@ class _InventoryTableState extends State<InventoryTable> {
                             children: currentPageData
                                 .map((data) => InventoryTableRow(
                                       name: data.name,
+                                      categoryName: data.categoryName,
                                       stock: data.inventoryData.stock,
                                       stockReject:
                                           data.inventoryData.stockReject!,

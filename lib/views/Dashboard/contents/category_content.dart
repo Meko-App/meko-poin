@@ -136,7 +136,7 @@ class _CategoryContentState extends State<CategoryContent> {
         title:
             const Text('Hapus Kategori', style: TextStyle(color: Colors.white)),
         content: Text(
-          'Kategori akan dihapus dan master data terkait dipindahkan ke kategori default.',
+          'Kategori akan dihapus dan master data serta item inventori terkait dipindahkan ke kategori default.',
           style: TextStyle(color: CustomColors.fontSubColor),
         ),
         actions: [
@@ -285,6 +285,23 @@ class _CategoryContentState extends State<CategoryContent> {
                           fontFamily: 'Inter',
                           fontSize: 14,
                           fontWeight: FontWeight.w500)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined,
+                            size: 18, color: CustomColors.fontSubColor),
+                        tooltip: 'Edit',
+                        onPressed: () => _openForm(category),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: Colors.redAccent),
+                        tooltip: 'Hapus',
+                        onPressed: () => _deleteCategory(category),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

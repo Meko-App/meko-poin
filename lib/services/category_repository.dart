@@ -105,6 +105,16 @@ class CategoryRepository {
         whereArgs: [categoryId],
       );
 
+      await txn.update(
+        'Data_Inventory',
+        {
+          'category_id': targetId,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'category_id = ? AND deleted_at IS NULL',
+        whereArgs: [categoryId],
+      );
+
       return txn.update(
         'Data_Category',
         {'deleted_at': DateTime.now().toIso8601String()},

@@ -1,7 +1,9 @@
 class Inventory {
   final int? id;
   final int userId;
-  final int masterDataId;
+  final int? masterDataId;
+  final String name;
+  final int? categoryId;
   final int stock;
   final int? stockReject;
   final String notes;
@@ -12,7 +14,9 @@ class Inventory {
   Inventory({
     this.id,
     required this.userId,
-    required this.masterDataId,
+    this.masterDataId,
+    this.name = '',
+    this.categoryId,
     required this.stock,
     this.stockReject,
     required this.notes,
@@ -26,6 +30,8 @@ class Inventory {
       id: map['id'],
       userId: map['user_id'],
       masterDataId: map['master_data_id'],
+      name: map['name'] ?? '',
+      categoryId: map['category_id'],
       stock: map['stock'],
       stockReject: map['stock_reject'] ?? 0,
       notes: map['notes'],
@@ -41,6 +47,8 @@ class Inventory {
       'id': id,
       'user_id': userId,
       'master_data_id': masterDataId,
+      'name': name,
+      'category_id': categoryId,
       'stock': stock,
       'stock_reject': stockReject,
       'notes': notes,
@@ -56,6 +64,8 @@ class Inventory {
       id: id,
       userId: userId,
       masterDataId: masterDataId,
+      name: name,
+      categoryId: categoryId,
       stock: stock,
       stockReject: stockReject,
       notes: notes,
@@ -71,6 +81,8 @@ class Inventory {
       id: id,
       userId: userId,
       masterDataId: masterDataId,
+      name: name,
+      categoryId: categoryId,
       stock: stock,
       stockReject: stockReject,
       notes: notes,
@@ -84,6 +96,8 @@ class Inventory {
     int? id,
     int? userId,
     int? masterDataId,
+    String? name,
+    int? categoryId,
     int? stock,
     int? stockReject,
     String? notes,
@@ -95,6 +109,8 @@ class Inventory {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       masterDataId: masterDataId ?? this.masterDataId,
+      name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
       stock: stock ?? this.stock,
       stockReject: stockReject ?? this.stockReject,
       notes: notes ?? this.notes,

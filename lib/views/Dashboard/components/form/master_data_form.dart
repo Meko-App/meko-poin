@@ -1826,15 +1826,13 @@ class _BundleComponentEntry {
 
 class _InventoryOption {
   final int inventoryId;
-  final int masterDataId;
-  final int? price;
+  final int? masterDataId;
   final int stock;
   final String name;
 
   const _InventoryOption({
     required this.inventoryId,
-    required this.masterDataId,
-    this.price,
+    this.masterDataId,
     this.stock = 0,
     required this.name,
   });
@@ -1842,8 +1840,7 @@ class _InventoryOption {
   factory _InventoryOption.fromMap(Map<String, dynamic> map) {
     return _InventoryOption(
       inventoryId: map['inventory_id'] as int,
-      masterDataId: map['master_data_id'] as int,
-      price: map['price'] as int?,
+      masterDataId: map['master_data_id'] as int?,
       stock: (map['stock'] as int?) ?? 0,
       name: (map['name'] ?? '') as String,
     );

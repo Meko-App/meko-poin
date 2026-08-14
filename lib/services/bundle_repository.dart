@@ -32,17 +32,14 @@ class BundleRepository {
         bi.created_at,
         bi.updated_at,
         inv.master_data_id AS component_master_data_id,
-        m.name AS component_name,
-        m.price AS component_price,
-        m.category_id AS component_category_id,
-        COALESCE(c.name, m.category) AS component_category_name
+        inv.name AS component_name,
+        inv.category_id AS component_category_id,
+        COALESCE(c.name, '') AS component_category_name
       FROM Data_Bundle_Item bi
       INNER JOIN Data_Inventory inv ON bi.component_inventory_id = inv.id
-      INNER JOIN Data_Master m ON inv.master_data_id = m.id
-      LEFT JOIN Data_Category c ON m.category_id = c.id
+      LEFT JOIN Data_Category c ON inv.category_id = c.id
       WHERE bi.bundle_id = ?
         AND inv.deleted_at IS NULL
-        AND m.deleted_at IS NULL
       ORDER BY bi.component_type ASC
     ''', [bundleId]);
   }

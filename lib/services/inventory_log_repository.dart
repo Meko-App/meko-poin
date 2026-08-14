@@ -31,10 +31,11 @@ class InventoryLogRepository {
     final result = await db.rawQuery('''
     SELECT 
       l.*,
-      m.name AS product_name
+      i.name AS product_name,
+      COALESCE(c.name, '') AS category_name
     FROM Data_Inventory_Log l
     LEFT JOIN Data_Inventory i ON l.inventory_id = i.id
-    LEFT JOIN Data_Master m ON i.master_data_id = m.id
+    LEFT JOIN Data_Category c ON i.category_id = c.id
     WHERE date(l.created_at) = ?
     ORDER BY l.created_at DESC
   ''', [today]);
@@ -54,6 +55,7 @@ class InventoryLogRepository {
                 updatedAt: DateTime.parse(row['updated_at'] as String),
               ),
               productName: row['product_name'] as String,
+              categoryName: (row['category_name'] ?? '') as String,
             ))
         .toList();
   }
@@ -67,10 +69,11 @@ class InventoryLogRepository {
     final result = await db.rawQuery('''
     SELECT 
       l.*,
-      m.name AS product_name
+      i.name AS product_name,
+      COALESCE(c.name, '') AS category_name
     FROM Data_Inventory_Log l
     LEFT JOIN Data_Inventory i ON l.inventory_id = i.id
-    LEFT JOIN Data_Master m ON i.master_data_id = m.id
+    LEFT JOIN Data_Category c ON i.category_id = c.id
     WHERE l.created_at BETWEEN ? AND ?
     ORDER BY l.created_at DESC
   ''', [
@@ -93,6 +96,7 @@ class InventoryLogRepository {
                 updatedAt: DateTime.parse(row['updated_at'] as String),
               ),
               productName: row['product_name'] as String,
+              categoryName: (row['category_name'] ?? '') as String,
             ))
         .toList();
   }

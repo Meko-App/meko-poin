@@ -128,17 +128,13 @@ class _RingkasanContentState extends State<RingkasanContent> {
                         const SizedBox(width: 24),
                         Expanded(
                             child: CardKertasTerjual(
-                                masterDataRepo: MasterDataRepository(
-                                    DatabaseHelper.instance),
-                                transactionItemRepo: TransactionItemRepository(
+                                inventoryLogRepo: InventoryLogRepository(
                                     DatabaseHelper.instance),
                                 dateRange: _selectedDateRange)),
                         const SizedBox(width: 24),
                         Expanded(
                             child: CardPlastikTerjual(
-                                masterDataRepo: MasterDataRepository(
-                                    DatabaseHelper.instance),
-                                transactionItemRepo: TransactionItemRepository(
+                                inventoryLogRepo: InventoryLogRepository(
                                     DatabaseHelper.instance),
                                 dateRange: _selectedDateRange)),
                       ],
@@ -188,17 +184,13 @@ class _RingkasanContentState extends State<RingkasanContent> {
                         dateRange: _selectedDateRange),
                     const SizedBox(height: 16),
                     CardKertasTerjual(
-                        masterDataRepo:
-                            MasterDataRepository(DatabaseHelper.instance),
-                        transactionItemRepo:
-                            TransactionItemRepository(DatabaseHelper.instance),
+                        inventoryLogRepo:
+                            InventoryLogRepository(DatabaseHelper.instance),
                         dateRange: _selectedDateRange),
                     const SizedBox(height: 16),
                     CardPlastikTerjual(
-                        masterDataRepo:
-                            MasterDataRepository(DatabaseHelper.instance),
-                        transactionItemRepo:
-                            TransactionItemRepository(DatabaseHelper.instance),
+                        inventoryLogRepo:
+                            InventoryLogRepository(DatabaseHelper.instance),
                         dateRange: _selectedDateRange),
                     const SizedBox(height: 16),
                     CardPenjualanHarian(

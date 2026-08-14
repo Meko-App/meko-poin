@@ -4,6 +4,7 @@ class Kas {
   final String description;
   final String type;
   final DateTime cashDate;
+  final int? transactionId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -17,6 +18,7 @@ class Kas {
     required this.description,
     required this.type,
     required this.cashDate,
+    this.transactionId,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -32,6 +34,7 @@ class Kas {
       description: map['description'],
       type: map['type'],
       cashDate: DateTime.parse(map['cash_date']),
+      transactionId: map['transaction_id'],
       createdAt:
           map['created_at'] != null ? DateTime.parse(map['created_at']) : null,
       updatedAt:
@@ -51,6 +54,7 @@ class Kas {
       'description': description,
       'type': type,
       'cash_date': cashDate.toIso8601String().split('T')[0],
+      'transaction_id': transactionId,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
@@ -66,6 +70,7 @@ class Kas {
     String? description,
     String? type,
     DateTime? cashDate,
+    int? transactionId,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -79,6 +84,7 @@ class Kas {
       description: description ?? this.description,
       type: type ?? this.type,
       cashDate: cashDate ?? this.cashDate,
+      transactionId: transactionId ?? this.transactionId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
