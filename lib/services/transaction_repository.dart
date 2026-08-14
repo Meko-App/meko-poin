@@ -317,7 +317,7 @@ class TransactionRepository {
     JOIN Data_Transaction t ON ti.transaction_id = t.id
     WHERE m.deleted_at IS NULL
     AND date(t.created_at) = ?
-    AND LOWER(COALESCE(c.code, m.category)) IN ('product', 'background')
+    AND LOWER(COALESCE(c.name, m.category)) IN ('product', 'background')
     GROUP BY m.id, m.name, category
     ORDER BY total_qty DESC
     LIMIT 18
@@ -345,7 +345,7 @@ class TransactionRepository {
     JOIN Data_Transaction t ON ti.transaction_id = t.id
     WHERE m.deleted_at IS NULL
     AND t.created_at BETWEEN ? AND ?
-    AND LOWER(COALESCE(c.code, m.category)) IN ('product', 'background')
+    AND LOWER(COALESCE(c.name, m.category)) IN ('product', 'background')
     GROUP BY m.id, m.name, category
     ORDER BY total_qty DESC
     LIMIT 18

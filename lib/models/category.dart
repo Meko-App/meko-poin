@@ -1,9 +1,6 @@
 class Category {
   final int? id;
   final String name;
-  final String code;
-  final bool isBundle;
-  final bool isCountable;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -11,9 +8,6 @@ class Category {
   Category({
     this.id,
     required this.name,
-    required this.code,
-    this.isBundle = false,
-    this.isCountable = false,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -23,9 +17,6 @@ class Category {
     return Category(
       id: map['id'] as int?,
       name: (map['name'] ?? '') as String,
-      code: (map['code'] ?? '') as String,
-      isBundle: (map['is_bundle'] ?? 0) == 1,
-      isCountable: (map['is_countable'] ?? 0) == 1,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -42,9 +33,6 @@ class Category {
     return {
       'id': id,
       'name': name,
-      'code': code,
-      'is_bundle': isBundle ? 1 : 0,
-      'is_countable': isCountable ? 1 : 0,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),

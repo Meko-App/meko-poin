@@ -26,20 +26,23 @@ class BundleRepository {
       SELECT
         bi.id,
         bi.bundle_id,
-        bi.component_master_data_id,
+        bi.component_inventory_id,
         bi.component_type,
         bi.qty,
         bi.created_at,
         bi.updated_at,
+        inv.master_data_id AS component_master_data_id,
         m.name AS component_name,
         m.price AS component_price,
         m.category_id AS component_category_id,
-        COALESCE(c.name, m.category) AS component_category_name,
-        c.code AS component_category_code
+        COALESCE(c.name, m.category) AS component_category_name
       FROM Data_Bundle_Item bi
-      INNER JOIN Data_Master m ON bi.component_master_data_id = m.id
+      INNER JOIN Data_Inventory inv ON bi.component_inventory_id = inv.id
+      INNER JOIN Data_Master m ON inv.master_data_id = m.id
       LEFT JOIN Data_Category c ON m.category_id = c.id
-      WHERE bi.bundle_id = ? AND m.deleted_at IS NULL
+      WHERE bi.bundle_id = ?
+        AND inv.deleted_at IS NULL
+        AND m.deleted_at IS NULL
       ORDER BY bi.component_type ASC
     ''', [bundleId]);
   }
@@ -60,7 +63,7 @@ class BundleRepository {
           'Data_Bundle_Item',
           {
             'bundle_id': bundleId,
-            'component_master_data_id': item.componentMasterDataId,
+            'component_inventory_id': item.componentInventoryId,
             'component_type': item.componentType,
             'qty': item.qty,
             'created_at': now,
@@ -86,8 +89,9 @@ class BundleRepository {
     final result = await db.rawQuery('''
       SELECT COUNT(*) AS total
       FROM Data_Bundle_Item bi
+      INNER JOIN Data_Inventory inv ON bi.component_inventory_id = inv.id
       INNER JOIN Data_Master b ON b.id = bi.bundle_id
-      WHERE bi.component_master_data_id = ?
+      WHERE inv.master_data_id = ?
         AND b.deleted_at IS NULL
     ''', [masterDataId]);
 

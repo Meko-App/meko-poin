@@ -52,10 +52,9 @@ class _CardKertasTerjualState extends State<CardKertasTerjual> {
 
       // Get master data with category 'Product' and 'Background'
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
-      final filteredMasterData = masterDataList.where((data) {
-        final code = (data.categoryCode ?? '').toLowerCase();
-        return code == 'paper' || data.category == 'Paper';
-      }).toList();
+      final filteredMasterData = masterDataList
+          .where((data) => data.category.toLowerCase() == 'paper')
+          .toList();
 
       // Get transaction items for this month
       final transactionItems = await widget.transactionItemRepo

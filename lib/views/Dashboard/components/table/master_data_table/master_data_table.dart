@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:meko_poin/models/additional/master_data_with_user.dart';
 import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
-import 'package:meko_poin/views/Dashboard/components/table/master_data_table/packaging_dialog.dart';
 import 'master_data_table_header.dart';
 import 'master_data_table_row.dart';
 import 'master_data_table_pagination.dart';
@@ -171,28 +170,6 @@ class _MasterDataTableState extends State<MasterDataTable> {
     );
   }
 
-  void _handlePackagingAction(MasterData masterData) async {
-    final isPaper = (masterData.categoryCode ?? '').toLowerCase() == 'paper' ||
-        masterData.category.toLowerCase() == 'paper';
-    if (isPaper) {
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (context) => PackagingDialog(
-          paperData: masterData,
-          repository: widget.masterDataRepository,
-        ),
-      );
-
-      if (result == true) {
-        // Refresh data jika berhasil
-        _loadMasterData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Packaging berhasil diperbarui')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final totalPages = (sortedMasterData.length / itemsPerPage).ceil();
@@ -236,9 +213,9 @@ class _MasterDataTableState extends State<MasterDataTable> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : sortedMasterData.isEmpty
-                    ? const Center(child: Text('Tidak ada data master'))
-                    : Scrollbar(
+                    : sortedMasterData.isEmpty
+                        ? const Center(child: Text('Tidak ada data menu'))
+                        : Scrollbar(
                         controller: _scrollController,
                         thumbVisibility: true,
                         child: SingleChildScrollView(
@@ -249,11 +226,8 @@ class _MasterDataTableState extends State<MasterDataTable> {
                                 .map((data) => MasterDataTableRow(
                                       name: data.masterData.name,
                                       category: data.masterData.category,
-                                      categoryCode:
-                                          data.masterData.categoryCode,
                                       price: data.masterData.price ?? 0,
                                       addedBy: data.addedBy,
-                                      packagingId: data.masterData.packagingId,
                                       key: ValueKey(data.masterData.id),
                                       isSelected: selectedTransactionIds
                                           .contains(data.masterData.id),
@@ -264,8 +238,6 @@ class _MasterDataTableState extends State<MasterDataTable> {
                                           .onEditMasterData(data.masterData),
                                       onDelete: () => widget
                                           .onDeleteMasterData(data.masterData),
-                                      onPackaging: () => _handlePackagingAction(
-                                          data.masterData),
                                     ))
                                 .toList(),
                           ),

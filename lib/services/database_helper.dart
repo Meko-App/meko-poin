@@ -38,7 +38,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 8,
+        version: 10,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -69,6 +69,10 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 10) {
+      await _migrateCategoryRemoveExtras(db);
+    }
+
     if (oldVersion < 2) {
       await _createCategoryTable(db);
       await _seedDefaultCategories(db);
@@ -110,6 +114,11 @@ class DatabaseHelper {
     if (oldVersion < 8) {
       await _removeCategoryCheckConstraint(db);
     }
+
+    if (oldVersion < 9) {
+      await _migrateMasterDataRemovePackaging(db);
+      await _migrateBundleItemToInventoryReference(db);
+    }
   }
 
   Future<void> _createUserTable(Database db) async {
@@ -131,17 +140,11 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS Data_Category (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        code TEXT NOT NULL UNIQUE,
-        is_bundle INTEGER DEFAULT 0,
-        is_countable INTEGER DEFAULT 0,
         created_at DATETIME,
         updated_at DATETIME,
         deleted_at TEXT
       )
     ''');
-
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_data_category_code ON Data_Category(code)');
   }
 
   Future<void> _createMasterDataTable(Database db) async {
@@ -150,7 +153,6 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         category_id INTEGER,
-        packaging_id INTEGER,
         name TEXT,
         category TEXT,
         price INTEGER,
@@ -303,13 +305,13 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS Data_Bundle_Item (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         bundle_id INTEGER NOT NULL,
-        component_master_data_id INTEGER NOT NULL,
+        component_inventory_id INTEGER NOT NULL,
         component_type TEXT NOT NULL,
         qty INTEGER NOT NULL DEFAULT 1,
         created_at DATETIME,
         updated_at DATETIME,
         FOREIGN KEY (bundle_id) REFERENCES Data_Master(id),
-        FOREIGN KEY (component_master_data_id) REFERENCES Data_Master(id),
+        FOREIGN KEY (component_inventory_id) REFERENCES Data_Inventory(id),
         UNIQUE(bundle_id, component_type)
       )
     ''');
@@ -317,7 +319,7 @@ class DatabaseHelper {
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_bundle_item_bundle_id ON Data_Bundle_Item(bundle_id)');
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_bundle_item_component_id ON Data_Bundle_Item(component_master_data_id)');
+        'CREATE INDEX IF NOT EXISTS idx_bundle_item_component_id ON Data_Bundle_Item(component_inventory_id)');
   }
 
   Future<void> _migrateBundleItemComponentTypeToFlexible(Database db) async {
@@ -372,60 +374,15 @@ class DatabaseHelper {
   Future<void> _seedDefaultCategories(Database db) async {
     final now = DateTime.now().toIso8601String();
     final categories = [
-      {
-        'name': 'Product',
-        'code': 'product',
-        'is_bundle': 0,
-        'is_countable': 0,
-      },
-      {
-        'name': 'Paper',
-        'code': 'paper',
-        'is_bundle': 0,
-        'is_countable': 1,
-      },
-      {
-        'name': 'Packaging',
-        'code': 'packaging',
-        'is_bundle': 0,
-        'is_countable': 1,
-      },
-      {
-        'name': 'Additional',
-        'code': 'additional',
-        'is_bundle': 0,
-        'is_countable': 0,
-      },
-      {
-        'name': 'Background',
-        'code': 'background',
-        'is_bundle': 0,
-        'is_countable': 0,
-      },
-      {
-        'name': 'Bundling',
-        'code': 'bundling',
-        'is_bundle': 1,
-        'is_countable': 0,
-      },
-      {
-        'name': 'Frame',
-        'code': 'frame',
-        'is_bundle': 0,
-        'is_countable': 0,
-      },
-      {
-        'name': 'Service',
-        'code': 'service',
-        'is_bundle': 0,
-        'is_countable': 0,
-      },
-      {
-        'name': 'Property',
-        'code': 'property',
-        'is_bundle': 0,
-        'is_countable': 1,
-      },
+      {'name': 'Product'},
+      {'name': 'Paper'},
+      {'name': 'Packaging'},
+      {'name': 'Additional'},
+      {'name': 'Background'},
+      {'name': 'Bundling'},
+      {'name': 'Frame'},
+      {'name': 'Service'},
+      {'name': 'Property'},
     ];
 
     for (final category in categories) {
@@ -483,7 +440,7 @@ class DatabaseHelper {
 
     final additionalCategory = await db.query(
       'Data_Category',
-      where: 'code = ?',
+      where: 'LOWER(name) = ?',
       whereArgs: ['additional'],
       limit: 1,
     );
@@ -535,12 +492,172 @@ class DatabaseHelper {
     );
   }
 
+  Future<void> _migrateMasterDataRemovePackaging(Database db) async {
+    final hasPackagingId =
+        await _columnExists(db, 'Data_Master', 'packaging_id');
+    if (!hasPackagingId) {
+      return;
+    }
+
+    await db.transaction((txn) async {
+      await txn.execute('''
+        CREATE TABLE Data_Master_V9 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          category_id INTEGER,
+          name TEXT,
+          category TEXT,
+          price INTEGER,
+          created_at DATETIME,
+          updated_at DATETIME,
+          deleted_at TEXT,
+          FOREIGN KEY (user_id) REFERENCES Data_User(id),
+          FOREIGN KEY (category_id) REFERENCES Data_Category(id)
+        )
+      ''');
+
+      await txn.execute('''
+        INSERT INTO Data_Master_V9
+          (id, user_id, category_id, name, category, price, created_at, updated_at, deleted_at)
+        SELECT
+          id, user_id, category_id, name, category, price, created_at, updated_at, deleted_at
+        FROM Data_Master
+      ''');
+
+      await txn.execute('DROP TABLE Data_Master');
+      await txn.execute('ALTER TABLE Data_Master_V9 RENAME TO Data_Master');
+      await txn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_data_master_category_id ON Data_Master(category_id)',
+      );
+    });
+  }
+
+  Future<void> _migrateBundleItemToInventoryReference(Database db) async {
+    final hasInventoryColumn =
+        await _columnExists(db, 'Data_Bundle_Item', 'component_inventory_id');
+    if (hasInventoryColumn) {
+      return;
+    }
+
+    await db.transaction((txn) async {
+      // Pastikan setiap komponen bundle memiliki baris inventory, agar tidak
+      // ada data yang hilang saat referensi dipindahkan ke Data_Inventory.
+      final componentsWithoutInventory = await txn.rawQuery('''
+        SELECT DISTINCT bi.component_master_data_id
+        FROM Data_Bundle_Item bi
+        WHERE bi.component_master_data_id IS NOT NULL
+          AND bi.component_master_data_id NOT IN (
+            SELECT master_data_id
+            FROM Data_Inventory
+            WHERE deleted_at IS NULL
+          )
+      ''');
+      final now = DateTime.now().toIso8601String();
+      for (final row in componentsWithoutInventory) {
+        final masterDataId = row['component_master_data_id'] as int;
+        final masterData = await txn.query(
+          'Data_Master',
+          columns: ['user_id'],
+          where: 'id = ?',
+          whereArgs: [masterDataId],
+          limit: 1,
+        );
+        await txn.insert('Data_Inventory', {
+          'user_id': masterData.isNotEmpty
+              ? (masterData.first['user_id'] as int)
+              : 1,
+          'master_data_id': masterDataId,
+          'stock': 0,
+          'stock_reject': 0,
+          'notes': 'Dibuat otomatis saat migrasi ke referensi inventori',
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+
+      await txn.execute('''
+        CREATE TABLE Data_Bundle_Item_V9 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bundle_id INTEGER NOT NULL,
+          component_inventory_id INTEGER NOT NULL,
+          component_type TEXT NOT NULL,
+          qty INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME,
+          updated_at DATETIME,
+          FOREIGN KEY (bundle_id) REFERENCES Data_Master(id),
+          FOREIGN KEY (component_inventory_id) REFERENCES Data_Inventory(id),
+          UNIQUE(bundle_id, component_type)
+        )
+      ''');
+
+      await txn.execute('''
+        INSERT INTO Data_Bundle_Item_V9 (
+          id,
+          bundle_id,
+          component_inventory_id,
+          component_type,
+          qty,
+          created_at,
+          updated_at
+        )
+        SELECT
+          bi.id,
+          bi.bundle_id,
+          inv.id,
+          bi.component_type,
+          bi.qty,
+          bi.created_at,
+          bi.updated_at
+        FROM Data_Bundle_Item bi
+        INNER JOIN Data_Inventory inv ON inv.master_data_id = bi.component_master_data_id
+      ''');
+
+      await txn.execute('DROP TABLE Data_Bundle_Item');
+      await txn.execute(
+        'ALTER TABLE Data_Bundle_Item_V9 RENAME TO Data_Bundle_Item',
+      );
+      await txn.execute(
+          'CREATE INDEX IF NOT EXISTS idx_bundle_item_bundle_id ON Data_Bundle_Item(bundle_id)');
+      await txn.execute(
+          'CREATE INDEX IF NOT EXISTS idx_bundle_item_component_id ON Data_Bundle_Item(component_inventory_id)');
+    });
+  }
+
+  Future<void> _migrateCategoryRemoveExtras(Database db) async {
+    final hasCode = await _columnExists(db, 'Data_Category', 'code');
+    if (!hasCode) {
+      return;
+    }
+
+    await db.transaction((txn) async {
+      await txn.execute('''
+        CREATE TABLE Data_Category_V10 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          created_at DATETIME,
+          updated_at DATETIME,
+          deleted_at TEXT
+        )
+      ''');
+
+      await txn.execute('''
+        INSERT INTO Data_Category_V10 (id, name, created_at, updated_at, deleted_at)
+        SELECT id, name, created_at, updated_at, deleted_at FROM Data_Category
+      ''');
+
+      await txn.execute('DROP TABLE Data_Category');
+      await txn.execute(
+        'ALTER TABLE Data_Category_V10 RENAME TO Data_Category',
+      );
+    });
+  }
+
   Future<int?> _getCategoryIdByCode(Database db, String code) async {
     final result = await db.query(
       'Data_Category',
       columns: ['id'],
-      where: 'code = ?',
-      whereArgs: [code],
+      where: 'LOWER(name) = ?',
+      whereArgs: [code.toLowerCase()],
       limit: 1,
     );
 
@@ -567,7 +684,6 @@ class DatabaseHelper {
     await db.insert('Data_Master', {
       'user_id': 1,
       'category_id': productCategoryId,
-      'packaging_id': 0,
       'name': 'Produk Dummy',
       'category': 'Product',
       'price': 15000,

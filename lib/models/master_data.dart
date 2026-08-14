@@ -2,12 +2,8 @@ class MasterData {
   final int? id;
   final int userId;
   final int? categoryId;
-  final int packagingId;
   final String name;
   final String category;
-  final String? categoryCode;
-  final bool isBundle;
-  final bool isCountable;
   final int? price;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -17,12 +13,8 @@ class MasterData {
     this.id,
     required this.userId,
     this.categoryId,
-    required this.packagingId,
     required this.name,
     required this.category,
-    this.categoryCode,
-    this.isBundle = false,
-    this.isCountable = false,
     this.price,
     this.createdAt,
     this.updatedAt,
@@ -34,12 +26,8 @@ class MasterData {
       id: map['id'],
       userId: map['user_id'],
       categoryId: map['category_id'] as int?,
-      packagingId: map['packaging_id'] ?? 0,
       name: map['name'],
       category: (map['category_name'] ?? map['category'] ?? '') as String,
-      categoryCode: map['category_code'] as String?,
-      isBundle: (map['is_bundle'] ?? 0) == 1,
-      isCountable: (map['is_countable'] ?? 0) == 1,
       price: map['price'],
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
@@ -57,7 +45,6 @@ class MasterData {
       'id': id,
       'user_id': userId,
       'category_id': categoryId,
-      'packaging_id': packagingId,
       'name': name,
       'category': category,
       'price': price,
@@ -72,12 +59,8 @@ class MasterData {
       id: id,
       userId: userId,
       categoryId: categoryId,
-      packagingId: packagingId,
       name: name,
       category: category,
-      categoryCode: categoryCode,
-      isBundle: isBundle,
-      isCountable: isCountable,
       price: price,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
@@ -90,34 +73,12 @@ class MasterData {
       id: id,
       userId: userId,
       categoryId: categoryId,
-      packagingId: packagingId,
       name: name,
       category: category,
-      categoryCode: categoryCode,
-      isBundle: isBundle,
-      isCountable: isCountable,
       price: price,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
       deletedAt: null,
-    );
-  }
-
-  MasterData changePackaging(int newPackagingId) {
-    return MasterData(
-      id: id,
-      userId: userId,
-      categoryId: categoryId,
-      packagingId: newPackagingId,
-      name: name,
-      category: category,
-      categoryCode: categoryCode,
-      isBundle: isBundle,
-      isCountable: isCountable,
-      price: price,
-      createdAt: createdAt,
-      updatedAt: DateTime.now(),
-      deletedAt: deletedAt,
     );
   }
 

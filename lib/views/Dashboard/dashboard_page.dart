@@ -269,7 +269,7 @@ class _DashboardPageState extends State<DashboardPage> {
     String getModulPage(String menu) {
       if (menu == 'Ringkasan' || menu == 'Pelanggan') {
         return 'Dashboards';
-      } else if (menu == 'Master Data' ||
+      } else if (menu == 'Menu' ||
           menu == 'Category' ||
           menu == 'Inventori' ||
           menu == 'Transaksi' ||
@@ -289,7 +289,7 @@ class _DashboardPageState extends State<DashboardPage> {
     String? headerSubPage;
 
     if (_selectedMenu == 'Pengguna' ||
-        _selectedMenu == 'Master Data' ||
+        _selectedMenu == 'Menu' ||
         _selectedMenu == 'Category' ||
         _selectedMenu == 'Inventori' ||
         _selectedMenu == 'Transaksi' ||
@@ -353,7 +353,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             userId: widget.user.roleId,
                             onContentStateChanged: (state) {
                               if (_selectedMenu == 'Pengguna' ||
-                                  _selectedMenu == 'Master Data' ||
+                                  _selectedMenu == 'Menu' ||
                                   _selectedMenu == 'Category' ||
                                   _selectedMenu == 'Inventori' ||
                                   _selectedMenu == 'Transaksi' ||
@@ -482,7 +482,7 @@ class DashboardContent extends StatelessWidget {
           customerRepository: customerRepository,
           onStateChanged: onContentStateChanged!,
         );
-      case 'Master Data':
+      case 'Menu':
         return MasterdataContent(
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,

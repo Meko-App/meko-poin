@@ -53,13 +53,10 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
       // Get master data with category 'Product' and 'Background'
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
       final filteredMasterData = masterDataList.where((data) {
-        final code = (data.categoryCode ?? '').toLowerCase();
-        return code == 'product' ||
-            code == 'background' ||
-            code == 'additional' ||
-            data.category == 'Product' ||
-            data.category == 'Background' ||
-            data.category == 'Additional';
+        final category = data.category.toLowerCase();
+        return category == 'product' ||
+            category == 'background' ||
+            category == 'additional';
       }).toList();
 
       // Get transaction items for this month

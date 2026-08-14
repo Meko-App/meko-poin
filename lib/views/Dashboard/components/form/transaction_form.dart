@@ -108,8 +108,7 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   bool _isCategoryCode(MasterData data, String code) {
-    return (data.categoryCode ?? '').toLowerCase() == code.toLowerCase() ||
-        data.category.toLowerCase() == code.toLowerCase();
+    return data.category.toLowerCase() == code.toLowerCase();
   }
 
   String? _selectedCategoryCode() {
@@ -117,13 +116,7 @@ class _TransactionFormState extends State<TransactionForm> {
       return null;
     }
 
-    for (final item in _masterDataItems) {
-      if (item.category == _selectedOrderCategory) {
-        return (item.categoryCode ?? '').toLowerCase();
-      }
-    }
-
-    return null;
+    return _selectedOrderCategory!.toLowerCase();
   }
 
   bool _selectedBundleHasPaperComponent() {
@@ -153,7 +146,7 @@ class _TransactionFormState extends State<TransactionForm> {
       }
     }
 
-    if (selectedMd == null || !selectedMd.isBundle || selectedMd.id == null) {
+    if (selectedMd == null || selectedMd.id == null) {
       return;
     }
 
@@ -349,18 +342,18 @@ class _TransactionFormState extends State<TransactionForm> {
       if (masterData == null) continue;
 
       // Untuk bundle, stok dikurangi berdasarkan komponen bundle.
-      if (masterData.isBundle) {
-        var bundleComponents = <Map<String, dynamic>>[];
+      var bundleComponents = <Map<String, dynamic>>[];
 
-        if (bundleSnapshot != null && bundleSnapshot.isNotEmpty) {
-          bundleComponents = _parseBundleSnapshot(bundleSnapshot);
-        }
+      if (bundleSnapshot != null && bundleSnapshot.isNotEmpty) {
+        bundleComponents = _parseBundleSnapshot(bundleSnapshot);
+      }
 
-        if (bundleComponents.isEmpty && masterData.id != null) {
-          bundleComponents = await _bundleRepository
-              .getBundleItemsWithMasterData(masterData.id!);
-        }
+      if (bundleComponents.isEmpty && masterData.id != null) {
+        bundleComponents = await _bundleRepository
+            .getBundleItemsWithMasterData(masterData.id!);
+      }
 
+      if (bundleComponents.isNotEmpty) {
         for (final component in bundleComponents) {
           final componentMasterDataId =
               component['component_master_data_id'] as int?;
@@ -370,7 +363,7 @@ class _TransactionFormState extends State<TransactionForm> {
 
           final componentMasterData =
               await _masterDataRepo.getMasterDataById(componentMasterDataId);
-          if (componentMasterData == null || !componentMasterData.isCountable) {
+          if (componentMasterData == null) {
             continue;
           }
 
@@ -392,11 +385,6 @@ class _TransactionFormState extends State<TransactionForm> {
           );
         }
 
-        continue;
-      }
-
-      // Lewati update stok untuk kategori yang tidak countable.
-      if (!masterData.isCountable) {
         continue;
       }
 
@@ -574,13 +562,15 @@ class _TransactionFormState extends State<TransactionForm> {
       }
 
       final master = await _masterDataRepo.getMasterDataById(item.masterDataId);
-      if (master == null || !master.isBundle || master.id == null) {
+      if (master == null || master.id == null) {
         continue;
       }
 
       final bundleItems =
           await _bundleRepository.getBundleItemsWithMasterData(master.id!);
-      details[master.id!] = bundleItems;
+      if (bundleItems.isNotEmpty) {
+        details[master.id!] = bundleItems;
+      }
     }
 
     return details;
@@ -607,12 +597,16 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Future<String?> _buildBundleSnapshot(MasterData selectedMasterData) async {
-    if (!selectedMasterData.isBundle || selectedMasterData.id == null) {
+    if (selectedMasterData.id == null) {
       return null;
     }
 
     final bundleItems = await _bundleRepository
         .getBundleItemsWithMasterData(selectedMasterData.id!);
+
+    if (bundleItems.isEmpty) {
+      return null;
+    }
 
     final snapshot = bundleItems
         .map(
@@ -690,36 +684,12 @@ class _TransactionFormState extends State<TransactionForm> {
         orElse: () => throw Exception('Item tidak ditemukan'),
       );
 
-      final isPaper = _isCategoryCode(selectedMasterData, 'paper');
       final isProduct = _isCategoryCode(selectedMasterData, 'product');
 
-      // 2. Validasi khusus untuk Paper: harus memiliki packaging
-      if (isPaper) {
-        if (selectedMasterData.packagingId == 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Paper ini belum memiliki packaging. Harap hubungi admin untuk mengatur packaging terlebih dahulu.')),
-          );
-          return;
-        }
-      }
-
-      // 3. Lakukan pengecekan stok berdasarkan flag is_countable.
-      final needStockCheck = selectedMasterData.isCountable;
-
-      int? availableStock;
-      if (needStockCheck) {
-        availableStock = await _masterDataRepo
-            .getStockByMasterDataId(selectedMasterData.id!);
-        if (availableStock == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Stok belum tersedia, harap hubungi admin')),
-          );
-          return;
-        }
-
+      // Lakukan pengecekan stok jika item memiliki stok di inventory.
+      final availableStock = await _masterDataRepo
+          .getStockByMasterDataId(selectedMasterData.id!);
+      if (availableStock != null) {
         // Cek apakah stok cukup
         if (availableStock < qty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -731,26 +701,12 @@ class _TransactionFormState extends State<TransactionForm> {
         }
       }
 
-      // 4. Jika kategori Paper, lakukan pengecekan stok packaging terlebih dahulu
-      if (isPaper) {
-        final packagingStockValid =
-            await _checkPackagingStock(selectedMasterData, qty);
-        if (!packagingStockValid) {
-          return; // Stop jika stok packaging tidak cukup
-        }
-      }
-
-      // 5. Tambahkan produk utama ke keranjang
+      // Tambahkan produk utama ke keranjang
       await _addItemToCart(_selectedOrderItem!, qty, isNewItem);
 
-      // 6. Jika kategori Product, tambahkan background juga
+      // Jika kategori Product, tambahkan background juga
       if (isProduct && _selectedBackground != null) {
         await _addItemToCart(_selectedBackground!, qty, isNewItem);
-      }
-
-      // 7. Jika kategori Paper, tambahkan packaging secara otomatis
-      if (isPaper) {
-        await _addPackagingForPaper(_selectedOrderItem!, qty, isNewItem);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -769,132 +725,6 @@ class _TransactionFormState extends State<TransactionForm> {
     await _loadCartItems();
   }
 
-  Future<bool> _checkPackagingStock(MasterData paperData, int qty) async {
-    try {
-      // Validasi bahwa paper harus memiliki packaging
-      if (paperData.packagingId == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Paper ini belum memiliki packaging. Tidak dapat ditambahkan ke keranjang.')),
-        );
-        return false;
-      }
-
-      // Cari data packaging berdasarkan packagingId
-      final packagingData =
-          await _masterDataRepo.getMasterDataById(paperData.packagingId);
-
-      if (packagingData != null &&
-          _isCategoryCode(packagingData, 'packaging')) {
-        if (!packagingData.isCountable) {
-          return true;
-        }
-
-        // Cek stok packaging
-        final packagingStock =
-            await _masterDataRepo.getStockByMasterDataId(packagingData.id!);
-
-        if (packagingStock == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content:
-                    Text('Stok packaging belum tersedia, harap hubungi admin')),
-          );
-          return false;
-        }
-
-        // Cek apakah stok packaging cukup
-        if (packagingStock < qty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'Stok packaging ${packagingData.name} tidak cukup. Stok tersedia: $packagingStock')),
-          );
-          return false;
-        }
-
-        return true; // Stok packaging cukup
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Packaging tidak ditemukan untuk paper ini')),
-        );
-        return false;
-      }
-    } catch (e) {
-      print('Error checking packaging stock: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error checking packaging stock: $e')),
-      );
-      return false;
-    }
-  }
-
-  Future<void> _addPackagingForPaper(
-      String paperName, int qty, bool isNewItem) async {
-    try {
-      // Cari data paper yang dipilih
-      final selectedPaper = _backgroundDataItems.firstWhere(
-        (item) => item.name == paperName && _isCategoryCode(item, 'paper'),
-        orElse: () => throw Exception('Paper $paperName tidak ditemukan'),
-      );
-
-      // Jika paper memiliki packagingId yang valid (bukan 0)
-      if (selectedPaper.packagingId != 0 && selectedPaper.packagingId > 0) {
-        // Cari data packaging berdasarkan packagingId
-        final packagingData =
-            await _masterDataRepo.getMasterDataById(selectedPaper.packagingId);
-
-        if (packagingData != null &&
-            _isCategoryCode(packagingData, 'packaging')) {
-          // Cek apakah packaging sudah ada di keranjang
-          final existingPackagingItem = await _transactionItemRepo
-              .findExistingCartItem(packagingData.id!);
-
-          if (existingPackagingItem != null) {
-            // Jika sudah ada, update quantity-nya
-            final updatedQty =
-                isNewItem ? existingPackagingItem.qty + qty : qty;
-            final updatedTotalPrice = (packagingData.price ?? 0) * updatedQty;
-
-            final updatedItem = TransactionItem(
-              id: existingPackagingItem.id,
-              masterDataId: existingPackagingItem.masterDataId,
-              qty: updatedQty,
-              totalPrice: updatedTotalPrice,
-              createdAt: existingPackagingItem.createdAt,
-              updatedAt: DateTime.now(),
-            );
-
-            await _transactionItemRepo.updateTransactionItem(updatedItem);
-          } else {
-            // Jika belum ada, tambahkan baru
-            final totalPrice = (packagingData.price ?? 0) * qty;
-
-            final newItem = TransactionItem(
-              masterDataId: packagingData.id!,
-              qty: qty,
-              totalPrice: totalPrice,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
-
-            await _transactionItemRepo.insertTransactionItem(newItem);
-          }
-        } else {
-          print(
-              'Packaging dengan ID ${selectedPaper.packagingId} tidak ditemukan atau bukan kategori Packaging');
-        }
-      } else {
-        print('Paper $paperName tidak memiliki packaging yang terkait');
-      }
-    } catch (e) {
-      print('Error menambahkan packaging untuk paper: $e');
-      // Jangan tampilkan error ke user karena ini opsional
-    }
-  }
-
   Future<void> _addItemToCart(String itemName, int qty, bool isNewItem) async {
     try {
       // Cari master data yang dipilih
@@ -907,7 +737,7 @@ class _TransactionFormState extends State<TransactionForm> {
           .findExistingCartItem(selectedMasterData.id!);
       final bundleSnapshot = await _buildBundleSnapshot(selectedMasterData);
       final bundleId =
-          selectedMasterData.isBundle ? selectedMasterData.id : null;
+          bundleSnapshot != null ? selectedMasterData.id : null;
 
       if (existingItem != null) {
         final int totalQty;
@@ -2216,54 +2046,6 @@ class _TransactionFormState extends State<TransactionForm> {
           ],
         ),
 
-        // Tampilkan info packaging jika paper dipilih dan memiliki packaging
-        if (_selectedCategoryCode() == 'paper' && _selectedOrderItem != null)
-          FutureBuilder<MasterData?>(
-            future: () async {
-              try {
-                final paper = _backgroundDataItems.firstWhere((item) =>
-                    item.name == _selectedOrderItem &&
-                    _isCategoryCode(item, 'paper'));
-
-                if (paper.packagingId > 0) {
-                  return await _masterDataRepo
-                      .getMasterDataById(paper.packagingId);
-                }
-              } catch (e) {
-                print('Error getting packaging info: $e');
-              }
-              return null;
-            }(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done &&
-                  snapshot.hasData &&
-                  snapshot.data != null) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Packaging: ${snapshot.data!.name} akan ditambahkan otomatis',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                );
-              }
-              return SizedBox.shrink();
-            },
-          ),
-        // if (_selectedOrderCategory == "Product" && _selectedBackground == null)
-        //   Padding(
-        //     padding: const EdgeInsets.only(top: 8.0),
-        //     child: Text(
-        //       'Harap pilih background',
-        //       style: TextStyle(
-        //         color: Colors.red,
-        //         fontSize: 12,
-        //       ),
-        //     ),
-        //   ),
         if (_selectedCategoryCode() == 'paper' ||
             ((_selectedCategoryCode()?.startsWith('bundle') == true ||
                     _selectedCategoryCode() == 'bundling') &&
@@ -2490,7 +2272,6 @@ class _TransactionFormState extends State<TransactionForm> {
                 (m) => m.id == item.masterDataId,
                 orElse: () => MasterData(
                   userId: 0,
-                  packagingId: 0,
                   name: 'Item tidak ditemukan',
                   category: 'Unknown',
                 ),
@@ -2538,7 +2319,7 @@ class _TransactionFormState extends State<TransactionForm> {
                               ],
                             ),
                           ),
-                          if (masterData.isBundle && masterData.id != null)
+                          if (item.bundleId != null && masterData.id != null)
                             _buildBundleDetailCell(masterData.id!, item.qty),
                         ],
                       ),

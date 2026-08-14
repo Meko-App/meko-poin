@@ -1,10 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:meko_poin/models/category.dart';
-import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/category_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
-import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/inventory_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/utils/validators.dart';
 
@@ -27,19 +26,23 @@ class MasterDataForm extends StatefulWidget {
 class _MasterDataFormState extends State<MasterDataForm> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
+  final FocusNode _nameFocusNode = FocusNode();
   final CategoryRepository _categoryRepository =
       CategoryRepository(DatabaseHelper.instance);
-  final MasterDataRepository _masterDataRepository =
-      MasterDataRepository(DatabaseHelper.instance);
   final BundleRepository _bundleRepository =
       BundleRepository(DatabaseHelper.instance);
+  final InventoryRepository _inventoryRepository =
+      InventoryRepository(DatabaseHelper.instance);
   List<Category> _categories = [];
-  final Map<int, List<MasterData>> _bundleItemsByCategoryId = {};
+  final Map<int, List<_InventoryOption>> _bundleItemsByCategoryId = {};
   List<_BundleComponentEntry> _bundleComponents = [];
   bool _isLoadingCategories = true;
   bool _isLoadingBundleData = false;
+  final FocusNode _categoryFocusNode = FocusNode();
+  final TextEditingController _categoryQueryController =
+      TextEditingController();
+  bool _categoryFocused = false;
   int? _selectedCategoryId;
-  bool _isManualPriceOverride = false;
 
   String? _nameError;
   String? _priceError;
@@ -60,6 +63,22 @@ class _MasterDataFormState extends State<MasterDataForm> {
     } else {
       _selectedCategoryId = null;
     }
+    _categoryFocusNode.addListener(() {
+      if (!mounted) return;
+      if (_categoryFocusNode.hasFocus) {
+        final selectedName = _selectedCategoryName();
+        if (selectedName.isNotEmpty &&
+            _categoryQueryController.text == selectedName) {
+          _categoryQueryController.clear();
+        }
+      } else {
+        final selectedName = _selectedCategoryName();
+        _categoryQueryController.text = selectedName;
+      }
+      setState(() {
+        _categoryFocused = _categoryFocusNode.hasFocus;
+      });
+    });
     _loadCategories();
   }
 
@@ -72,10 +91,14 @@ class _MasterDataFormState extends State<MasterDataForm> {
           _categories = categories;
         });
 
-        await _loadInitialBundleComponents();
-        if (_isSelectedCategoryBundle() && _bundleComponents.isEmpty) {
-          _addBundleComponent();
+        if (_selectedCategoryId != null) {
+          final selectedName = _selectedCategoryName();
+          if (selectedName.isNotEmpty) {
+            _categoryQueryController.text = selectedName;
+          }
         }
+
+        await _loadInitialBundleComponents();
       }
     } finally {
       if (mounted) {
@@ -90,29 +113,25 @@ class _MasterDataFormState extends State<MasterDataForm> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _nameFocusNode.dispose();
+    _categoryFocusNode.dispose();
+    _categoryQueryController.dispose();
+    for (final entry in _bundleComponents) {
+      entry.categoryQueryController.dispose();
+      entry.categoryFocusNode.dispose();
+      entry.itemQueryController.dispose();
+      entry.itemFocusNode.dispose();
+    }
     super.dispose();
   }
 
-  bool _isSelectedCategoryBundle() {
-    if (_selectedCategoryId == null) {
-      return false;
-    }
-
-    for (final category in _categories) {
-      if (category.id == _selectedCategoryId) {
-        return category.isBundle;
-      }
-    }
-
-    return false;
+  bool _hasBundleComponents() {
+    return _bundleComponents.any((entry) =>
+        entry.categoryId != null || entry.selectedInventoryId != null);
   }
 
   Future<void> _loadInitialBundleComponents() async {
     if (widget.initialData == null) {
-      return;
-    }
-
-    if (!_isSelectedCategoryBundle()) {
       return;
     }
 
@@ -130,32 +149,31 @@ class _MasterDataFormState extends State<MasterDataForm> {
     final loadedEntries = <_BundleComponentEntry>[];
     for (final item in items) {
       final componentType = item.componentType.toLowerCase();
-      final category = _findCategoryByCode(componentType);
+      final category = _findCategoryByName(componentType);
       if (category?.id == null) {
         continue;
       }
 
       final categoryItems = await _getItemsForCategory(category!.id!);
-      loadedEntries.add(
-        _BundleComponentEntry(
-          categoryId: category.id,
-          categoryCode: category.code,
-          categoryName: category.name,
-          selectedItemId: item.componentMasterDataId,
-          items: categoryItems,
-        ),
+      final loaded = _BundleComponentEntry(
+        categoryId: category.id,
+        categoryName: category.name,
+        selectedInventoryId: item.componentInventoryId,
+        items: categoryItems,
       );
+      _attachBundleCategoryFocus(loaded);
+      _attachBundleItemFocus(loaded);
+      loaded.categoryQueryController.text = category.name;
+      loaded.itemQueryController.text =
+          _selectedInventoryName(categoryItems, item.componentInventoryId);
+      loadedEntries.add(loaded);
     }
 
     if (mounted) {
       setState(() {
-        _bundleComponents = loadedEntries.isEmpty
-            ? <_BundleComponentEntry>[_BundleComponentEntry()]
-            : loadedEntries;
+        _bundleComponents = loadedEntries;
       });
     }
-
-    _autoCalculateBundlePrice();
 
     if (mounted) {
       setState(() {
@@ -164,22 +182,23 @@ class _MasterDataFormState extends State<MasterDataForm> {
     }
   }
 
-  Category? _findCategoryByCode(String code) {
+  Category? _findCategoryByName(String name) {
     for (final category in _categories) {
-      if (category.code.toLowerCase() == code.toLowerCase()) {
+      if (category.name.toLowerCase() == name.toLowerCase()) {
         return category;
       }
     }
     return null;
   }
 
-  MasterData? _findMasterDataById(List<MasterData> items, int? id) {
+  _InventoryOption? _findInventoryOptionById(
+      List<_InventoryOption> items, int? id) {
     if (id == null) {
       return null;
     }
 
     for (final item in items) {
-      if (item.id == id) {
+      if (item.inventoryId == id) {
         return item;
       }
     }
@@ -187,251 +206,22 @@ class _MasterDataFormState extends State<MasterDataForm> {
     return null;
   }
 
-  String _selectedMasterDataName(List<MasterData> items, int? id) {
-    final selected = _findMasterDataById(items, id);
+  String _selectedInventoryName(List<_InventoryOption> items, int? id) {
+    final selected = _findInventoryOptionById(items, id);
     return selected?.name ?? '';
   }
 
-  Future<List<MasterData>> _getItemsForCategory(int categoryId) async {
+  Future<List<_InventoryOption>> _getItemsForCategory(int categoryId) async {
     final cached = _bundleItemsByCategoryId[categoryId];
     if (cached != null) {
       return cached;
     }
 
-    final items = await _masterDataRepository.getMasterDataByCategoryId(
-      categoryId,
-    );
-    _bundleItemsByCategoryId[categoryId] = items;
-    return items;
-  }
-
-  Future<int?> _openMasterDataSearchDialog({
-    required String title,
-    required List<MasterData> items,
-    required int? selectedId,
-  }) async {
-    if (items.isEmpty) {
-      return null;
-    }
-
-    int? localSelectedId = selectedId;
-    String query = '';
-    DateTime? lastTapAt;
-    int? lastTappedItemId;
-
-    return showDialog<int>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final normalizedQuery = query.trim().toLowerCase();
-            final filtered = items.where((item) {
-              if (normalizedQuery.isEmpty) {
-                return true;
-              }
-
-              return item.name.toLowerCase().contains(normalizedQuery);
-            }).toList();
-
-            return Dialog(
-              backgroundColor: CustomColors.cardColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: CustomColors.borderCardColor),
-              ),
-              child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(maxWidth: 460, maxHeight: 520),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 36,
-                        child: TextField(
-                          onChanged: (value) {
-                            setDialogState(() {
-                              query = value;
-                            });
-                          },
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Cari item...',
-                            hintStyle: const TextStyle(
-                              color: CustomColors.fontSubColor,
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            prefixIcon: const Icon(Icons.search,
-                                size: 18, color: CustomColors.fontSubColor),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            filled: true,
-                            fillColor: CustomColors.inputColor,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: CustomColors.borderInputColor,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: Color(0xFF1379F0)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: CustomColors.inputColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: CustomColors.borderInputColor,
-                            ),
-                          ),
-                          child: filtered.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'Item tidak ditemukan',
-                                    style: TextStyle(
-                                      color: CustomColors.fontSubColor,
-                                      fontFamily: 'Inter',
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: filtered.length,
-                                  separatorBuilder: (_, __) => const Divider(
-                                    height: 1,
-                                    color: CustomColors.borderCardColor,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final item = filtered[index];
-                                    final active = localSelectedId == item.id;
-                                    return InkWell(
-                                      onTap: () {
-                                        final now = DateTime.now();
-                                        final isDoubleClick =
-                                            lastTappedItemId == item.id &&
-                                                lastTapAt != null &&
-                                                now
-                                                        .difference(lastTapAt!)
-                                                        .inMilliseconds <
-                                                    300;
-
-                                        setDialogState(() {
-                                          localSelectedId = item.id;
-                                        });
-
-                                        if (isDoubleClick) {
-                                          Navigator.of(dialogContext)
-                                              .pop(item.id);
-                                          return;
-                                        }
-
-                                        lastTapAt = now;
-                                        lastTappedItemId = item.id;
-                                      },
-                                      child: Container(
-                                        color: active
-                                            ? const Color(0xFF0A1726)
-                                            : Colors.transparent,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 10),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                item.name,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ),
-                                            if (active)
-                                              const Icon(Icons.check,
-                                                  size: 16,
-                                                  color: Color(0xFF1379F0)),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text('Batal'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: localSelectedId == null
-                                ? null
-                                : () => Navigator.of(dialogContext)
-                                    .pop(localSelectedId),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1379F0),
-                            ),
-                            child: const Text(
-                              'Pilih',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _autoCalculateBundlePrice() {
-    if (_isManualPriceOverride) {
-      return;
-    }
-
-    var total = 0;
-    for (final entry in _bundleComponents) {
-      final selected = _findMasterDataById(entry.items, entry.selectedItemId);
-      total += selected?.price ?? 0;
-    }
-
-    _priceController.text = _formatWithThousandSeparator(total);
+    final items =
+        await _inventoryRepository.getInventoryOptionsByCategoryId(categoryId);
+    final options = items.map(_InventoryOption.fromMap).toList();
+    _bundleItemsByCategoryId[categoryId] = options;
+    return options;
   }
 
   String _selectedCategoryName() {
@@ -448,282 +238,56 @@ class _MasterDataFormState extends State<MasterDataForm> {
     return '';
   }
 
-  Future<void> _openCategorySearchDialog() async {
-    if (_categories.isEmpty) {
-      return;
-    }
-
-    int? selectedId = _selectedCategoryId;
-    String query = '';
-    DateTime? lastTapAt;
-    int? lastTappedCategoryId;
-
-    final pickedId = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final normalizedQuery = query.trim().toLowerCase();
-            final filtered = _categories.where((category) {
-              if (normalizedQuery.isEmpty) {
-                return true;
-              }
-              return category.name.toLowerCase().contains(normalizedQuery) ||
-                  category.code.toLowerCase().contains(normalizedQuery);
-            }).toList();
-
-            return Dialog(
-              backgroundColor: CustomColors.cardColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: CustomColors.borderCardColor),
-              ),
-              child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(maxWidth: 460, maxHeight: 520),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Pilih Kategori',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 36,
-                        child: TextField(
-                          onChanged: (value) {
-                            setDialogState(() {
-                              query = value;
-                            });
-                          },
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Cari kategori atau kode...',
-                            hintStyle: const TextStyle(
-                              color: CustomColors.fontSubColor,
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            prefixIcon: const Icon(Icons.search,
-                                size: 18, color: CustomColors.fontSubColor),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            filled: true,
-                            fillColor: CustomColors.inputColor,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: CustomColors.borderInputColor,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: Color(0xFF1379F0)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: CustomColors.inputColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: CustomColors.borderInputColor,
-                            ),
-                          ),
-                          child: filtered.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'Kategori tidak ditemukan',
-                                    style: TextStyle(
-                                      color: CustomColors.fontSubColor,
-                                      fontFamily: 'Inter',
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: filtered.length,
-                                  separatorBuilder: (_, __) => const Divider(
-                                    height: 1,
-                                    color: CustomColors.borderCardColor,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final category = filtered[index];
-                                    final active = selectedId == category.id;
-                                    return InkWell(
-                                      onTap: () {
-                                        final now = DateTime.now();
-                                        final isDoubleClick =
-                                            lastTappedCategoryId ==
-                                                    category.id &&
-                                                lastTapAt != null &&
-                                                now
-                                                        .difference(lastTapAt!)
-                                                        .inMilliseconds <
-                                                    300;
-
-                                        setDialogState(() {
-                                          selectedId = category.id;
-                                        });
-
-                                        if (isDoubleClick) {
-                                          Navigator.of(dialogContext)
-                                              .pop(category.id);
-                                          return;
-                                        }
-
-                                        lastTapAt = now;
-                                        lastTappedCategoryId = category.id;
-                                      },
-                                      child: Container(
-                                        color: active
-                                            ? const Color(0xFF0A1726)
-                                            : Colors.transparent,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 10),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                category.name,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ),
-                                            if (active)
-                                              const Icon(Icons.check,
-                                                  size: 16,
-                                                  color: Color(0xFF1379F0)),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text('Batal'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: selectedId == null
-                                ? null
-                                : () =>
-                                    Navigator.of(dialogContext).pop(selectedId),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1379F0),
-                            ),
-                            child: const Text(
-                              'Pilih',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    if (pickedId != null && mounted) {
-      final isBundleCategory = _categories.any(
-        (category) => category.id == pickedId && category.isBundle,
-      );
-
-      setState(() {
-        _selectedCategoryId = pickedId;
-        _selectedError = null;
-
-        if (!isBundleCategory) {
-          _bundleComponents = [];
-          _isManualPriceOverride = false;
-        } else {
-          _bundleComponents = [_BundleComponentEntry()];
-          _isManualPriceOverride = false;
-          _autoCalculateBundlePrice();
-        }
-      });
-    }
-  }
-
-  List<Category> _availableBundleSourceCategories({int? currentCategoryId}) {
-    final usedIds = _bundleComponents
-        .where((entry) =>
-            entry.categoryId != null && entry.categoryId != currentCategoryId)
-        .map((entry) => entry.categoryId!)
-        .toSet();
-
-    return _categories.where((category) {
-      if (category.isBundle) return false;
-      if (category.id == _selectedCategoryId) return false;
-      if (usedIds.contains(category.id)) return false;
-      return true;
+  List<Category> _categorySuggestions() {
+    final query = _categoryQueryController.text.trim().toLowerCase();
+    final filtered = _categories.where((category) {
+      if (query.isEmpty) {
+        return true;
+      }
+      return category.name.toLowerCase().contains(query);
     }).toList();
-  }
 
-  Future<int?> _openBundleSourceCategoryDialog({
-    required int? selectedCategoryId,
-  }) async {
-    final options = _availableBundleSourceCategories(
-      currentCategoryId: selectedCategoryId,
-    );
-    if (options.isEmpty && selectedCategoryId == null) {
-      return null;
+    if (query.isEmpty && filtered.length > 10) {
+      return filtered.take(10).toList();
     }
 
-    int? localSelectedId = selectedCategoryId;
-    String query = '';
-    DateTime? lastTapAt;
-    int? lastTappedCategoryId;
+    return filtered;
+  }
 
-    return showDialog<int>(
+  Future<void> _addNewCategoryFromDropdown() async {
+    _categoryFocusNode.unfocus();
+    final initialName = _categoryQueryController.text.trim();
+    final newCategoryId = await _openAddCategoryDialog(initialName: initialName);
+    if (newCategoryId != null && mounted) {
+      await _loadCategories();
+      _applyCategorySelection(newCategoryId);
+    }
+  }
+
+  void _applyCategorySelection(int pickedId) {
+    final category = _categories.where(
+      (item) => item.id == pickedId,
+    );
+
+    _categoryQueryController.text = category.isNotEmpty
+        ? category.first.name
+        : _categoryQueryController.text;
+
+    setState(() {
+      _selectedCategoryId = pickedId;
+      _selectedError = null;
+    });
+  }
+
+  Future<int?> _openAddCategoryDialog({String initialName = ''}) async {
+    final nameController = TextEditingController(text: initialName);
+
+    final createdId = await showDialog<int?>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final normalizedQuery = query.trim().toLowerCase();
-            final filtered = options.where((category) {
-              if (normalizedQuery.isEmpty) {
-                return true;
-              }
-              return category.name.toLowerCase().contains(normalizedQuery) ||
-                  category.code.toLowerCase().contains(normalizedQuery);
-            }).toList();
-
             return Dialog(
               backgroundColor: CustomColors.cardColor,
               shape: RoundedRectangleBorder(
@@ -731,15 +295,15 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 side: const BorderSide(color: CustomColors.borderCardColor),
               ),
               child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(maxWidth: 460, maxHeight: 520),
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Pilih Kategori Komponen',
+                        'Tambah Kategori Baru',
                         style: TextStyle(
                           color: Colors.white,
                           fontFamily: 'Inter',
@@ -747,156 +311,94 @@ class _MasterDataFormState extends State<MasterDataForm> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 36,
-                        child: TextField(
-                          onChanged: (value) {
-                            setDialogState(() {
-                              query = value;
-                            });
-                          },
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Inter',
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nama Kategori',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: CustomColors.fontSubColor,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameController,
+                        autofocus: true,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Contoh: Kertas',
+                          hintStyle: TextStyle(
+                            color: CustomColors.fontSubColor,
                             fontSize: 13,
-                            fontWeight: FontWeight.w400,
                           ),
-                          decoration: InputDecoration(
-                            hintText: 'Cari kategori atau kode...',
-                            hintStyle: const TextStyle(
-                              color: CustomColors.fontSubColor,
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            prefixIcon: const Icon(Icons.search,
-                                size: 18, color: CustomColors.fontSubColor),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            filled: true,
-                            fillColor: CustomColors.inputColor,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: CustomColors.borderInputColor,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: Color(0xFF1379F0)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: CustomColors.inputColor,
+                          filled: true,
+                          fillColor: CustomColors.inputColor,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: CustomColors.borderInputColor,
-                            ),
+                            borderSide: BorderSide(
+                                color: CustomColors.borderInputColor),
                           ),
-                          child: filtered.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'Kategori tidak ditemukan',
-                                    style: TextStyle(
-                                      color: CustomColors.fontSubColor,
-                                      fontFamily: 'Inter',
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: filtered.length,
-                                  separatorBuilder: (_, __) => const Divider(
-                                    height: 1,
-                                    color: CustomColors.borderCardColor,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final category = filtered[index];
-                                    final active =
-                                        localSelectedId == category.id;
-                                    return InkWell(
-                                      onTap: () {
-                                        final now = DateTime.now();
-                                        final isDoubleClick =
-                                            lastTappedCategoryId ==
-                                                    category.id &&
-                                                lastTapAt != null &&
-                                                now
-                                                        .difference(lastTapAt!)
-                                                        .inMilliseconds <
-                                                    300;
-
-                                        setDialogState(() {
-                                          localSelectedId = category.id;
-                                        });
-
-                                        if (isDoubleClick) {
-                                          Navigator.of(dialogContext)
-                                              .pop(category.id);
-                                          return;
-                                        }
-
-                                        lastTapAt = now;
-                                        lastTappedCategoryId = category.id;
-                                      },
-                                      child: Container(
-                                        color: active
-                                            ? const Color(0xFF0A1726)
-                                            : Colors.transparent,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 10),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                category.name,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ),
-                                            if (active)
-                                              const Icon(Icons.check,
-                                                  size: 16,
-                                                  color: Color(0xFF1379F0)),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF1379F0)),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
                             onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text('Batal'),
+                            child: Text(
+                              'Batal',
+                              style:
+                                  TextStyle(color: CustomColors.fontSubColor),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: localSelectedId == null
-                                ? null
-                                : () => Navigator.of(dialogContext)
-                                    .pop(localSelectedId),
+                            onPressed: () async {
+                              final name = nameController.text.trim();
+                              if (name.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Nama kategori wajib diisi')),
+                                );
+                                return;
+                              }
+
+                              try {
+                                final id = await _categoryRepository
+                                    .insertCategory(
+                                  Category(
+                                    name: name,
+                                  ),
+                                );
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop(id);
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          'Gagal menambah kategori: $e')),
+                                );
+                              }
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1379F0),
                             ),
                             child: const Text(
-                              'Pilih',
+                              'Tambah',
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
@@ -911,87 +413,107 @@ class _MasterDataFormState extends State<MasterDataForm> {
         );
       },
     );
+
+    nameController.dispose();
+    return createdId;
   }
+
+  List<Category> get _availableBundleSourceCategories => _categories;
 
   void _addBundleComponent() {
+    final entry = _BundleComponentEntry();
+    _attachBundleCategoryFocus(entry);
+    _attachBundleItemFocus(entry);
     setState(() {
-      _bundleComponents = [..._bundleComponents, _BundleComponentEntry()];
+      _bundleComponents = [..._bundleComponents, entry];
+    });
+  }
+
+  void _attachBundleCategoryFocus(_BundleComponentEntry entry) {
+    entry.categoryFocusNode.addListener(() {
+      if (!mounted) return;
+      final focused = entry.categoryFocusNode.hasFocus;
+
+      _BundleComponentEntry? liveEntry;
+      for (final e in _bundleComponents) {
+        if (identical(e.categoryFocusNode, entry.categoryFocusNode)) {
+          liveEntry = e;
+          break;
+        }
+      }
+      if (liveEntry == null) {
+        return;
+      }
+
+      if (focused) {
+        if (liveEntry.categoryName.isNotEmpty &&
+            liveEntry.categoryQueryController.text == liveEntry.categoryName) {
+          liveEntry.categoryQueryController.clear();
+        }
+      } else {
+        liveEntry.categoryQueryController.text = liveEntry.categoryName;
+      }
+      setState(() {
+        _bundleComponents = [
+          for (final e in _bundleComponents)
+            if (identical(e.categoryFocusNode, entry.categoryFocusNode))
+              e.copyWith(categoryFocused: focused)
+            else
+              e,
+        ];
+      });
+    });
+  }
+
+  void _attachBundleItemFocus(_BundleComponentEntry entry) {
+    entry.itemFocusNode.addListener(() {
+      if (!mounted) return;
+      final focused = entry.itemFocusNode.hasFocus;
+
+      _BundleComponentEntry? liveEntry;
+      for (final e in _bundleComponents) {
+        if (identical(e.itemFocusNode, entry.itemFocusNode)) {
+          liveEntry = e;
+          break;
+        }
+      }
+      if (liveEntry == null) {
+        return;
+      }
+
+      final selectedName =
+          _selectedInventoryName(liveEntry.items, liveEntry.selectedInventoryId);
+      if (focused) {
+        if (selectedName.isNotEmpty &&
+            liveEntry.itemQueryController.text == selectedName) {
+          liveEntry.itemQueryController.clear();
+        }
+      } else {
+        liveEntry.itemQueryController.text = selectedName;
+      }
+      setState(() {
+        _bundleComponents = [
+          for (final e in _bundleComponents)
+            if (identical(e.itemFocusNode, entry.itemFocusNode))
+              e.copyWith(itemFocused: focused)
+            else
+              e,
+        ];
+      });
     });
   }
 
   void _removeBundleComponent(int index) {
+    _bundleComponents[index].categoryFocusNode.dispose();
+    _bundleComponents[index].categoryQueryController.dispose();
+    _bundleComponents[index].itemFocusNode.dispose();
+    _bundleComponents[index].itemQueryController.dispose();
     setState(() {
       _bundleComponents = [
         for (var i = 0; i < _bundleComponents.length; i++)
           if (i != index) _bundleComponents[i],
       ];
-      if (_bundleComponents.isEmpty && _isSelectedCategoryBundle()) {
-        _bundleComponents = [_BundleComponentEntry()];
-      }
     });
-    _autoCalculateBundlePrice();
-  }
-
-  Future<void> _selectBundleSourceCategory(int index) async {
-    final current = _bundleComponents[index];
-    final pickedCategoryId = await _openBundleSourceCategoryDialog(
-      selectedCategoryId: current.categoryId,
-    );
-    if (pickedCategoryId == null) {
-      return;
-    }
-
-    Category? category;
-    for (final item in _categories) {
-      if (item.id == pickedCategoryId) {
-        category = item;
-        break;
-      }
-    }
-    if (category == null) {
-      return;
-    }
-
-    final items = await _getItemsForCategory(pickedCategoryId);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _bundleComponents[index] = current.copyWith(
-        categoryId: category!.id,
-        categoryCode: category.code,
-        categoryName: category.name,
-        selectedItemId: null,
-        items: items,
-        categoryError: null,
-        itemError: null,
-      );
-    });
-    _autoCalculateBundlePrice();
-  }
-
-  Future<void> _selectBundleItem(int index) async {
-    final current = _bundleComponents[index];
-    if (current.categoryId == null || current.items.isEmpty) {
-      return;
-    }
-
-    final pickedId = await _openMasterDataSearchDialog(
-      title: 'Pilih Item',
-      items: current.items,
-      selectedId: current.selectedItemId,
-    );
-
-    if (pickedId != null && mounted) {
-      setState(() {
-        _bundleComponents[index] = current.copyWith(
-          selectedItemId: pickedId,
-          itemError: null,
-        );
-      });
-      _autoCalculateBundlePrice();
-    }
   }
 
   void _saveProduct() {
@@ -1022,23 +544,20 @@ class _MasterDataFormState extends State<MasterDataForm> {
       return;
     }
 
-    if (_isSelectedCategoryBundle()) {
-      if (_bundleComponents.isEmpty) {
-        setState(() {
-          _bundleComponents = [
-            _BundleComponentEntry(itemError: 'Item wajib dipilih')
-          ];
-        });
-        return;
-      }
-
+    if (_hasBundleComponents()) {
       var hasError = false;
       final validatedEntries = <_BundleComponentEntry>[];
       for (final entry in _bundleComponents) {
-        final categoryError =
-            entry.categoryId == null ? 'Kategori wajib dipilih' : null;
-        final itemError =
-            entry.selectedItemId == null ? 'Item wajib dipilih' : null;
+        final isEmpty = entry.categoryId == null &&
+            entry.selectedInventoryId == null;
+        final categoryError = isEmpty
+            ? null
+            : (entry.categoryId == null ? 'Kategori wajib dipilih' : null);
+        final itemError = isEmpty
+            ? null
+            : (entry.selectedInventoryId == null
+                ? 'Item wajib dipilih'
+                : null);
         if (categoryError != null || itemError != null) {
           hasError = true;
         }
@@ -1068,17 +587,16 @@ class _MasterDataFormState extends State<MasterDataForm> {
     }
 
     final bundleItems = <Map<String, dynamic>>[];
-    if (_isSelectedCategoryBundle()) {
-      for (final entry in _bundleComponents) {
-        if (entry.selectedItemId != null && entry.categoryCode.isNotEmpty) {
-          bundleItems.add(
-            {
-              'component_master_data_id': entry.selectedItemId,
-              'component_type': entry.categoryCode,
-              'qty': 1,
-            },
-          );
-        }
+    for (final entry in _bundleComponents) {
+      if (entry.selectedInventoryId != null &&
+          entry.categoryName.isNotEmpty) {
+        bundleItems.add(
+          {
+            'component_inventory_id': entry.selectedInventoryId,
+            'component_type': entry.categoryName,
+            'qty': 1,
+          },
+        );
       }
     }
 
@@ -1114,15 +632,14 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Input Nama
-                  _buildFormLabel('Nama'),
+                  // Input Nama Menu
+                  _buildFormLabel('Nama Menu'),
                   const SizedBox(height: 8),
-                  _buildTextField(_nameController, 'Masukkan Nama',
-                      errorText: _nameError),
+                  _buildNameInput(),
                   const SizedBox(height: 16),
 
-                  // Dropdown Kategori
-                  _buildFormLabel('Kategori'),
+                  // Dropdown Kategori Menu
+                  _buildFormLabel('Kategori Menu'),
                   const SizedBox(height: 8),
                   _buildCategoryDropdown(),
                   const SizedBox(height: 16),
@@ -1132,22 +649,20 @@ class _MasterDataFormState extends State<MasterDataForm> {
                   const SizedBox(height: 8),
                   _buildPriceInput(),
 
-                  if (_isSelectedCategoryBundle()) ...[
-                    const SizedBox(height: 16),
-                    _buildFormLabel('Komponen Bundle'),
-                    const SizedBox(height: 8),
-                    if (_isLoadingBundleData)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    else
-                      _buildBundleComponentSection(),
-                  ],
+                  const SizedBox(height: 16),
+                  _buildFormLabel('Daftar Komponen'),
+                  const SizedBox(height: 8),
+                  if (_isLoadingBundleData)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else
+                    _buildBundleComponentSection(),
                 ],
               ),
             ),
@@ -1222,7 +737,11 @@ class _MasterDataFormState extends State<MasterDataForm> {
   }
 
   Widget _buildTextField(TextEditingController controller, String hintText,
-      {bool obscureText = false, bool enabled = true, String? errorText}) {
+      {bool obscureText = false,
+      bool enabled = true,
+      String? errorText,
+      FocusNode? focusNode,
+      ValueChanged<String>? onChanged}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1230,8 +749,10 @@ class _MasterDataFormState extends State<MasterDataForm> {
           height: 34,
           child: TextField(
             controller: controller,
+            focusNode: focusNode,
             obscureText: obscureText,
             enabled: enabled,
+            onChanged: onChanged,
             style: const TextStyle(
               fontSize: 13,
               fontFamily: 'Inter',
@@ -1284,6 +805,19 @@ class _MasterDataFormState extends State<MasterDataForm> {
     );
   }
 
+  Widget _buildNameInput() {
+    return _buildTextField(_nameController, 'Masukkan nama menu',
+        focusNode: _nameFocusNode,
+        errorText: _nameError,
+        onChanged: (_) {
+          if (_nameError != null) {
+            setState(() {
+              _nameError = null;
+            });
+          }
+        });
+  }
+
   Widget _buildCategoryDropdown() {
     if (_isLoadingCategories) {
       return const SizedBox(
@@ -1299,60 +833,175 @@ class _MasterDataFormState extends State<MasterDataForm> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 34,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: _openCategorySearchDialog,
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: CustomColors.inputColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _selectedError != null
-                        ? Colors.red
-                        : CustomColors.borderInputColor,
-                    width: 1.0,
-                  ),
+    final suggestions = _categorySuggestions();
+    final categoryQuery = _categoryQueryController.text.trim();
+    final trimmedLower = categoryQuery.toLowerCase();
+    final hasExactMatch = trimmedLower.isNotEmpty &&
+        suggestions.any(
+          (category) => category.name.toLowerCase() == trimmedLower,
+        );
+    final showAddRow = trimmedLower.isNotEmpty && !hasExactMatch;
+    final dropdownItems = suggestions.length + (showAddRow ? 1 : 0);
+
+    return TapRegion(
+      onTapOutside: (_) {
+        _categoryFocusNode.unfocus();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 34,
+            child: TextField(
+              controller: _categoryQueryController,
+              focusNode: _categoryFocusNode,
+              onTapOutside: (_) {
+                // Jangan tutup dropdown saat menyentuh item dropdown;
+                // TapRegion di atas yang menangani klik di luar widget.
+              },
+              onChanged: (_) {
+              setState(() {
+                if (_selectedError != null) {
+                  _selectedError = null;
+                }
+              });
+            },
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: 'Inter',
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Pilih kategori (bisa dicari)',
+              hintStyle: const TextStyle(
+                color: CustomColors.fontSubColor,
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+              prefixIcon: const Icon(Icons.search,
+                  size: 18, color: CustomColors.fontSubColor),
+              suffixIcon: Icon(
+                _categoryFocused
+                    ? Icons.arrow_drop_up
+                    : Icons.arrow_drop_down,
+                size: 20,
+                color: CustomColors.fontSubColor,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              filled: true,
+              fillColor: CustomColors.inputColor,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: _selectedError != null
+                      ? Colors.red
+                      : CustomColors.borderInputColor,
                 ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selectedCategoryName().isEmpty
-                              ? 'Pilih kategori (bisa dicari)'
-                              : _selectedCategoryName(),
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: _selectedCategoryName().isEmpty
-                                ? CustomColors.fontSubColor
-                                : Colors.white,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.search,
-                        size: 18,
-                        color: CustomColors.fontSubColor,
-                      ),
-                    ],
-                  ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color:
+                      _selectedError != null ? Colors.red : Color(0xFF1379F0),
                 ),
               ),
             ),
           ),
         ),
+        if (_categoryFocused && dropdownItems > 0) ...[
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              color: CustomColors.inputColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: CustomColors.borderInputColor),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: dropdownItems,
+                separatorBuilder: (_, __) => const Divider(
+                  height: 1,
+                  color: CustomColors.borderCardColor,
+                ),
+                itemBuilder: (context, index) {
+                  if (showAddRow && index == 0) {
+                    return InkWell(
+                      onTap: _addNewCategoryFromDropdown,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add,
+                                size: 16, color: Color(0xFF1379F0)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "Tambahkan kategori '$categoryQuery'",
+                                style: const TextStyle(
+                                  color: Color(0xFF1379F0),
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final category =
+                      suggestions[index - (showAddRow ? 1 : 0)];
+                  final active = _selectedCategoryId == category.id;
+                  return InkWell(
+                    onTap: () {
+                      if (category.id == null) {
+                        return;
+                      }
+                      _applyCategorySelection(category.id!);
+                      _categoryFocusNode.unfocus();
+                    },
+                    child: Container(
+                      color: active
+                          ? const Color(0xFF0A1726)
+                          : Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              category.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                          if (active) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.check,
+                                size: 16, color: Color(0xFF1379F0)),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
         if (_selectedError != null)
           Padding(
             padding: const EdgeInsets.only(top: 4.0),
@@ -1365,6 +1014,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
             ),
           ),
       ],
+      ),
     );
   }
 
@@ -1432,10 +1082,6 @@ class _MasterDataFormState extends State<MasterDataForm> {
                     filled: false,
                   ),
                   onChanged: (value) {
-                    if (_isSelectedCategoryBundle()) {
-                      _isManualPriceOverride = true;
-                    }
-
                     String digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
 
                     if (digitsOnly.isEmpty) {
@@ -1484,9 +1130,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
         ],
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: _availableBundleSourceCategories().isEmpty
-              ? null
-              : _addBundleComponent,
+          onPressed: _addBundleComponent,
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: CustomColors.borderInputColor),
             foregroundColor: Colors.white,
@@ -1502,38 +1146,549 @@ class _MasterDataFormState extends State<MasterDataForm> {
     );
   }
 
-  Widget _buildBundleComponentRepeater(int index) {
+  Widget _buildBundleCategoryDropdown(int index) {
     final entry = _bundleComponents[index];
-    final itemValue =
-        _selectedMasterDataName(entry.items, entry.selectedItemId);
-    final categoryPicker = _buildMasterDataPicker(
-      label: 'Kategori',
-      value: entry.categoryName,
-      errorText: entry.categoryError,
-      onTap: () => _selectBundleSourceCategory(index),
-      emptyLabel: 'Pilih kategori (bisa dicari)',
+    final suggestions = _bundleCategorySuggestions(index);
+    final categoryQuery = entry.categoryQueryController.text.trim();
+    final trimmedLower = categoryQuery.toLowerCase();
+    final hasExactMatch = trimmedLower.isNotEmpty &&
+        suggestions.any(
+          (category) => category.name.toLowerCase() == trimmedLower,
+        );
+    final showAddRow = trimmedLower.isNotEmpty && !hasExactMatch;
+    final dropdownItems = suggestions.length + (showAddRow ? 1 : 0);
+
+    return TapRegion(
+      onTapOutside: (_) {
+        entry.categoryFocusNode.unfocus();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Kategori Inventori',
+            style: const TextStyle(
+              fontSize: 12,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: TextField(
+              controller: entry.categoryQueryController,
+              focusNode: entry.categoryFocusNode,
+              onTapOutside: (_) {},
+              onChanged: (_) {
+                setState(() {
+                  _bundleComponents[index] = entry.copyWith(
+                    categoryError: null,
+                  );
+                });
+              },
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Pilih kategori (bisa dicari)',
+                hintStyle: const TextStyle(
+                  color: CustomColors.fontSubColor,
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: const Icon(Icons.search,
+                    size: 18, color: CustomColors.fontSubColor),
+                suffixIcon: Icon(
+                  entry.categoryFocused
+                      ? Icons.arrow_drop_up
+                      : Icons.arrow_drop_down,
+                  size: 20,
+                  color: CustomColors.fontSubColor,
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                filled: true,
+                fillColor: CustomColors.inputColor,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: entry.categoryError != null
+                        ? Colors.red
+                        : CustomColors.borderInputColor,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: entry.categoryError != null
+                        ? Colors.red
+                        : Color(0xFF1379F0),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (entry.categoryFocused && dropdownItems > 0) ...[
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(
+                color: CustomColors.inputColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: CustomColors.borderInputColor),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: dropdownItems,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    color: CustomColors.borderCardColor,
+                  ),
+                  itemBuilder: (context, itemIndex) {
+                    if (showAddRow && itemIndex == 0) {
+                      return InkWell(
+                        onTap: () =>
+                            _createBundleCategoryFromDropdown(index),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.add,
+                                  size: 16, color: Color(0xFF1379F0)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Tambahkan kategori '$categoryQuery'",
+                                  style: const TextStyle(
+                                    color: Color(0xFF1379F0),
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final category =
+                        suggestions[itemIndex - (showAddRow ? 1 : 0)];
+                    final active = entry.categoryId == category.id;
+                    return InkWell(
+                      onTap: () {
+                        if (category.id == null) {
+                          return;
+                        }
+                        entry.categoryFocusNode.unfocus();
+                        _applyBundleCategorySelection(index, category.id!);
+                      },
+                      child: Container(
+                        color: active
+                            ? const Color(0xFF0A1726)
+                            : Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                category.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            if (active) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.check,
+                                  size: 16, color: Color(0xFF1379F0)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+          if (entry.categoryError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                entry.categoryError!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
-    final itemPicker = _buildMasterDataPicker(
-      label: 'Item',
-      value: itemValue,
-      errorText: entry.itemError,
-      onTap: entry.categoryId == null ? () {} : () => _selectBundleItem(index),
-      emptyLabel: entry.categoryId == null
-          ? 'Pilih kategori terlebih dahulu'
-          : 'Pilih item',
-      enabled: entry.categoryId != null,
-      onClear: entry.selectedItemId == null
-          ? null
-          : () {
-              setState(() {
-                _bundleComponents[index] = entry.copyWith(
-                  selectedItemId: null,
-                  itemError: null,
-                );
-              });
-              _autoCalculateBundlePrice();
-            },
+  }
+
+  List<Category> _bundleCategorySuggestions(int index) {
+    final entry = _bundleComponents[index];
+    final query = entry.categoryQueryController.text.trim().toLowerCase();
+    final available = _availableBundleSourceCategories;
+
+    final filtered = available.where((category) {
+      if (query.isEmpty) {
+        return true;
+      }
+      return category.name.toLowerCase().contains(query);
+    }).toList();
+
+    if (query.isEmpty && filtered.length > 10) {
+      return filtered.take(10).toList();
+    }
+
+    return filtered;
+  }
+
+  Widget _buildBundleItemDropdown(int index) {
+    final entry = _bundleComponents[index];
+    final suggestions = _bundleItemSuggestions(index);
+    final selectedName =
+        _selectedInventoryName(entry.items, entry.selectedInventoryId);
+
+    if (entry.categoryId == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Item Inventori',
+            style: TextStyle(
+              fontSize: 12,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: Container(
+              decoration: BoxDecoration(
+                color: CustomColors.borderInputColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: CustomColors.borderInputColor),
+              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.search,
+                      size: 18, color: CustomColors.fontSubColor),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Pilih kategori terlebih dahulu',
+                      style: TextStyle(
+                        color: CustomColors.fontSubColor,
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  if (entry.itemError != null)
+                    const Icon(Icons.error,
+                        size: 16, color: Colors.red),
+                ],
+              ),
+            ),
+          ),
+          if (entry.itemError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                entry.itemError!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
+    final dropdownItems = suggestions.length;
+
+    return TapRegion(
+      onTapOutside: (_) {
+        entry.itemFocusNode.unfocus();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Item Inventori',
+            style: TextStyle(
+              fontSize: 12,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: TextField(
+              controller: entry.itemQueryController,
+              focusNode: entry.itemFocusNode,
+              onTapOutside: (_) {},
+              onChanged: (_) {
+                setState(() {
+                  _bundleComponents[index] = entry.copyWith(
+                    itemError: null,
+                  );
+                });
+              },
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+              decoration: InputDecoration(
+                hintText: entry.itemFocused
+                    ? 'Cari item...'
+                    : (selectedName.isEmpty ? 'Pilih item' : null),
+                hintStyle: const TextStyle(
+                  color: CustomColors.fontSubColor,
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: const Icon(Icons.search,
+                    size: 18, color: CustomColors.fontSubColor),
+                suffixIcon: selectedName.isNotEmpty && !entry.itemFocused
+                    ? InkWell(
+                        onTap: () {
+                          setState(() {
+                            _bundleComponents[index] = entry.copyWith(
+                              selectedInventoryId: null,
+                              clearSelectedInventoryId: true,
+                              itemError: null,
+                            );
+                          });
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: Icon(Icons.clear,
+                              size: 16, color: CustomColors.fontSubColor),
+                        ),
+                      )
+                    : Icon(
+                        entry.itemFocused
+                            ? Icons.arrow_drop_up
+                            : Icons.arrow_drop_down,
+                        size: 20,
+                        color: CustomColors.fontSubColor,
+                      ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                filled: true,
+                fillColor: CustomColors.inputColor,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: entry.itemError != null
+                        ? Colors.red
+                        : CustomColors.borderInputColor,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: entry.itemError != null
+                        ? Colors.red
+                        : const Color(0xFF1379F0),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (entry.itemFocused && dropdownItems > 0) ...[
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(
+                color: CustomColors.inputColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: CustomColors.borderInputColor),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: dropdownItems,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    color: CustomColors.borderCardColor,
+                  ),
+                  itemBuilder: (context, itemIndex) {
+                    final item = suggestions[itemIndex];
+                    final active =
+                        entry.selectedInventoryId == item.inventoryId;
+                    return InkWell(
+                      onTap: () {
+                        entry.itemFocusNode.unfocus();
+                        _applyBundleItemSelection(index, item.inventoryId);
+                      },
+                      child: Container(
+                        color: active
+                            ? const Color(0xFF0A1726)
+                            : Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            if (active) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.check,
+                                  size: 16, color: Color(0xFF1379F0)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+          if (entry.itemError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                entry.itemError!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  List<_InventoryOption> _bundleItemSuggestions(int index) {
+    final entry = _bundleComponents[index];
+    if (entry.categoryId == null) {
+      return const [];
+    }
+
+    final query = entry.itemQueryController.text.trim().toLowerCase();
+    final filtered = entry.items.where((item) {
+      if (query.isEmpty) {
+        return true;
+      }
+      return item.name.toLowerCase().contains(query);
+    }).toList();
+
+    if (query.isEmpty && filtered.length > 10) {
+      return filtered.take(10).toList();
+    }
+
+    return filtered;
+  }
+
+  void _applyBundleItemSelection(int index, int pickedInventoryId) {
+    final liveEntry = _bundleComponents[index];
+    final name =
+        _selectedInventoryName(liveEntry.items, pickedInventoryId);
+    liveEntry.itemFocusNode.unfocus();
+    liveEntry.itemQueryController.text = name;
+    setState(() {
+      _bundleComponents[index] = liveEntry.copyWith(
+        selectedInventoryId: pickedInventoryId,
+        itemError: null,
+        itemFocused: false,
+      );
+    });
+  }
+
+  Future<void> _createBundleCategoryFromDropdown(int index) async {
+    final entry = _bundleComponents[index];
+    entry.categoryFocusNode.unfocus();
+    final initialName = entry.categoryQueryController.text.trim();
+    final newCategoryId = await _openAddCategoryDialog(initialName: initialName);
+    if (newCategoryId != null && mounted) {
+      final categories = await _categoryRepository.getAllCategories();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+        });
+      }
+      await _applyBundleCategorySelection(index, newCategoryId);
+    }
+  }
+
+  Future<void> _applyBundleCategorySelection(int index, int pickedCategoryId) async {
+    Category? category;
+    for (final item in _categories) {
+      if (item.id == pickedCategoryId) {
+        category = item;
+        break;
+      }
+    }
+    if (category == null) {
+      return;
+    }
+
+    final items = await _getItemsForCategory(pickedCategoryId);
+    if (!mounted) {
+      return;
+    }
+
+    final liveEntry = _bundleComponents[index];
+    liveEntry.categoryFocusNode.unfocus();
+    liveEntry.categoryQueryController.text = category.name;
+    liveEntry.itemQueryController.clear();
+    setState(() {
+      _bundleComponents[index] = liveEntry.copyWith(
+        categoryId: category!.id,
+        categoryName: category.name,
+        selectedInventoryId: null,
+        clearSelectedInventoryId: true,
+        items: items,
+        categoryError: null,
+        itemError: null,
+        categoryFocused: false,
+      );
+    });
+  }
+
+  Widget _buildBundleComponentRepeater(int index) {
+    final categoryPicker = _buildBundleCategoryDropdown(index);
+    final itemPicker = _buildBundleItemDropdown(index);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1557,9 +1712,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
                 ),
               ),
               const Spacer(),
-              if (_bundleComponents.length > 1)
-                InkWell(
-                  onTap: () => _removeBundleComponent(index),
+              InkWell(
+                onTap: () => _removeBundleComponent(index),
                   child: const Padding(
                     padding: EdgeInsets.all(4),
                     child: Icon(
@@ -1599,143 +1753,99 @@ class _MasterDataFormState extends State<MasterDataForm> {
       ),
     );
   }
-
-  Widget _buildMasterDataPicker({
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-    VoidCallback? onClear,
-    String? errorText,
-    String emptyLabel = 'Pilih item',
-    bool enabled = true,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: CustomColors.fontSubColor,
-            fontFamily: 'Inter',
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 34,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: enabled ? onTap : null,
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: enabled
-                      ? CustomColors.inputColor
-                      : CustomColors.borderInputColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: errorText != null
-                        ? Colors.red
-                        : CustomColors.borderInputColor,
-                    width: 1.0,
-                  ),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          value.isEmpty ? emptyLabel : value,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: value.isEmpty
-                                ? CustomColors.fontSubColor
-                                : Colors.white,
-                          ),
-                        ),
-                      ),
-                      if (onClear != null)
-                        InkWell(
-                          onTap: onClear,
-                          child: const Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: Icon(
-                              Icons.clear,
-                              size: 16,
-                              color: CustomColors.fontSubColor,
-                            ),
-                          ),
-                        ),
-                      const Icon(
-                        Icons.search,
-                        size: 18,
-                        color: CustomColors.fontSubColor,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (errorText != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0),
-            child: Text(
-              errorText,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.red,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 class _BundleComponentEntry {
   final int? categoryId;
-  final String categoryCode;
   final String categoryName;
-  final int? selectedItemId;
-  final List<MasterData> items;
+  final int? selectedInventoryId;
+  final List<_InventoryOption> items;
   final String? categoryError;
   final String? itemError;
+  final FocusNode categoryFocusNode;
+  final TextEditingController categoryQueryController;
+  final bool categoryFocused;
+  final FocusNode itemFocusNode;
+  final TextEditingController itemQueryController;
+  final bool itemFocused;
 
-  const _BundleComponentEntry({
+  _BundleComponentEntry({
     this.categoryId,
-    this.categoryCode = '',
     this.categoryName = '',
-    this.selectedItemId,
+    this.selectedInventoryId,
     this.items = const [],
     this.categoryError,
     this.itemError,
-  });
+    FocusNode? categoryFocusNode,
+    TextEditingController? categoryQueryController,
+    this.categoryFocused = false,
+    FocusNode? itemFocusNode,
+    TextEditingController? itemQueryController,
+    this.itemFocused = false,
+  })  : categoryFocusNode = categoryFocusNode ?? FocusNode(),
+        categoryQueryController =
+            categoryQueryController ?? TextEditingController(),
+        itemFocusNode = itemFocusNode ?? FocusNode(),
+        itemQueryController =
+            itemQueryController ?? TextEditingController();
 
   _BundleComponentEntry copyWith({
     int? categoryId,
-    String? categoryCode,
     String? categoryName,
-    int? selectedItemId,
-    List<MasterData>? items,
+    int? selectedInventoryId,
+    bool clearSelectedInventoryId = false,
+    List<_InventoryOption>? items,
     String? categoryError,
     String? itemError,
+    FocusNode? categoryFocusNode,
+    TextEditingController? categoryQueryController,
+    bool? categoryFocused,
+    FocusNode? itemFocusNode,
+    TextEditingController? itemQueryController,
+    bool? itemFocused,
   }) {
     return _BundleComponentEntry(
       categoryId: categoryId ?? this.categoryId,
-      categoryCode: categoryCode ?? this.categoryCode,
       categoryName: categoryName ?? this.categoryName,
-      selectedItemId: selectedItemId,
+      selectedInventoryId: clearSelectedInventoryId
+          ? null
+          : (selectedInventoryId ?? this.selectedInventoryId),
       items: items ?? this.items,
       categoryError: categoryError,
       itemError: itemError,
+      categoryFocusNode: categoryFocusNode ?? this.categoryFocusNode,
+      categoryQueryController:
+          categoryQueryController ?? this.categoryQueryController,
+      categoryFocused: categoryFocused ?? this.categoryFocused,
+      itemFocusNode: itemFocusNode ?? this.itemFocusNode,
+      itemQueryController: itemQueryController ?? this.itemQueryController,
+      itemFocused: itemFocused ?? this.itemFocused,
+    );
+  }
+}
+
+class _InventoryOption {
+  final int inventoryId;
+  final int masterDataId;
+  final int? price;
+  final int stock;
+  final String name;
+
+  const _InventoryOption({
+    required this.inventoryId,
+    required this.masterDataId,
+    this.price,
+    this.stock = 0,
+    required this.name,
+  });
+
+  factory _InventoryOption.fromMap(Map<String, dynamic> map) {
+    return _InventoryOption(
+      inventoryId: map['inventory_id'] as int,
+      masterDataId: map['master_data_id'] as int,
+      price: map['price'] as int?,
+      stock: (map['stock'] as int?) ?? 0,
+      name: (map['name'] ?? '') as String,
     );
   }
 }

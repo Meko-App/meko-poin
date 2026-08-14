@@ -17,38 +17,12 @@ class CategoryRepository {
     return result.map((row) => Category.fromMap(row)).toList();
   }
 
-  Future<List<Category>> getCountableCategories() async {
-    final db = await dbHelper.database;
-    final result = await db.query(
-      'Data_Category',
-      where: 'deleted_at IS NULL AND is_countable = 1',
-      orderBy: 'name ASC',
-    );
-    return result.map((row) => Category.fromMap(row)).toList();
-  }
-
   Future<Category?> getCategoryById(int id) async {
     final db = await dbHelper.database;
     final result = await db.query(
       'Data_Category',
       where: 'id = ?',
       whereArgs: [id],
-      limit: 1,
-    );
-
-    if (result.isEmpty) {
-      return null;
-    }
-
-    return Category.fromMap(result.first);
-  }
-
-  Future<Category?> getCategoryByCode(String code) async {
-    final db = await dbHelper.database;
-    final result = await db.query(
-      'Data_Category',
-      where: 'LOWER(code) = ?',
-      whereArgs: [code.toLowerCase()],
       limit: 1,
     );
 
@@ -98,15 +72,15 @@ class CategoryRepository {
 
   Future<int> softDeleteAndReassignMasterData({
     required int categoryId,
-    String defaultCategoryCode = 'additional',
+    String defaultCategoryName = 'Additional',
   }) async {
     final db = await dbHelper.database;
 
     return db.transaction((txn) async {
       final target = await txn.query(
         'Data_Category',
-        where: 'LOWER(code) = ? AND deleted_at IS NULL',
-        whereArgs: [defaultCategoryCode.toLowerCase()],
+        where: 'LOWER(name) = ? AND deleted_at IS NULL',
+        whereArgs: [defaultCategoryName.toLowerCase()],
         limit: 1,
       );
 

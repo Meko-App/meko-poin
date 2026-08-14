@@ -52,10 +52,9 @@ class _CardPlastikTerjualState extends State<CardPlastikTerjual> {
 
       // Get master data with category 'Product' and 'Background'
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
-      final filteredMasterData = masterDataList.where((data) {
-        final code = (data.categoryCode ?? '').toLowerCase();
-        return code == 'packaging' || data.category == 'Packaging';
-      }).toList();
+      final filteredMasterData = masterDataList
+          .where((data) => data.category.toLowerCase() == 'packaging')
+          .toList();
 
       // Get transaction items for this month
       final transactionItems = await widget.transactionItemRepo

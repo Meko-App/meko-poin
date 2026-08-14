@@ -25,9 +25,6 @@ class _CategoryContentState extends State<CategoryContent> {
   Category? _editingCategory;
 
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _codeController = TextEditingController();
-  bool _isBundle = false;
-  bool _isCountable = false;
 
   @override
   void initState() {
@@ -41,7 +38,6 @@ class _CategoryContentState extends State<CategoryContent> {
   @override
   void dispose() {
     _nameController.dispose();
-    _codeController.dispose();
     super.dispose();
   }
 
@@ -72,9 +68,6 @@ class _CategoryContentState extends State<CategoryContent> {
       _currentState = ContentState.form;
       _editingCategory = category;
       _nameController.text = category?.name ?? '';
-      _codeController.text = category?.code ?? '';
-      _isBundle = category?.isBundle ?? false;
-      _isCountable = category?.isCountable ?? false;
       widget.onStateChanged(_currentState);
     });
   }
@@ -84,20 +77,16 @@ class _CategoryContentState extends State<CategoryContent> {
       _currentState = ContentState.table;
       _editingCategory = null;
       _nameController.clear();
-      _codeController.clear();
-      _isBundle = false;
-      _isCountable = false;
       widget.onStateChanged(_currentState);
     });
   }
 
   Future<void> _saveCategory() async {
     final name = _nameController.text.trim();
-    final code = _codeController.text.trim().toLowerCase();
 
-    if (name.isEmpty || code.isEmpty) {
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nama dan kode kategori wajib diisi')),
+        const SnackBar(content: Text('Nama kategori wajib diisi')),
       );
       return;
     }
@@ -107,9 +96,6 @@ class _CategoryContentState extends State<CategoryContent> {
         await widget.categoryRepository.insertCategory(
           Category(
             name: name,
-            code: code,
-            isBundle: _isBundle,
-            isCountable: _isCountable,
           ),
         );
       } else {
@@ -117,9 +103,6 @@ class _CategoryContentState extends State<CategoryContent> {
           Category(
             id: _editingCategory!.id,
             name: name,
-            code: code,
-            isBundle: _isBundle,
-            isCountable: _isCountable,
           ),
         );
       }
@@ -302,14 +285,6 @@ class _CategoryContentState extends State<CategoryContent> {
                           fontFamily: 'Inter',
                           fontSize: 14,
                           fontWeight: FontWeight.w500)),
-                  subtitle: Text(
-                    'code: ${category.code} | bundle: ${category.isBundle ? 'Ya' : 'Tidak'} | countable: ${category.isCountable ? 'Ya' : 'Tidak'}',
-                    style: const TextStyle(
-                        color: CustomColors.fontSubColor,
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400),
-                  ),
                 );
               },
             ),
@@ -335,38 +310,6 @@ class _CategoryContentState extends State<CategoryContent> {
             controller: _nameController,
             style: const TextStyle(color: Colors.white, fontSize: 13),
             decoration: _inputDecoration('Masukkan nama kategori'),
-          ),
-          const SizedBox(height: 16),
-          _buildLabel('Kode Kategori'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _codeController,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-            decoration: _inputDecoration('Contoh: paper'),
-          ),
-          const SizedBox(height: 20),
-          SwitchListTile(
-            value: _isBundle,
-            onChanged: (value) => setState(() => _isBundle = value),
-            title: const Text('Is Bundle',
-                style: TextStyle(color: Colors.white, fontSize: 14)),
-            subtitle: Text(
-              'Khusus untuk bundle atau paketan',
-              style: TextStyle(color: CustomColors.fontSubColor),
-            ),
-            activeColor: const Color(0xFF1379F0),
-          ),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            value: _isCountable,
-            onChanged: (value) => setState(() => _isCountable = value),
-            title: const Text('Is Countable',
-                style: TextStyle(color: Colors.white, fontSize: 14)),
-            subtitle: Text(
-              'Menentukan item ini wajib cek dan update stok atau tidak',
-              style: TextStyle(color: CustomColors.fontSubColor),
-            ),
-            activeColor: const Color(0xFF1379F0),
           ),
           const SizedBox(height: 20),
           Row(

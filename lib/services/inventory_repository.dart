@@ -338,4 +338,45 @@ class InventoryRepository {
     );
     return result.map((map) => Inventory.fromMap(map)).toList();
   }
+
+  Future<List<Map<String, dynamic>>> getInventoryOptionsByCategoryId(
+      int categoryId) async {
+    final db = await dbHelper.database;
+    final result = await db.rawQuery('''
+      SELECT
+        i.id AS inventory_id,
+        i.master_data_id,
+        i.stock,
+        m.name AS name,
+        m.price AS price
+      FROM Data_Inventory i
+      INNER JOIN Data_Master m ON i.master_data_id = m.id
+      WHERE m.category_id = ?
+        AND i.deleted_at IS NULL
+        AND m.deleted_at IS NULL
+      ORDER BY m.name ASC
+    ''', [categoryId]);
+
+    return result;
+  }
+
+  Future<Map<String, dynamic>?> getInventoryOptionById(int inventoryId) async {
+    final db = await dbHelper.database;
+    final result = await db.rawQuery('''
+      SELECT
+        i.id AS inventory_id,
+        i.master_data_id,
+        i.stock,
+        m.name AS name,
+        m.price AS price
+      FROM Data_Inventory i
+      INNER JOIN Data_Master m ON i.master_data_id = m.id
+      WHERE i.id = ?
+        AND i.deleted_at IS NULL
+        AND m.deleted_at IS NULL
+      LIMIT 1
+    ''', [inventoryId]);
+
+    return result.isNotEmpty ? result.first : null;
+  }
 }
