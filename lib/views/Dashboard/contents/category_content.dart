@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meko_poin/models/category.dart';
 import 'package:meko_poin/services/category_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
+import 'package:meko_poin/views/Dashboard/components/table/category_table/category_table.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 
 class CategoryContent extends StatefulWidget {
@@ -20,8 +21,6 @@ class CategoryContent extends StatefulWidget {
 
 class _CategoryContentState extends State<CategoryContent> {
   ContentState _currentState = ContentState.table;
-  bool _isLoading = true;
-  List<Category> _categories = [];
   Category? _editingCategory;
 
   final TextEditingController _nameController = TextEditingController();
@@ -32,35 +31,12 @@ class _CategoryContentState extends State<CategoryContent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onStateChanged(_currentState);
     });
-    _loadCategories();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadCategories() async {
-    setState(() => _isLoading = true);
-    try {
-      final data = await widget.categoryRepository.getAllCategories();
-      if (mounted) {
-        setState(() {
-          _categories = data;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat kategori: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
   }
 
   void _openForm([Category? category]) {
@@ -118,7 +94,6 @@ class _CategoryContentState extends State<CategoryContent> {
       }
 
       _backToTable();
-      await _loadCategories();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -131,25 +106,102 @@ class _CategoryContentState extends State<CategoryContent> {
   Future<void> _deleteCategory(Category category) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: CustomColors.cardColor,
-        title:
-            const Text('Hapus Kategori', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Kategori akan dihapus dan master data serta item inventori terkait dipindahkan ke kategori default.',
-          style: TextStyle(color: CustomColors.fontSubColor),
+      builder: (context) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Colors.grey[900],
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header dengan ikon dan judul
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.amber,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Konfirmasi Penghapusan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Divider(
+                    height: 1,
+                    color: Colors.grey[700],
+                  ),
+                  const SizedBox(height: 10),
+                  // Content text
+                  Text(
+                    'Hapus kategori ${category.name} ini?',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Master data dan item inventori terkait akan dipindahkan ke kategori default. Tindakan ini tidak dapat dibatalkan.',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Divider
+                  Divider(
+                    height: 1,
+                    color: Colors.grey[700],
+                  ),
+                  const SizedBox(height: 16),
+                  // Footer Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey[400],
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red[300],
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: const Text('Hapus'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child:
-                const Text('Hapus', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
       ),
     );
 
@@ -166,7 +218,6 @@ class _CategoryContentState extends State<CategoryContent> {
           const SnackBar(content: Text('Kategori berhasil dihapus')),
         );
       }
-      await _loadCategories();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -178,6 +229,10 @@ class _CategoryContentState extends State<CategoryContent> {
 
   @override
   Widget build(BuildContext context) {
+    double currentMaxHeight = _currentState == ContentState.form
+        ? double.infinity
+        : MediaQuery.of(context).size.height * 0.77;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -221,90 +276,19 @@ class _CategoryContentState extends State<CategoryContent> {
             ],
           ),
           const SizedBox(height: 24),
-          _currentState == ContentState.table ? _buildTable() : _buildForm(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTable() {
-    return Container(
-      decoration: BoxDecoration(
-        color: CustomColors.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CustomColors.borderCardColor),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Daftar Kategori',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    )),
-              ],
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: currentMaxHeight,
             ),
+            child: _currentState == ContentState.table
+                ? CategoryTable(
+                    onAddNew: () => _openForm(),
+                    categoryRepository: widget.categoryRepository,
+                    onEditCategory: (data) => _openForm(data),
+                    onDeleteCategory: _deleteCategory,
+                  )
+                : _buildForm(),
           ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            )
-          else if (_categories.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Belum ada kategori',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400),
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _categories.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 1,
-                color: CustomColors.borderCardColor,
-              ),
-              itemBuilder: (context, index) {
-                final category = _categories[index];
-                return ListTile(
-                  title: Text(category.name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined,
-                            size: 18, color: CustomColors.fontSubColor),
-                        tooltip: 'Edit',
-                        onPressed: () => _openForm(category),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            size: 18, color: Colors.redAccent),
-                        tooltip: 'Hapus',
-                        onPressed: () => _deleteCategory(category),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
         ],
       ),
     );
