@@ -288,13 +288,46 @@ class ReceiptService {
     final file = File('${directory.path}/${transactionData['invoice']}.pdf');
     await file.writeAsBytes(pdf);
 
+    final strukText = _buildStrukText(transactionData);
+
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Struk pembelian dari MEKO POIN',
+      text: strukText,
       subject: 'Struk ${transactionData['invoice']}',
       sharePositionOrigin: Rect.zero,
     );
   }
+}
+
+String _buildStrukText(Map<String, dynamic> transactionData) {
+  final buffer = StringBuffer();
+
+  buffer.writeln('Struk Photorism Studio');
+  buffer.writeln();
+  buffer.writeln('*Invoice:* ${transactionData['invoice']}');
+  buffer.writeln('*Tanggal:* ${transactionData['date']}');
+  buffer.writeln('*Pelanggan:* ${transactionData['name']}');
+  buffer.writeln();
+  buffer.writeln('*Detail Pesanan:*');
+
+  for (final item in (transactionData['cart_items'] as List? ?? [])) {
+    final name = item['name'];
+    final qty = item['qty'];
+    final totalPrice = item['total_price'] ?? 0;
+    buffer.writeln('* $name (Qty: $qty) - ${_formatPrice(totalPrice)}');
+  }
+
+  buffer.writeln();
+  buffer.writeln('*Subtotal:* ${_formatPrice(transactionData['total_price'])}');
+  buffer.writeln('*Diskon:* ${_formatPrice(transactionData['discount_price'])}');
+  buffer.writeln('*Total:* ${_formatPrice(transactionData['final_price'])}');
+  buffer.writeln();
+  buffer.writeln(
+      '*Metode Pembayaran:* ${transactionData['payment_method'] == 'cash' ? 'Cash' : transactionData['payment_method'] == 'qris' ? 'QRIS' : transactionData['payment_method']}');
+  buffer.writeln();
+  buffer.writeln('Terima kasih telah berkunjung di Photorism Studio!');
+
+  return buffer.toString();
 }
 
 String _formatPrice(int price) {

@@ -50,14 +50,9 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
         errorMessage = '';
       });
 
-      // Get master data with category 'Product' and 'Background'
+      // Get all sold menus (no category restriction)
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
-      final filteredMasterData = masterDataList.where((data) {
-        final category = data.category.toLowerCase();
-        return category == 'product' ||
-            category == 'background' ||
-            category == 'additional';
-      }).toList();
+      final filteredMasterData = masterDataList.toList();
 
       // Get transaction items for this month
       final transactionItems = await widget.transactionItemRepo

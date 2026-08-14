@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -44,11 +45,22 @@ class DatabaseHelper {
       ),
     );
 
-    // final tables =
-    //     await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
-    // print("Tabel yang tersedia: $tables");
-
     return db;
+  }
+
+  /// Testing hook: opens a database at an explicit path, running the real
+  /// create/upgrade chain so migrations can be validated against real data.
+  @visibleForTesting
+  Future<Database> openAtPathForTesting(String path) async {
+    sqfliteFfiInit();
+    return databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 12,
+        onCreate: _createDB,
+        onUpgrade: _onUpgrade,
+      ),
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -341,6 +353,14 @@ class DatabaseHelper {
   }
 
   Future<void> _migrateBundleItemComponentTypeToFlexible(Database db) async {
+    // Jika tabel sudah menggunakan skema baru (component_inventory_id),
+    // migrasi lama ini tidak perlu dijalankan.
+    final hasMasterDataId =
+        await _columnExists(db, 'Data_Bundle_Item', 'component_master_data_id');
+    if (!hasMasterDataId) {
+      return;
+    }
+
     await db.transaction((txn) async {
       await txn.execute('''
         CREATE TABLE IF NOT EXISTS Data_Bundle_Item_v2 (

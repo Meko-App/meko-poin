@@ -125,7 +125,12 @@ class TransactionRepository {
     return db.transaction((txn) async {
       final transactionResult = await txn.query(
         'Data_Transaction',
-        columns: ['payment_method'],
+        columns: [
+          'payment_method',
+          'final_price',
+          'invoice_number',
+          'customer_id',
+        ],
         where: 'id = ?',
         whereArgs: [transactionId],
         limit: 1,
@@ -171,8 +176,72 @@ class TransactionRepository {
         );
       }
 
+      // Jaga konsistensi kas tunai: kas hanya boleh mencatat transaksi tunai.
+      final invoiceNumber =
+          transactionResult.first['invoice_number'] as String? ?? '';
+      if (previousPaymentMethod == 'cash' &&
+          normalizedNewPaymentMethod != 'cash') {
+        // Transaksi berubah dari tunai ke metode lain: hapus kas tunai terkait.
+        // Kas lama (sebelum migrasi v12) tidak memiliki transaction_id,
+        // sehingga dicocokkan lewat nomor invoice di dalam deskripsi.
+        await txn.update(
+          'Data_Kas',
+          {
+            'deleted_at': now,
+            'updated_at': now,
+            'deleted_by': actorUserId,
+          },
+          where: 'deleted_at IS NULL AND (transaction_id = ? OR description LIKE ?)',
+          whereArgs: [transactionId, '%Invoice $invoiceNumber%'],
+        );
+      } else if (previousPaymentMethod != 'cash' &&
+          normalizedNewPaymentMethod == 'cash') {
+        // Transaksi berubah ke tunai: tambahkan kas tunai terkait.
+        final finalPrice = transactionResult.first['final_price'] as int? ?? 0;
+        final customerId = transactionResult.first['customer_id'] as int?;
+
+        // Hindari duplikasi jika entri kas untuk transaksi ini masih aktif
+        // (mis. kas lama tanpa transaction_id yang belum terhapus).
+        final existingKas = await txn.query(
+          'Data_Kas',
+          columns: ['id'],
+          where: 'deleted_at IS NULL AND (transaction_id = ? OR description LIKE ?)',
+          whereArgs: [transactionId, '%Invoice $invoiceNumber%'],
+          limit: 1,
+        );
+
+        if (existingKas.isEmpty) {
+          final customerName = customerId != null
+              ? _getCustomerNameById(txn, customerId)
+              : null;
+
+          await txn.insert('Data_Kas', {
+            'amount': finalPrice,
+            'description':
+                'Pemasukan dari transaksi atas nama ${customerName ?? '-'} Invoice $invoiceNumber',
+            'type': 'income',
+            'cash_date': now,
+            'transaction_id': transactionId,
+            'created_by': actorUserId,
+            'created_at': now,
+            'updated_at': now,
+          });
+        }
+      }
+
       return updatedRows;
     });
+  }
+
+  Future<String?> _getCustomerNameById(dynamic txn, int customerId) async {
+    final result = await txn.query(
+      'Data_Customer',
+      columns: ['name'],
+      where: 'id = ?',
+      whereArgs: [customerId],
+      limit: 1,
+    );
+    return result.isNotEmpty ? result.first['name'] as String? : null;
   }
 
   Future<List<PaymentMethodChangeHistory>> getPaymentMethodHistory(
@@ -345,7 +414,6 @@ class TransactionRepository {
     JOIN Data_Transaction t ON ti.transaction_id = t.id
     WHERE m.deleted_at IS NULL
     AND t.created_at BETWEEN ? AND ?
-    AND LOWER(COALESCE(c.name, m.category)) IN ('product', 'background')
     GROUP BY m.id, m.name, category
     ORDER BY total_qty DESC
     LIMIT 18
