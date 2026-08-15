@@ -296,10 +296,16 @@ class ReceiptService {
       if (cleanPhone.startsWith('0')) {
         cleanPhone = '62${cleanPhone.substring(1)}';
       }
-      final url = Uri.parse(
+
+      final whatsappUrl = Uri.parse(
+          'whatsapp://send?phone=$cleanPhone&text=${Uri.encodeComponent(strukText)}');
+      final webUrl = Uri.parse(
           'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(strukText)}');
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
+
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl);
+      } else if (await canLaunchUrl(webUrl)) {
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       } else {
         await Share.shareXFiles(
           [XFile(file.path)],
