@@ -20,7 +20,10 @@ class KasRepository {
 
   Future<List<Kas>> getAllKas() async {
     final db = await dbHelper.database;
-    final result = await db.query('Data_Kas');
+    final result = await db.query(
+      'Data_Kas',
+      where: 'deleted_at IS NULL',
+    );
     return result.map((map) => Kas.fromMap(map)).toList();
   }
 
@@ -180,6 +183,7 @@ class KasRepository {
         SELECT 
           SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as total
         FROM Data_Kas
+        WHERE deleted_at IS NULL
       ''');
 
       final totalValue = result.first['total'];

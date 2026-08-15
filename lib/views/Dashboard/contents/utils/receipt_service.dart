@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReceiptService {
   static Future<Uint8List> generateReceiptPdf(
@@ -290,12 +291,31 @@ class ReceiptService {
 
     final strukText = _buildStrukText(transactionData);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: strukText,
-      subject: 'Struk ${transactionData['invoice']}',
-      sharePositionOrigin: Rect.zero,
-    );
+    if (phone.isNotEmpty) {
+      String cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62${cleanPhone.substring(1)}';
+      }
+      final url = Uri.parse(
+          'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(strukText)}');
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      } else {
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: strukText,
+          subject: 'Struk ${transactionData['invoice']}',
+          sharePositionOrigin: Rect.zero,
+        );
+      }
+    } else {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: strukText,
+        subject: 'Struk ${transactionData['invoice']}',
+        sharePositionOrigin: Rect.zero,
+      );
+    }
   }
 }
 
