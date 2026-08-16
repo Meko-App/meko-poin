@@ -1017,7 +1017,8 @@ class _TransactionDetailState extends State<TransactionDetail> {
                                             ),
                                           ),
                                         ),
-                                        if (_isAdmin && !_isEditingPayment)
+                                        if ((_isAdmin || _currentUserRole == 2) &&
+                                            !_isEditingPayment)
                                           GestureDetector(
                                             onTap: () {
                                               setState(() {
