@@ -56,7 +56,7 @@ void main() {
       );
       expect(rows, 0, reason: 'same method should be a no-op');
 
-      // Change cash -> qris, should NOT create kas (already none, still none).
+      // Change cash -> qris: should create an active 'saldo' entry.
       await repo.updatePaymentMethodWithHistory(
         transactionId: txnId,
         newPaymentMethod: 'qris',
@@ -65,8 +65,26 @@ void main() {
       final kasAfter = await db2.rawQuery(
           'SELECT * FROM Data_Kas WHERE transaction_id = ? AND deleted_at IS NULL',
           [txnId]);
-      expect(kasAfter, isEmpty,
-          reason: 'non-cash txn must not have an active kas entry');
+      expect(kasAfter, isNotEmpty,
+          reason: 'qris txn must have an active saldo kas entry');
+      expect(kasAfter.first['variable'], 'saldo',
+          reason: 'qris transaction must map to variable=saldo');
+      expect(kasAfter.first['type'], 'income');
+      expect(kasAfter.first['amount'], cashTxn.first['final_price']);
+
+      // Back to cash: entry must flip to variable='cash'.
+      await repo.updatePaymentMethodWithHistory(
+        transactionId: txnId,
+        newPaymentMethod: 'cash',
+        actorUserId: 1,
+      );
+      final kasCashBack = await db2.rawQuery(
+          'SELECT * FROM Data_Kas WHERE transaction_id = ? AND deleted_at IS NULL',
+          [txnId]);
+      expect(kasCashBack, isNotEmpty,
+          reason: 'cash txn must have an active cash kas entry');
+      expect(kasCashBack.first['variable'], 'cash');
+      expect(kasCashBack.first['amount'], cashTxn.first['final_price']);
     }
 
     if (nonCashTxn.isNotEmpty) {
@@ -76,7 +94,7 @@ void main() {
           'UPDATE Data_Kas SET deleted_at = datetime("now") WHERE transaction_id = ? AND deleted_at IS NULL',
           [txnId]);
 
-      // non-cash -> cash should CREATE an active kas entry.
+      // non-cash -> cash should CREATE an active 'cash' entry.
       await repo.updatePaymentMethodWithHistory(
         transactionId: txnId,
         newPaymentMethod: 'cash',
@@ -88,9 +106,10 @@ void main() {
       expect(kasCash, isNotEmpty,
           reason: 'cash txn must have an active kas entry');
       expect(kasCash.first['type'], 'income');
+      expect(kasCash.first['variable'], 'cash');
       expect(kasCash.first['amount'], nonCashTxn.first['final_price']);
 
-      // cash -> qris should SOFT DELETE the kas entry.
+      // cash -> qris should flip the entry to 'saldo' (not remove it).
       await repo.updatePaymentMethodWithHistory(
         transactionId: txnId,
         newPaymentMethod: 'qris',
@@ -99,12 +118,15 @@ void main() {
       final kasQris = await db2.rawQuery(
           'SELECT * FROM Data_Kas WHERE transaction_id = ? AND deleted_at IS NULL',
           [txnId]);
-      expect(kasQris, isEmpty,
-          reason: 'switching away from cash must remove the kas entry');
+      expect(kasQris, isNotEmpty,
+          reason: 'qris txn must still have an active kas entry');
+      expect(kasQris.first['variable'], 'saldo',
+          reason: 'switching to qris must move entry to variable=saldo');
     }
 
     // Legacy kas entry (transaction_id NULL) linked only via invoice number
-    // in the description must also be removed on cash -> qris.
+    // in the description must be replaced by a new variable-linked entry
+    // when the payment method changes.
     final legacyTxn = await db2.rawQuery('''
       SELECT t.id, t.final_price, t.invoice_number, t.customer_id
       FROM Data_Transaction t
@@ -126,8 +148,8 @@ void main() {
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      // cash -> qris: both the transaction_id-linked row and the legacy
-      // invoice-linked row must be removed.
+      // cash -> qris: the legacy transaction_id-NULL row must be removed and
+      // replaced by an active 'saldo' entry linked via transaction_id.
       await repo.updatePaymentMethodWithHistory(
         transactionId: txnId,
         newPaymentMethod: 'qris',
@@ -135,10 +157,17 @@ void main() {
       );
 
       final legacyKas = await db2.rawQuery(
-          'SELECT * FROM Data_Kas WHERE deleted_at IS NULL AND description LIKE ?',
+          'SELECT * FROM Data_Kas WHERE deleted_at IS NULL AND transaction_id IS NULL AND description LIKE ?',
           ['%Invoice $invoice%']);
       expect(legacyKas, isEmpty,
           reason: 'legacy kas entry linked via invoice must be removed');
+
+      final activeKas = await db2.rawQuery(
+          'SELECT * FROM Data_Kas WHERE deleted_at IS NULL AND transaction_id = ?',
+          [txnId]);
+      expect(activeKas, isNotEmpty,
+          reason: 'a new saldo entry must exist for the transaction');
+      expect(activeKas.first['variable'], 'saldo');
     }
 
     await db2.close();

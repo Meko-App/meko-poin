@@ -142,7 +142,7 @@ class _TransactionDetailState extends State<TransactionDetail> {
 
       // Hapus transaksi
       final result = await widget.transactionRepository
-          .deleteTransaction(widget.transactionId);
+          .deleteTransaction(widget.transactionId, actorUserId: currentUserId);
 
       if (result > 0) {
         // Tutup dialog

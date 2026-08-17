@@ -289,7 +289,8 @@ class _TransactionFormState extends State<TransactionForm> {
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      if (data['payment_method']?.toLowerCase() == 'cash') {
+      if (data['payment_method']?.toLowerCase() == 'cash' ||
+          data['payment_method']?.toLowerCase() == 'qris') {
         final customerName = data['name'];
         final invoiceNumber = data['invoice'];
         final finalPrice = data['final_price'];
@@ -301,6 +302,9 @@ class _TransactionFormState extends State<TransactionForm> {
           'type': 'income',
           'cash_date': DateTime.now().toIso8601String(),
           'transaction_id': transactionId,
+          'variable': data['payment_method']?.toLowerCase() == 'cash'
+              ? 'cash'
+              : 'saldo',
           'created_by': userId,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
@@ -384,6 +388,7 @@ class _TransactionFormState extends State<TransactionForm> {
             userId: userId,
             inventoryId: componentInventoryId,
             qty: componentQty,
+            transactionId: transactionId,
             notes:
                 'Transaksi bundle ${masterData.name} dengan pengurangan sebesar $componentQty',
           );
@@ -402,6 +407,7 @@ class _TransactionFormState extends State<TransactionForm> {
         userId: userId,
         masterDataId: masterDataId,
         qty: qty,
+        transactionId: transactionId,
       );
     }
   }
@@ -411,6 +417,7 @@ class _TransactionFormState extends State<TransactionForm> {
     required int userId,
     required int masterDataId,
     required int qty,
+    int? transactionId,
     String? notes,
   }) async {
     final inventory = await db.query(
@@ -447,6 +454,7 @@ class _TransactionFormState extends State<TransactionForm> {
       'initial_stock': initialStock,
       'current_stock': currentStock,
       'difference': qty,
+      'transaction_id': transactionId,
       'notes': notes ??
           'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
       'created_at': now.toIso8601String(),
@@ -459,6 +467,7 @@ class _TransactionFormState extends State<TransactionForm> {
     required int userId,
     required int inventoryId,
     required int qty,
+    int? transactionId,
     String? notes,
   }) async {
     final inventory = await db.query(
@@ -495,6 +504,7 @@ class _TransactionFormState extends State<TransactionForm> {
       'initial_stock': initialStock,
       'current_stock': currentStock,
       'difference': qty,
+      'transaction_id': transactionId,
       'notes': notes ??
           'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
       'created_at': now.toIso8601String(),

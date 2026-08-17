@@ -15,6 +15,7 @@ class KasDetailTable extends StatefulWidget {
   final VoidCallback onBack;
   final Function(Map<String, dynamic>) onEdit;
   final VoidCallback onAddNew;
+  final bool canEdit;
 
   const KasDetailTable({
     super.key,
@@ -23,6 +24,7 @@ class KasDetailTable extends StatefulWidget {
     required this.onBack,
     required this.onEdit,
     required this.onAddNew,
+    this.canEdit = true,
   });
 
   @override
@@ -283,6 +285,7 @@ class _KasDetailTableState extends State<KasDetailTable> {
                                       kasWithBalance: kas,
                                       isSelected: selectedTransactionIds
                                           .contains(kas.kas.id),
+                                      canEdit: widget.canEdit,
                                       onSelectChanged: (value) =>
                                           toggleSelectOne(kas.kas.id!, value),
                                       onEdit: () =>

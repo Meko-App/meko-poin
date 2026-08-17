@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/kas.dart';
 import 'package:meko_poin/services/kas_repository.dart';
+import 'package:meko_poin/services/keuangan_kategori_repository.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_table/kas_table.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table.dart';
@@ -12,12 +13,14 @@ import 'package:shared_preferences/shared_preferences.dart'; // Import untuk for
 class KasContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
   final KasRepository kasRepository;
+  final KeuanganKategoriRepository kategoriRepository;
   final int? user;
 
   const KasContent(
       {super.key,
       required this.onStateChanged,
       required this.kasRepository,
+      required this.kategoriRepository,
       this.user});
 
   @override
@@ -31,6 +34,8 @@ class _KasContentState extends State<KasContent> {
   DateTime? _selectedMonthForDetail;
   Map<String, dynamic>? _dataToEdit;
   double _totalSaldo = 0;
+  int _totalCash = 0;
+  int _totalSaldoVariable = 0;
   bool _isLoadingTotalSaldo = true;
   String? _selectedMonthName;
   int? _selectedMonth;
@@ -102,13 +107,26 @@ class _KasContentState extends State<KasContent> {
 
     setState(() => _isLoadingTotalSaldo = true);
     try {
+      final totalCash = await widget.kasRepository.getTotalCash();
+      final totalSaldoVariable =
+          await widget.kasRepository.getTotalSaldoVariable();
+
       if (_currentState == ContentState.table) {
-        final totalSaldo = await widget.kasRepository.getTotalSaldo();
-        setState(() => _totalSaldo = totalSaldo);
+        final totalKeuangan =
+            await widget.kasRepository.getTotalKeuangan();
+        setState(() {
+          _totalCash = totalCash;
+          _totalSaldoVariable = totalSaldoVariable;
+          _totalSaldo = totalKeuangan.toDouble();
+        });
       } else if (_currentState == ContentState.detailKas) {
-        final totalSaldo = await widget.kasRepository
+        final totalKeuangan = await widget.kasRepository
             .getTotalSaldoBulanan(_selectedYear!, _selectedMonth!);
-        setState(() => _totalSaldo = totalSaldo);
+        setState(() {
+          _totalCash = totalCash;
+          _totalSaldoVariable = totalSaldoVariable;
+          _totalSaldo = totalKeuangan;
+        });
       }
     } catch (e) {
       debugPrint('Error loading total saldo: $e');
@@ -119,18 +137,34 @@ class _KasContentState extends State<KasContent> {
 
   Future<void> _handleDataFormSubmit(Map<String, dynamic> data) async {
     try {
-      final kasData = Kas.fromMap(data);
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId') ?? 0;
 
-      if (_dataToEdit == null) {
+      if (data['type'] == 'transfer') {
+        await widget.kasRepository.transferKas(
+          amount: data['amount'] as int,
+          description: data['description'] as String,
+          fromVariable: data['from_variable'] as String,
+          toVariable: data['to_variable'] as String,
+          cashDate: DateTime.parse(data['cash_date'] as String),
+          categoryId: data['category_id'] as int?,
+          userId: userId,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Transfer keuangan berhasil')),
+          );
+        }
+      } else if (_dataToEdit == null) {
+        final kasData = Kas.fromMap(data);
         await widget.kasRepository.insertKas(kasData);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data kas berhasil ditambahkan')),
+            const SnackBar(content: Text('Data keuangan berhasil ditambahkan')),
           );
         }
       } else {
-        final prefs = await SharedPreferences.getInstance();
-        final userId = prefs.getInt('userId') ?? 0;
+        final kasData = Kas.fromMap(data);
 
         final updatedData = Kas(
           id: _dataToEdit!['id'],
@@ -138,13 +172,15 @@ class _KasContentState extends State<KasContent> {
           description: kasData.description,
           amount: kasData.amount,
           type: kasData.type,
+          variable: _dataToEdit!['variable'] ?? kasData.variable,
+          categoryId: kasData.categoryId,
           updatedBy: userId,
         );
 
         await widget.kasRepository.updateKas(updatedData);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data kas berhasil diperbarui')),
+            const SnackBar(content: Text('Data keuangan berhasil diperbarui')),
           );
         }
       }
@@ -213,12 +249,12 @@ class _KasContentState extends State<KasContent> {
                     children: [
                       Text(
                         _currentState == ContentState.table
-                            ? "Kas Tunai"
+                            ? "Keuangan"
                             : (_currentState == ContentState.form
                                 ? (_dataToEdit != null
-                                    ? "Edit Data Kas"
-                                    : "Tambah Data Kas")
-                                : "Detail Kas Tunai"),
+                                    ? "Edit Data Keuangan"
+                                    : "Tambah Data Keuangan")
+                                : "Detail Keuangan"),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w500,
@@ -228,12 +264,12 @@ class _KasContentState extends State<KasContent> {
                       const SizedBox(height: 4),
                       Text(
                         _currentState == ContentState.table
-                            ? "Data arus kas tunai bulanan"
+                            ? "Data arus keuangan bulanan"
                             : (_currentState == ContentState.form
                                 ? (_dataToEdit != null
-                                    ? "Edit data arus kas bulanan"
-                                    : "Tambah data arus kas bulanan")
-                                : "Data arus kas tunai $_selectedMonthName"),
+                                    ? "Edit data arus keuangan bulanan"
+                                    : "Tambah data arus keuangan bulanan")
+                                : "Data arus keuangan $_selectedMonthName"),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
@@ -245,7 +281,7 @@ class _KasContentState extends State<KasContent> {
                 ],
               ),
 
-              // Total Saldo - Hanya ditampilkan di state table
+              // Total Keuangan - Hanya ditampilkan di state table
               if (_currentState == ContentState.table ||
                   _currentState == ContentState.detailKas)
                 _isLoadingTotalSaldo
@@ -262,13 +298,36 @@ class _KasContentState extends State<KasContent> {
                           ),
                         ),
                       )
-                    : Text(
-                        'Total Saldo: $formattedTotalSaldo',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Cash: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_totalCash)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: CustomColors.fontSubColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Saldo: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_totalSaldoVariable)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: CustomColors.fontSubColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Total Keuangan: $formattedTotalSaldo',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
             ],
           ),
@@ -295,10 +354,13 @@ class _KasContentState extends State<KasContent> {
                         initialData: _dataToEdit,
                         onSubmit: _handleDataFormSubmit,
                         user: widget.user,
+                        kasRepository: widget.kasRepository,
+                        kategoriRepository: widget.kategoriRepository,
                       )
                     : KasDetailTable(
                         kasRepository: widget.kasRepository,
                         selectedMonth: _selectedMonthForDetail!,
+                        canEdit: widget.user != 2,
                         onBack: _showTable,
                         onEdit: (data) => _showForm(
                             data: data, origin: FormOrigin.fromDetail),

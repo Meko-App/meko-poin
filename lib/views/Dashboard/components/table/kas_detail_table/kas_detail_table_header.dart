@@ -157,6 +157,35 @@ class KasDetailTableHeader extends StatelessWidget {
             ),
             Expanded(
               flex: 2,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: CustomColors.borderCardColor),
+                  ),
+                ),
+                child: const Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Variabel',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
+                          color: CustomColors.fontSubColor,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
               child: InkWell(
                 onTap: () => onSort('saldoAwal'),
                 child: Container(

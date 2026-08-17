@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -24,7 +24,7 @@ class DatabaseHelper {
   /// Returns a writable path for the database file.
   /// On Windows, getDatabasesPath() points to the install dir (read-only when
   /// installed under Program Files). We use getApplicationSupportDirectory()
-  /// instead, which resolves to %APPDATA%\Roaming\<app> — always writable.
+  /// instead, which resolves to %APPDATA%\Roaming\<app> â€” always writable.
   Future<String> _getDbPath(String fileName) async {
     final appSupportDir = await getApplicationSupportDirectory();
     // Ensure the directory exists
@@ -39,7 +39,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 12,
+        version: 14,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -56,7 +56,7 @@ class DatabaseHelper {
     return databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 12,
+        version: 14,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -144,6 +144,70 @@ class DatabaseHelper {
     if (oldVersion < 12) {
       await _migrateInventoryAddNameAndCategory(db);
     }
+
+    if (oldVersion < 13) {
+      await _addColumnIfNotExists(
+        db,
+        'Data_Inventory_Log',
+        'transaction_id',
+        'INTEGER',
+      );
+    }
+
+    if (oldVersion < 14) {
+      await _migrateKeuangan(db);
+    }
+  }
+
+  Future<void> _migrateKeuangan(Database db) async {
+    // Kolom variable (cash | saldo) dan kategori pada Data_Kas.
+    await _addColumnIfNotExists(
+      db,
+      'Data_Kas',
+      'variable',
+      "TEXT DEFAULT 'cash'",
+    );
+    await _addColumnIfNotExists(
+      db,
+      'Data_Kas',
+      'category_id',
+      'INTEGER',
+    );
+    await _addColumnIfNotExists(
+      db,
+      'Data_Kas',
+      'from_variable',
+      'TEXT',
+    );
+    await _addColumnIfNotExists(
+      db,
+      'Data_Kas',
+      'to_variable',
+      'TEXT',
+    );
+
+    // Tabel kategori keuangan.
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS Data_Keuangan_Kategori (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        created_at DATETIME,
+        updated_at DATETIME,
+        deleted_at TEXT
+      )
+    ''');
+
+    // Backfill variable: entri keuangan terkait transaksi non-cash (QRIS)
+    // menjadi 'saldo', sisanya 'cash'.
+    await db.execute('''
+      UPDATE Data_Kas
+      SET variable = 'saldo'
+      WHERE transaction_id IS NOT NULL
+        AND transaction_id IN (
+          SELECT id FROM Data_Transaction
+          WHERE LOWER(payment_method) != 'cash'
+        )
+    ''');
   }
 
   Future<void> _createUserTable(Database db) async {
@@ -225,6 +289,7 @@ class DatabaseHelper {
         current_stock INTEGER,
         notes TEXT,
         difference INTEGER,
+        transaction_id INTEGER,
         created_at DATETIME,
         updated_at DATETIME,
         FOREIGN KEY (inventory_id) REFERENCES Data_Inventory(id),
@@ -325,7 +390,21 @@ class DatabaseHelper {
         created_by INTEGER,
         updated_by INTEGER,
         deleted_by INTEGER,
+        variable TEXT DEFAULT 'cash',
+        category_id INTEGER,
+        from_variable TEXT,
+        to_variable TEXT,
         FOREIGN KEY (transaction_id) REFERENCES Data_Transaction(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS Data_Keuangan_Kategori (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        created_at DATETIME,
+        updated_at DATETIME,
+        deleted_at TEXT
       )
     ''');
   }

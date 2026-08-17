@@ -18,6 +18,106 @@ class KasRepository {
     return await db.insert('Data_Kas', dataToInsert);
   }
 
+  Future<int> _variableBalance(String variable) async {
+    final db = await dbHelper.database;
+    final result = await db.rawQuery('''
+      SELECT 
+        SUM(
+          CASE
+            WHEN from_variable IS NOT NULL AND to_variable IS NOT NULL THEN
+              CASE
+                WHEN to_variable = ? THEN amount
+                WHEN from_variable = ? THEN -amount
+                ELSE 0
+              END
+            ELSE
+              CASE
+                WHEN variable = ? AND type = 'income' THEN amount
+                WHEN variable = ? AND type = 'outcome' THEN -amount
+                ELSE 0
+              END
+          END
+        ) as total
+      FROM Data_Kas
+      WHERE deleted_at IS NULL
+    ''', [variable, variable, variable, variable]);
+    final totalValue = result.first['total'];
+    return totalValue == null ? 0 : (totalValue as num).toInt();
+  }
+
+  Future<int> getTotalCash() => _variableBalance('cash');
+
+  Future<int> getTotalSaldoVariable() => _variableBalance('saldo');
+
+  Future<int> getTotalKeuangan() async {
+    final cash = await getTotalCash();
+    final saldo = await getTotalSaldoVariable();
+    return cash + saldo;
+  }
+
+  /// Menjalankan transfer antar variabel keuangan.
+  /// Membuat satu baris yang menyimpan metadata dari/ke; perhitungan saldo
+  /// memperhitungkan pengurangan variabel asal dan penambahan variabel tujuan
+  /// (total keuangan tidak berubah). Memvalidasi saldo variabel asal cukup.
+  Future<void> transferKas({
+    required int amount,
+    required String description,
+    required String fromVariable,
+    required String toVariable,
+    required DateTime cashDate,
+    int? categoryId,
+    int? userId,
+  }) async {
+    if (amount <= 0) {
+      throw Exception('Nominal transfer harus lebih dari 0');
+    }
+    if (fromVariable == toVariable) {
+      throw Exception('Dari dan Ke tidak boleh sama');
+    }
+
+    final available = await _variableBalance(fromVariable);
+    if (available < amount) {
+      throw Exception(
+          'Saldo ${_variableLabel(fromVariable)} tidak mencukupi. Tersedia ${available.toString()}');
+    }
+
+    final db = await dbHelper.database;
+    final now = DateTime.now().toIso8601String();
+    final dateOnly = cashDate.toIso8601String().split('T')[0];
+
+    await db.insert('Data_Kas', {
+      'amount': amount,
+      'description': description,
+      'type': 'outcome',
+      'cash_date': dateOnly,
+      'variable': fromVariable,
+      'category_id': categoryId,
+      'from_variable': fromVariable,
+      'to_variable': toVariable,
+      'created_by': userId,
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
+  String _variableLabel(String variable) {
+    return variable == 'cash' ? 'Cash' : 'Saldo';
+  }
+
+  Future<List<String>> getKasDescriptionSuggestions(String query) async {
+    final db = await dbHelper.database;
+    if (query.trim().isEmpty) {
+      return const [];
+    }
+    final result = await db.rawQuery('''
+      SELECT DISTINCT description FROM Data_Kas
+      WHERE deleted_at IS NULL AND description LIKE ?
+      ORDER BY description ASC
+      LIMIT 20
+    ''', ['%$query%']);
+    return result.map((row) => row['description'] as String).toList();
+  }
+
   Future<List<Kas>> getAllKas() async {
     final db = await dbHelper.database;
     final result = await db.query(
@@ -55,9 +155,9 @@ class KasRepository {
       SELECT 
         strftime('%m', cash_date) as month,
         strftime('%Y', cash_date) as year,
-        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-        SUM(CASE WHEN type = 'outcome' THEN amount ELSE 0 END) as total_outcome,
-        SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as net_amount
+        SUM(CASE WHEN type = 'income' AND from_variable IS NULL THEN amount ELSE 0 END) as total_income,
+        SUM(CASE WHEN type = 'outcome' AND from_variable IS NULL THEN amount ELSE 0 END) as total_outcome,
+        SUM(CASE WHEN type = 'income' AND from_variable IS NULL THEN amount WHEN type = 'outcome' AND from_variable IS NULL THEN -amount ELSE 0 END) as net_amount
       FROM Data_Kas
       WHERE $whereClause
       GROUP BY strftime('%Y-%m', cash_date)
@@ -110,10 +210,14 @@ class KasRepository {
       final kas = Kas.fromMap(map);
       final int initialBalance = runningBalance;
 
-      if (kas.type == 'income') {
-        runningBalance += kas.amount;
-      } else {
-        runningBalance -= kas.amount;
+      // Baris transfer bersifat netral untuk saldo gabungan
+      // (kurang di variabel asal, tambah di variabel tujuan).
+      if (kas.fromVariable == null && kas.toVariable == null) {
+        if (kas.type == 'income') {
+          runningBalance += kas.amount;
+        } else {
+          runningBalance -= kas.amount;
+        }
       }
 
       kasList.add(KasWithBalance(
@@ -135,10 +239,10 @@ class KasRepository {
   Future<int> _getSaldoAwalBulan(int year, int month) async {
     final db = await dbHelper.database;
 
-    // Hitung saldo sampai akhir bulan sebelumnya
+    // Hitung saldo sampai akhir bulan sebelumnya (transfer bersifat netral).
     final result = await db.rawQuery('''
     SELECT 
-      SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as total_saldo
+      SUM(CASE WHEN type = 'income' AND from_variable IS NULL THEN amount WHEN type = 'outcome' AND from_variable IS NULL THEN -amount ELSE 0 END) as total_saldo
     FROM Data_Kas 
     WHERE 
       (strftime('%Y', cash_date) < ? OR 
@@ -181,7 +285,7 @@ class KasRepository {
       final db = await dbHelper.database;
       final result = await db.rawQuery('''
         SELECT 
-          SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as total
+          SUM(CASE WHEN type = 'income' AND from_variable IS NULL THEN amount WHEN type = 'outcome' AND from_variable IS NULL THEN -amount ELSE 0 END) as total
         FROM Data_Kas
         WHERE deleted_at IS NULL
       ''');
@@ -203,7 +307,7 @@ class KasRepository {
       final db = await dbHelper.database;
       final result = await db.rawQuery('''
         SELECT 
-          SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as total
+          SUM(CASE WHEN type = 'income' AND from_variable IS NULL THEN amount WHEN type = 'outcome' AND from_variable IS NULL THEN -amount ELSE 0 END) as total
         FROM Data_Kas
         WHERE 
           (strftime('%Y', cash_date) < ? OR 

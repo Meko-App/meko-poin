@@ -11,6 +11,10 @@ class Kas {
   final int? createdBy;
   final int? updatedBy;
   final int? deletedBy;
+  final String? variable;
+  final int? categoryId;
+  final String? fromVariable;
+  final String? toVariable;
 
   Kas({
     this.id,
@@ -25,6 +29,10 @@ class Kas {
     this.createdBy,
     this.updatedBy,
     this.deletedBy,
+    this.variable,
+    this.categoryId,
+    this.fromVariable,
+    this.toVariable,
   });
 
   factory Kas.fromMap(Map<String, dynamic> map) {
@@ -44,6 +52,10 @@ class Kas {
       createdBy: map['created_by'],
       updatedBy: map['updated_by'],
       deletedBy: map['deleted_by'],
+      variable: map['variable'] ?? 'cash',
+      categoryId: map['category_id'],
+      fromVariable: map['from_variable'],
+      toVariable: map['to_variable'],
     );
   }
 
@@ -61,6 +73,10 @@ class Kas {
       'created_by': createdBy,
       'updated_by': updatedBy,
       'deleted_by': deletedBy,
+      'variable': variable ?? 'cash',
+      'category_id': categoryId,
+      'from_variable': fromVariable,
+      'to_variable': toVariable,
     };
   }
 
@@ -77,6 +93,10 @@ class Kas {
     int? createdBy,
     int? updatedBy,
     int? deletedBy,
+    String? variable,
+    int? categoryId,
+    String? fromVariable,
+    String? toVariable,
   }) {
     return Kas(
       id: id ?? this.id,
@@ -91,6 +111,10 @@ class Kas {
       createdBy: createdBy ?? this.createdBy,
       updatedBy: updatedBy ?? this.updatedBy,
       deletedBy: deletedBy ?? this.deletedBy,
+      variable: variable ?? this.variable,
+      categoryId: categoryId ?? this.categoryId,
+      fromVariable: fromVariable ?? this.fromVariable,
+      toVariable: toVariable ?? this.toVariable,
     );
   }
 

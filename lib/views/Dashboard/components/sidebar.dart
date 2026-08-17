@@ -91,11 +91,12 @@ class _SidebarState extends State<Sidebar> {
                     "Inventori",
                     "Transaksi",
                     "Pengguna",
-                    "Kas Tunai"
+                    "Keuangan",
+                    "Kategori Keuangan"
                   ])
                 else
                   _buildAccordionMenu("Managements", Icons.layers_outlined,
-                      ["Tambah Transaksi", "Transaksi", "Kas Tunai"]),
+                      ["Tambah Transaksi", "Transaksi", "Keuangan"]),
 
                 if (_userRole == '1')
                   _buildAccordionMenu("Settings", Icons.settings_outlined,

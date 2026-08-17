@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/daily_report.dart';
 import 'package:meko_poin/models/additional/payment_method_change_history.dart';
@@ -176,14 +178,17 @@ class TransactionRepository {
         );
       }
 
-      // Jaga konsistensi kas tunai: kas hanya boleh mencatat transaksi tunai.
+      // Jaga konsistensi keuangan: entri keuangan mengikuti metode pembayaran.
+      // Tunai -> variable='cash', QRIS/e-wallet -> variable='saldo'.
       final invoiceNumber =
           transactionResult.first['invoice_number'] as String? ?? '';
-      if (previousPaymentMethod == 'cash' &&
-          normalizedNewPaymentMethod != 'cash') {
-        // Transaksi berubah dari tunai ke metode lain: hapus kas tunai terkait.
-        // Kas lama (sebelum migrasi v12) tidak memiliki transaction_id,
-        // sehingga dicocokkan lewat nomor invoice di dalam deskripsi.
+      final previousVariable = _variableForPaymentMethod(previousPaymentMethod);
+      final newVariable = _variableForPaymentMethod(normalizedNewPaymentMethod);
+
+      if (previousVariable != newVariable) {
+        // Hapus semua entri keuangan aktif yang terkait transaksi ini
+        // (baik yang tercatat dengan transaction_id maupun legacy lewat invoice),
+        // lalu buat entri baru sesuai variabel metode baru.
         await txn.update(
           'Data_Kas',
           {
@@ -194,43 +199,33 @@ class TransactionRepository {
           where: 'deleted_at IS NULL AND (transaction_id = ? OR description LIKE ?)',
           whereArgs: [transactionId, '%Invoice $invoiceNumber%'],
         );
-      } else if (previousPaymentMethod != 'cash' &&
-          normalizedNewPaymentMethod == 'cash') {
-        // Transaksi berubah ke tunai: tambahkan kas tunai terkait.
+
         final finalPrice = transactionResult.first['final_price'] as int? ?? 0;
         final customerId = transactionResult.first['customer_id'] as int?;
+        final customerName = customerId != null
+            ? _getCustomerNameById(txn, customerId)
+            : null;
 
-        // Hindari duplikasi jika entri kas untuk transaksi ini masih aktif
-        // (mis. kas lama tanpa transaction_id yang belum terhapus).
-        final existingKas = await txn.query(
-          'Data_Kas',
-          columns: ['id'],
-          where: 'deleted_at IS NULL AND (transaction_id = ? OR description LIKE ?)',
-          whereArgs: [transactionId, '%Invoice $invoiceNumber%'],
-          limit: 1,
-        );
-
-        if (existingKas.isEmpty) {
-          final customerName = customerId != null
-              ? _getCustomerNameById(txn, customerId)
-              : null;
-
-          await txn.insert('Data_Kas', {
-            'amount': finalPrice,
-            'description':
-                'Pemasukan dari transaksi atas nama ${customerName ?? '-'} Invoice $invoiceNumber',
-            'type': 'income',
-            'cash_date': now,
-            'transaction_id': transactionId,
-            'created_by': actorUserId,
-            'created_at': now,
-            'updated_at': now,
-          });
-        }
+        await txn.insert('Data_Kas', {
+          'amount': finalPrice,
+          'description':
+              'Pemasukan dari transaksi atas nama ${customerName ?? '-'} Invoice $invoiceNumber',
+          'type': 'income',
+          'cash_date': now,
+          'transaction_id': transactionId,
+          'variable': newVariable,
+          'created_by': actorUserId,
+          'created_at': now,
+          'updated_at': now,
+        });
       }
 
       return updatedRows;
     });
+  }
+
+  String _variableForPaymentMethod(String paymentMethod) {
+    return paymentMethod.toLowerCase() == 'cash' ? 'cash' : 'saldo';
   }
 
   Future<String?> _getCustomerNameById(dynamic txn, int customerId) async {
@@ -613,17 +608,71 @@ class TransactionRepository {
     return result.first['count'] as int? ?? 0;
   }
 
-  Future<int> deleteTransaction(int transactionId) async {
+  Future<int> deleteTransaction(int transactionId, {int? actorUserId}) async {
     final db = await dbHelper.database;
 
     return db.transaction((txn) async {
-      // Soft delete kas yang terkait dengan transaksi ini
+      final now = DateTime.now().toIso8601String();
+
+      // Ambil nomor invoice untuk mencocokkan kas legacy (tanpa transaction_id).
+      final txResult = await txn.query(
+        'Data_Transaction',
+        columns: ['invoice_number'],
+        where: 'id = ?',
+        whereArgs: [transactionId],
+        limit: 1,
+      );
+      final invoiceNumber = txResult.isNotEmpty
+          ? (txResult.first['invoice_number'] as String? ?? '')
+          : '';
+
+      // 1) Rollback kas tunai: hapus (soft delete) kas terkait transaksi ini,
+      //    baik yang tercatat dengan transaction_id maupun legacy (hanya
+      //    terhubung lewat nomor invoice di dalam deskripsi).
       await txn.update(
         'Data_Kas',
-        {'deleted_at': DateTime.now().toIso8601String()},
-        where: 'transaction_id = ? AND deleted_at IS NULL',
-        whereArgs: [transactionId],
+        {
+          'deleted_at': now,
+          'updated_at': now,
+          'deleted_by': actorUserId,
+        },
+        where:
+            'deleted_at IS NULL AND (transaction_id = ? OR description LIKE ?)',
+        whereArgs: [transactionId, '%Invoice $invoiceNumber%'],
       );
+
+      // 2) Rollback inventory: kembalikan stok yang dikurangi oleh transaksi.
+      //    Prioritas dari Data_Inventory_Log (transaction_id tercatat sejak
+      //    v13). Jika tidak ada log (transaksi lama), rekonstruksi dari item.
+      final decrementLogs = await txn.query(
+        'Data_Inventory_Log',
+        where: 'transaction_id = ? AND type = ?',
+        whereArgs: [transactionId, 'decrement'],
+      );
+
+      if (decrementLogs.isNotEmpty) {
+        for (final log in decrementLogs) {
+          final inventoryId = log['inventory_id'] as int?;
+          final difference = log['difference'] as int? ?? 0;
+          if (inventoryId == null || difference <= 0) continue;
+
+          await _incrementInventoryAndLog(
+            txn: txn,
+            userId: actorUserId,
+            inventoryId: inventoryId,
+            qty: difference,
+            now: now,
+            transactionId: transactionId,
+          );
+        }
+      } else {
+        await _rollbackInventoryFromItems(
+          txn: txn,
+          transactionId: transactionId,
+          userId: actorUserId,
+          now: now,
+        );
+      }
 
       // Hapus transaction items terlebih dahulu (foreign key constraint)
       await txn.delete(
@@ -639,5 +688,151 @@ class TransactionRepository {
         whereArgs: [transactionId],
       );
     });
+  }
+
+  Future<void> _incrementInventoryAndLog({
+    required dynamic txn,
+    required int? userId,
+    required int inventoryId,
+    required int qty,
+    required String now,
+    int? transactionId,
+  }) async {
+    final inventory = await txn.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+      limit: 1,
+    );
+
+    if (inventory.isEmpty) {
+      return;
+    }
+
+    final initialStock = inventory.first['stock'] as int;
+    final currentStock = initialStock + qty;
+
+    await txn.update(
+      'Data_Inventory',
+      {
+        'stock': currentStock,
+        'updated_at': now,
+      },
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+    );
+
+    await txn.insert('Data_Inventory_Log', {
+      'inventory_id': inventoryId,
+      'user_id': userId,
+      'type': 'increment',
+      'initial_stock': initialStock,
+      'current_stock': currentStock,
+      'difference': qty,
+      'transaction_id': transactionId,
+      'notes': 'Rollback dari penghapusan transaksi',
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
+  Future<void> _rollbackInventoryFromItems({
+    required dynamic txn,
+    required int transactionId,
+    required int? userId,
+    required String now,
+  }) async {
+    final items = await txn.query(
+      'Data_Transaction_Item',
+      where: 'transaction_id = ?',
+      whereArgs: [transactionId],
+    );
+
+    for (final item in items) {
+      final masterDataId = item['master_data_id'] as int?;
+      final qty = item['qty'] as int? ?? 0;
+      final bundleSnapshot = item['bundle_snapshot'] as String?;
+
+      if (masterDataId == null || qty <= 0) {
+        continue;
+      }
+
+      // Untuk bundle, stok dikembalikan per komponen bundle.
+      var bundleComponents = _parseBundleSnapshot(bundleSnapshot);
+      if (bundleComponents.isEmpty) {
+        bundleComponents = await _getBundleComponents(txn, masterDataId);
+      }
+
+      if (bundleComponents.isNotEmpty) {
+        for (final component in bundleComponents) {
+          final componentInventoryId =
+              component['component_inventory_id'] as int?;
+          if (componentInventoryId == null) continue;
+
+          final componentQty = (component['qty'] as int? ?? 1) * qty;
+          if (componentQty <= 0) continue;
+
+          await _incrementInventoryAndLog(
+            txn: txn,
+            userId: userId,
+            inventoryId: componentInventoryId,
+            qty: componentQty,
+            now: now,
+            transactionId: transactionId,
+          );
+        }
+        continue;
+      }
+
+      // Bukan bundle: kembalikan stok inventory milik master data ini.
+      final inventory = await txn.query(
+        'Data_Inventory',
+        where: 'master_data_id = ?',
+        whereArgs: [masterDataId],
+        limit: 1,
+      );
+      if (inventory.isEmpty) continue;
+
+      await _incrementInventoryAndLog(
+        txn: txn,
+        userId: userId,
+        inventoryId: inventory.first['id'] as int,
+        qty: qty,
+        now: now,
+        transactionId: transactionId,
+      );
+    }
+  }
+
+  List<Map<String, dynamic>> _parseBundleSnapshot(String? snapshot) {
+    if (snapshot == null || snapshot.isEmpty) {
+      return [];
+    }
+    try {
+      final decoded = jsonDecode(snapshot);
+      if (decoded is! List) {
+        return [];
+      }
+      return decoded
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _getBundleComponents(
+      dynamic txn, int bundleId) async {
+    return txn.rawQuery('''
+      SELECT
+        bi.component_inventory_id,
+        bi.component_type,
+        bi.qty
+      FROM Data_Bundle_Item bi
+      INNER JOIN Data_Inventory inv ON bi.component_inventory_id = inv.id
+      WHERE bi.bundle_id = ?
+        AND inv.deleted_at IS NULL
+    ''', [bundleId]);
   }
 }
