@@ -1,10 +1,15 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/payment_method_change_history.dart';
 import 'package:meko_poin/models/additional/transaction_with_customer_user.dart';
+import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/models/transaction_item.dart';
+import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
+import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/services/user_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
@@ -76,11 +81,30 @@ class _TransactionDetailState extends State<TransactionDetail> {
   bool get _isAdmin => _currentUserRole == 1;
   bool get _canViewPaymentHistory =>
       _currentUserRole == 1 || _currentUserRole == 2;
+  bool get _canEditPesanan => _currentUserRole == 1 || _currentUserRole == 2;
+
+  // Inline edit pesanan state.
+  bool _isEditingPesanan = false;
+  bool _isEditPesananLoading = false;
+  bool _isEditPesananSaving = false;
+  List<_EditCartEntry> _editCart = [];
+  List<MasterData> _editMasterDataItems = [];
+  List<String> _editCategories = [];
+  String? _editSelectedCategory;
+  String? _editSelectedItem;
+  final TextEditingController _editQtyController = TextEditingController();
+  final TextEditingController _editDiscountController = TextEditingController();
+  int _editTotalPrice = 0;
+  int _editFinalPrice = 0;
+  MasterDataRepository? _masterDataRepo;
+  BundleRepository? _bundleRepository;
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _editQtyController.dispose();
+    _editDiscountController.dispose();
     super.dispose();
   }
 
@@ -693,6 +717,979 @@ class _TransactionDetailState extends State<TransactionDetail> {
     );
   }
 
+  // ───────────────────────── Inline Edit Pesanan ─────────────────────────
+
+  Widget _editPesananButton({VoidCallback? onPressed}) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1379F0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+      icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+      label: const Text(
+        'Edit Pesanan',
+        style:
+            TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Inter'),
+      ),
+    );
+  }
+
+  Future<void> _startEditPesanan() async {
+    setState(() => _isEditPesananLoading = true);
+    _masterDataRepo ??= MasterDataRepository(DatabaseHelper.instance);
+    _bundleRepository ??= BundleRepository(DatabaseHelper.instance);
+
+    try {
+      final items = await widget.transactionRepository
+          .getTransactionItems(widget.transactionId);
+      final cart = <_EditCartEntry>[];
+
+      for (final item in items) {
+        final details = await widget.transactionRepository
+            .getItemDetails(item.masterDataId);
+        final unitPrice =
+            item.qty == 0 ? item.totalPrice : item.totalPrice ~/ item.qty;
+        cart.add(_EditCartEntry(
+          masterDataId: item.masterDataId,
+          name: (details['name'] as String?) ?? 'Item #${item.masterDataId}',
+          category: (details['category'] as String?) ?? 'Produk',
+          price: unitPrice,
+          qty: item.qty,
+          bundleSnapshot: item.bundleSnapshot,
+        ));
+      }
+
+      final masterData =
+          await _masterDataRepo!.getAllMasterDataForSelectCategory();
+      final categories = masterData
+          .map((m) => m.category)
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+      if (!mounted) return;
+      setState(() {
+        _editCart = cart;
+        _editMasterDataItems = masterData;
+        _editCategories = categories;
+        _editSelectedCategory = null;
+        _editSelectedItem = null;
+        _editQtyController.clear();
+        _editDiscountController.clear();
+        _isEditingPesanan = true;
+        _isEditPesananLoading = false;
+      });
+      _recalcEditPesanan();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isEditPesananLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data pesanan: $e')),
+      );
+    }
+  }
+
+  void _cancelEditPesanan() {
+    setState(() {
+      _isEditingPesanan = false;
+      _editCart = [];
+    });
+  }
+
+  void _recalcEditPesanan() {
+    final total = _editCart.fold(0, (sum, e) => sum + e.totalPrice);
+    final discount =
+        int.tryParse(_editDiscountController.text.replaceAll('.', '')) ?? 0;
+    setState(() {
+      _editTotalPrice = total;
+      _editFinalPrice = total - discount;
+    });
+  }
+
+  void _editRemoveItem(int index) {
+    setState(() => _editCart.removeAt(index));
+    _recalcEditPesanan();
+  }
+
+  List<MasterData> get _editFilteredItems {
+    if (_editSelectedCategory == null) return [];
+    return _editMasterDataItems
+        .where((item) => item.category == _editSelectedCategory)
+        .toList();
+  }
+
+  Future<void> _editAddItem() async {
+    if (_editSelectedCategory == null || _editSelectedItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Pilih kategori dan item terlebih dahulu')),
+      );
+      return;
+    }
+
+    final qty = int.tryParse(_editQtyController.text) ?? 1;
+    if (qty <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jumlah harus lebih dari 0')),
+      );
+      return;
+    }
+
+    MasterData? selected;
+    for (final item in _editFilteredItems) {
+      if (item.name == _editSelectedItem) {
+        selected = item;
+        break;
+      }
+    }
+    if (selected == null || selected.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Item tidak ditemukan')),
+      );
+      return;
+    }
+
+    final md = selected;
+
+    final stock = await _masterDataRepo!.getStockByMasterDataId(md.id!);
+    if (stock != null) {
+      final existingQty = _editCart
+          .where((e) => e.masterDataId == md.id)
+          .fold(0, (sum, e) => sum + e.qty);
+      final available = stock + existingQty;
+      if (available < qty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Stok ${md.name} tidak cukup. Stok tersedia: $stock')),
+        );
+        return;
+      }
+    }
+
+    String? snapshot;
+    final bundleItems =
+        await _bundleRepository!.getBundleItemsWithMasterData(md.id!);
+    if (bundleItems.isNotEmpty) {
+      snapshot = jsonEncode(bundleItems
+          .map((item) => {
+                'component_inventory_id': item['component_inventory_id'],
+                'component_master_data_id': item['component_master_data_id'],
+                'component_type': item['component_type'],
+                'component_name': item['component_name'],
+                'component_category_name': item['component_category_name'],
+                'qty': item['qty'],
+              })
+          .toList());
+    }
+
+    setState(() {
+      final existingIndex = _editCart.indexWhere(
+          (e) => e.masterDataId == md.id && e.bundleSnapshot == snapshot);
+      if (existingIndex >= 0) {
+        _editCart[existingIndex].qty += qty;
+      } else {
+        _editCart.add(_EditCartEntry(
+          masterDataId: md.id!,
+          name: md.name,
+          category: md.category,
+          price: md.price ?? 0,
+          qty: qty,
+          bundleSnapshot: snapshot,
+        ));
+      }
+      _editSelectedItem = null;
+      _editQtyController.clear();
+    });
+    _recalcEditPesanan();
+  }
+
+  Future<void> _saveEditPesanan() async {
+    if (_editCart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pesanan tidak boleh kosong')),
+      );
+      return;
+    }
+    if (_editFinalPrice < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Diskon melebihi total')),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId') ?? 0;
+
+    setState(() => _isEditPesananSaving = true);
+
+    try {
+      final items = _editCart
+          .map((e) => {
+                'master_data_id': e.masterDataId,
+                'qty': e.qty,
+                'total_price': e.totalPrice,
+                'bundle_snapshot': e.bundleSnapshot,
+              })
+          .toList();
+
+      final discount = int.tryParse(
+              _editDiscountController.text.replaceAll('.', '')) ??
+          0;
+
+      await widget.transactionRepository.updateTransactionPesanan(
+        transactionId: widget.transactionId,
+        discountPrice: discount,
+        finalPrice: _editFinalPrice,
+        items: items,
+        actorUserId: userId,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isEditingPesanan = false;
+        _editCart = [];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pesanan berhasil diperbarui')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui pesanan: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isEditPesananSaving = false);
+    }
+  }
+
+  String _fmtPrice(int price) {
+    return NumberFormat.currency(
+            locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+        .format(price);
+  }
+
+  // ───────────────────────── Edit Pesanan UI ─────────────────────────
+
+  Widget _buildEditPesananSection() {
+    if (_isEditPesananLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildEditAddItemSection(),
+        const SizedBox(height: 16),
+        _buildEditCartTable(),
+        const SizedBox(height: 16),
+        _buildEditSummarySection(),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            InkWell(
+              onTap: _cancelEditPesanan,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Text(
+                  'Batal',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: CustomColors.fontSubColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _isEditPesananSaving ? null : _saveEditPesanan,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1379F0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              child: _isEditPesananSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Simpan',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditAddItemSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _editFormLabel('Kategori'),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _editDropdown<String>(
+                      value: _editSelectedCategory,
+                      hint: 'Pilih Kategori',
+                      items: _editCategories,
+                      itemLabel: (v) => v,
+                      onChanged: (v) => setState(() {
+                        _editSelectedCategory = v;
+                        _editSelectedItem = null;
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _editFormLabel('Item'),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _editDropdown<String>(
+                      value: _editSelectedItem,
+                      hint: _editSelectedCategory == null
+                          ? 'Pilih Kategori Dulu'
+                          : 'Pilih Item',
+                      items: _editFilteredItems.map((e) => e.name).toList(),
+                      itemLabel: (v) => v,
+                      onChanged: (v) =>
+                          setState(() => _editSelectedItem = v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _editFormLabel('Jumlah'),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 36,
+                    child: TextField(
+                      controller: _editQtyController,
+                      keyboardType: TextInputType.number,
+                      textAlignVertical: TextAlignVertical.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                        height: 1.0,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Masukkan jumlah',
+                        hintStyle: const TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w400,
+                          color: CustomColors.fontSubColor,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: CustomColors.inputColor,
+                        suffixIcon: SizedBox(
+                          width: 24,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 16,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius:
+                                        const BorderRadius.vertical(
+                                      top: Radius.circular(4),
+                                    ),
+                                    onTap: () {
+                                      final current = int.tryParse(
+                                              _editQtyController.text) ??
+                                          0;
+                                      _editQtyController.text =
+                                          (current + 1).toString();
+                                    },
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.keyboard_arrow_up,
+                                        size: 16,
+                                        color: CustomColors.fontSubColor,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                height: 1,
+                                width: 16,
+                                color: CustomColors.borderInputColor,
+                              ),
+                              SizedBox(
+                                width: 24,
+                                height: 16,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius:
+                                        const BorderRadius.vertical(
+                                      bottom: Radius.circular(4),
+                                    ),
+                                    onTap: () {
+                                      final current = int.tryParse(
+                                              _editQtyController.text) ??
+                                          1;
+                                      if (current > 1) {
+                                        _editQtyController.text =
+                                            (current - 1).toString();
+                                      }
+                                    },
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.keyboard_arrow_down,
+                                        size: 16,
+                                        color: CustomColors.fontSubColor,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 22),
+              child: Container(
+                height: 34,
+                width: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1379F0),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                  onPressed: _editAddItem,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditCartTable() {
+    return Container(
+      decoration: BoxDecoration(
+        color: CustomColors.cardColor,
+        border: Border.all(color: CustomColors.borderCardColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Table Header
+          Container(
+            decoration: BoxDecoration(
+              color: CustomColors.cardColor,
+              border: Border(
+                top: BorderSide(color: CustomColors.borderCardColor),
+                bottom: BorderSide(color: CustomColors.borderCardColor),
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  _editTableHeaderCell('Kategori', 2),
+                  _editTableHeaderCell('Item', 3),
+                  _editTableHeaderCell('Jumlah', 1),
+                  _editTableHeaderCell('Harga', 2),
+                  const SizedBox(width: 34),
+                ],
+              ),
+            ),
+          ),
+
+          // Table Rows
+          if (_editCart.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: const Center(
+                child: Text(
+                  'Keranjang kosong',
+                  style: TextStyle(color: CustomColors.fontSubColor),
+                ),
+              ),
+            )
+          else
+            ..._editCart.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return Container(
+                decoration: const BoxDecoration(
+                  color: CustomColors.cardColor,
+                  border: Border(
+                      bottom:
+                          BorderSide(color: CustomColors.borderCardColor)),
+                ),
+                child: Column(
+                  children: [
+                    IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          _editTableCell(item.category, 2),
+                          const VerticalDivider(
+                              thickness: 1,
+                              width: 1,
+                              color: CustomColors.borderCardColor),
+                          _editTableCell(item.name, 3),
+                          const VerticalDivider(
+                              thickness: 1,
+                              width: 1,
+                              color: CustomColors.borderCardColor),
+                          // Editable quantity cell
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0, vertical: 6.0),
+                              child: SizedBox(
+                                height: 28,
+                                child: TextField(
+                                  controller: TextEditingController(
+                                      text: item.qty.toString()),
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                  decoration: InputDecoration(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 4),
+                                    filled: true,
+                                    fillColor: CustomColors.inputColor,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(
+                                          color:
+                                              CustomColors.borderInputColor),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(
+                                          color:
+                                              CustomColors.borderInputColor),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(
+                                          color: Color(0xFF1379F0)),
+                                    ),
+                                    isDense: true,
+                                  ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  onChanged: (value) {
+                                    final qty = int.tryParse(value) ?? 0;
+                                    if (qty > 0 && qty != item.qty) {
+                                      setState(() {
+                                        _editCart[index].qty = qty;
+                                      });
+                                      _recalcEditPesanan();
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          const VerticalDivider(
+                              thickness: 1,
+                              width: 1,
+                              color: CustomColors.borderCardColor),
+                          _editTableCell(
+                              _fmtPrice(item.totalPrice), 2),
+                          // Delete button
+                          SizedBox(
+                            width: 34,
+                            child: Center(
+                              child: Container(
+                                height: 24,
+                                width: 24,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFED143B),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.white, size: 14),
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: 'Hapus item',
+                                  onPressed: () => _editRemoveItem(index),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (item.bundleSnapshot != null)
+                      _editBuildBundleSnapshotDetail(
+                        item.bundleSnapshot!,
+                        item.qty,
+                      ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _editBuildBundleSnapshotDetail(String snapshot, int bundleQty) {
+    final details = _parseBundleSnapshot(snapshot);
+    if (details.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Komponen Bundle:',
+            style: TextStyle(
+              fontSize: 12,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...details.map((detail) {
+            final type = (detail['component_type'] ?? '-') as String;
+            final name = (detail['component_name'] ?? '-') as String;
+            final qty = (detail['qty'] as int? ?? 1) * bundleQty;
+            return Text(
+              '- ${type[0].toUpperCase()}${type.substring(1)}: $name x$qty',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+                fontFamily: 'Inter',
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditSummarySection() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 3,
+          child: Container(
+            // Left spacer to align with the cart table
+            height: 1,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 2,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: CustomColors.cardColor,
+              border: Border.all(color: CustomColors.borderCardColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Subtotal',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _fmtPrice(_editTotalPrice),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _editFormLabel('Diskon (Nominal)'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _editDiscountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    hintStyle: const TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Inter',
+                      color: CustomColors.fontSubColor,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                          color: CustomColors.borderInputColor, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                          color: Color(0xFF1379F0), width: 1.0),
+                    ),
+                    filled: true,
+                    fillColor: CustomColors.inputColor,
+                    isDense: true,
+                  ),
+                  onChanged: (_) => _recalcEditPesanan(),
+                ),
+                const SizedBox(height: 16),
+                Container(height: 1, color: CustomColors.borderCardColor),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total Harga',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _fmtPrice(_editFinalPrice),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _editFormLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontFamily: 'Inter',
+        fontWeight: FontWeight.w400,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _editDropdown<T>({
+    required T? value,
+    required String hint,
+    required List<T> items,
+    required String Function(T) itemLabel,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return SizedBox(
+      height: 38,
+      child: DropdownButtonFormField<T>(
+        value: value,
+        isExpanded: true,
+        hint: Text(
+          hint,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 14,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w400,
+            color: CustomColors.fontSubColor,
+          ),
+        ),
+        style: const TextStyle(
+          fontSize: 14,
+          fontFamily: 'Inter',
+          color: Colors.white,
+        ),
+        dropdownColor: CustomColors.inputColor,
+        icon: const Icon(Icons.keyboard_arrow_down,
+            color: CustomColors.fontSubColor),
+        iconSize: 20,
+        decoration: InputDecoration(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                const BorderSide(color: CustomColors.borderInputColor, width: 1.0),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+          ),
+          filled: true,
+          fillColor: CustomColors.inputColor,
+          isDense: true,
+        ),
+        items: items
+            .map((item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(itemLabel(item),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      )),
+                ))
+            .toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  // Table cell helpers matching the transaction form style
+  Widget _editTableHeaderCell(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(color: CustomColors.borderCardColor),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              fontWeight: FontWeight.w400,
+              color: CustomColors.fontSubColor,
+              fontFamily: 'Inter',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _editTableCell(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 2,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            fontFamily: 'Inter',
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────── Build ─────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<TransactionWithCustomerUser>(
@@ -907,10 +1904,19 @@ class _TransactionDetailState extends State<TransactionDetail> {
                               // Pesanan Section Card
                               _buildSectionCard(
                                 title: 'Pesanan',
+                                trailing: _canEditPesanan
+                                    ? (_isEditingPesanan
+                                        ? null
+                                        : _editPesananButton(
+                                            onPressed: _startEditPesanan))
+                                    : null,
                                 content: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildOrderTable(transactionItems),
+                                    if (_isEditingPesanan)
+                                      _buildEditPesananSection()
+                                    else
+                                      _buildOrderTable(transactionItems),
                                   ],
                                 ),
                               ),
@@ -1422,7 +2428,11 @@ class _TransactionDetailState extends State<TransactionDetail> {
     );
   }
 
-  Widget _buildSectionCard({required String title, required Widget content}) {
+  Widget _buildSectionCard({
+    required String title,
+    required Widget content,
+    Widget? trailing,
+  }) {
     return Card(
       elevation: 0,
       color: CustomColors.cardColor,
@@ -1449,14 +2459,20 @@ class _TransactionDetailState extends State<TransactionDetail> {
                     : BorderSide(color: CustomColors.borderCardColor),
               ),
             ),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                if (trailing != null) trailing,
+              ],
             ),
           ),
           // Content
@@ -1659,6 +2675,26 @@ class _TransactionDetailState extends State<TransactionDetail> {
 }
 
 // _PrintOptionsDialog class remains the same...
+class _EditCartEntry {
+  final int masterDataId;
+  final String name;
+  final String category;
+  final int price;
+  int qty;
+  final String? bundleSnapshot;
+
+  _EditCartEntry({
+    required this.masterDataId,
+    required this.name,
+    required this.category,
+    required this.price,
+    required this.qty,
+    this.bundleSnapshot,
+  });
+
+  int get totalPrice => price * qty;
+}
+
 class _PrintOptionsDialog extends StatelessWidget {
   final Map<String, dynamic> transactionData;
   final String customerPhone;

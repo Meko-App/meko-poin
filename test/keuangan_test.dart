@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meko_poin/models/kas.dart';
 import 'package:meko_poin/models/keuangan_kategori.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/kas_repository.dart';
@@ -123,6 +124,84 @@ void main() {
     await kategoriRepo.softDeleteKeuanganKategori(catId);
     final afterDelete = await kategoriRepo.getAllKeuanganKategori();
     expect(afterDelete.any((c) => c.id == catId), false);
+
+    await db2.close();
+    testDir.deleteSync(recursive: true);
+  });
+
+  test('Keuangan: variable on insert/edit, and soft-delete non-transaksi',
+      () async {
+    final src = File(
+        r'C:\Users\USER\AppData\Roaming\com.example\meko_poin\app_database.db');
+    expect(src.existsSync(), true, reason: 'production DB must exist');
+
+    final testDir = Directory(
+        r'C:\Users\USER\AppData\Local\Temp\opencode\keuangan_variable_test');
+    if (testDir.existsSync()) testDir.deleteSync(recursive: true);
+    testDir.createSync(recursive: true);
+    final copyPath = '${testDir.path}\\app_database_copy.db';
+    src.copySync(copyPath);
+
+    final db = await DatabaseHelper.instance.openAtPathForTesting(copyPath);
+    await db.close();
+
+    final helper = _TestDatabaseHelper(copyPath);
+    final kasRepo = KasRepository(helper);
+
+    final cashBefore = await kasRepo.getTotalCash();
+    final saldoBefore = await kasRepo.getTotalSaldoVariable();
+
+    // --- Insert income manual dengan variable 'saldo' ---
+    final kasId = await kasRepo.insertKas(Kas(
+      amount: 7000,
+      description: 'Pemasukan saldo uji',
+      type: 'income',
+      cashDate: DateTime.now(),
+      variable: 'saldo',
+      createdBy: 1,
+    ));
+
+    expect(await kasRepo.getTotalCash(), cashBefore,
+        reason: 'saldo variable must not change cash');
+    expect(await kasRepo.getTotalSaldoVariable(), saldoBefore + 7000,
+        reason: 'saldo variable income must increase saldo');
+
+    final db2 = await databaseFactoryFfi.openDatabase(
+        copyPath, options: OpenDatabaseOptions());
+    final inserted = await db2.query('Data_Kas', where: 'id = ?',
+        whereArgs: [kasId]);
+    expect(inserted.first['variable'], 'saldo');
+
+    // --- Edit: ubah variable menjadi 'cash' via updateKas ---
+    await kasRepo.updateKas(Kas(
+      id: kasId,
+      amount: 7000,
+      description: 'Pemasukan saldo uji',
+      type: 'income',
+      cashDate: DateTime.now(),
+      variable: 'cash',
+      updatedBy: 1,
+    ));
+
+    expect(await kasRepo.getTotalCash(), cashBefore + 7000,
+        reason: 'editing variable to cash must increase cash');
+    expect(await kasRepo.getTotalSaldoVariable(), saldoBefore,
+        reason: 'editing variable to cash must decrease saldo');
+
+    // --- Soft-delete data non-transaksi ---
+    final deleted = await kasRepo.softDeleteKas(kasId, deletedBy: 1);
+    expect(deleted, 1);
+
+    expect(await kasRepo.getTotalCash(), cashBefore,
+        reason: 'soft-deleted row must not count toward cash');
+    expect(await kasRepo.getTotalSaldoVariable(), saldoBefore,
+        reason: 'soft-deleted row must not count toward saldo');
+
+    final after = await db2.query('Data_Kas', where: 'id = ?',
+        whereArgs: [kasId]);
+    expect(after.first['deleted_at'], isNotNull,
+        reason: 'row must be soft-deleted');
+    expect(after.first['deleted_by'], 1);
 
     await db2.close();
     testDir.deleteSync(recursive: true);

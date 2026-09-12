@@ -32,13 +32,18 @@ class _KasFormState extends State<KasForm> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _categoryQueryController =
+      TextEditingController();
+  final FocusNode _categoryFocusNode = FocusNode();
   String? _selectedType;
   String? _selectedFrom;
   String? _selectedTo;
+  String? _selectedVariable;
   int? _selectedCategoryId;
   DateTime? _selectedDate;
   List<KeuanganKategori> _categories = [];
   List<String> _descriptionSuggestions = [];
+  bool _categoryFocused = false;
 
   String? _amountError;
   String? _descriptionError;
@@ -52,6 +57,12 @@ class _KasFormState extends State<KasForm> {
   @override
   void initState() {
     super.initState();
+    _categoryFocusNode.addListener(() {
+      if (!mounted) return;
+      setState(() {
+        _categoryFocused = _categoryFocusNode.hasFocus;
+      });
+    });
     _loadCategories();
     if (widget.initialData != null) {
       _amountController.text =
@@ -59,6 +70,7 @@ class _KasFormState extends State<KasForm> {
       _descriptionController.text = widget.initialData!['description'] ?? '';
       _selectedType = widget.initialData!['type'] ?? '';
       _selectedCategoryId = widget.initialData!['category_id'];
+      _selectedVariable = widget.initialData!['variable'] ?? 'cash';
 
       if (widget.initialData!['cash_date'] != null) {
         _selectedDate = DateTime.parse(widget.initialData!['cash_date']);
@@ -85,10 +97,51 @@ class _KasFormState extends State<KasForm> {
     try {
       final categories =
           await widget.kategoriRepository.getAllKeuanganKategori();
-      setState(() => _categories = categories);
+      setState(() {
+        _categories = categories;
+        _syncCategoryQuery();
+      });
     } catch (e) {
       debugPrint('Error loading keuangan kategori: $e');
     }
+  }
+
+  void _syncCategoryQuery() {
+    if (_selectedCategoryId != null) {
+      final selected =
+          _categories.where((cat) => cat.id == _selectedCategoryId);
+      if (selected.isNotEmpty) {
+        _categoryQueryController.text = selected.first.name;
+      }
+    }
+  }
+
+  List<KeuanganKategori> _categorySuggestions() {
+    final query = _categoryQueryController.text.trim().toLowerCase();
+    final filtered = _categories.where((category) {
+      if (query.isEmpty) {
+        return true;
+      }
+      return category.name.toLowerCase().contains(query);
+    }).toList();
+
+    if (query.isEmpty && filtered.length > 10) {
+      return filtered.take(10).toList();
+    }
+
+    return filtered;
+  }
+
+  void _applyCategorySelection(int? pickedId) {
+    if (pickedId == null) {
+      _categoryQueryController.clear();
+      setState(() => _selectedCategoryId = null);
+      return;
+    }
+    final category = _categories.where((item) => item.id == pickedId);
+    _categoryQueryController.text =
+        category.isNotEmpty ? category.first.name : '';
+    setState(() => _selectedCategoryId = pickedId);
   }
 
   @override
@@ -96,6 +149,8 @@ class _KasFormState extends State<KasForm> {
     _amountController.dispose();
     _descriptionController.dispose();
     _dateController.dispose();
+    _categoryQueryController.dispose();
+    _categoryFocusNode.dispose();
     super.dispose();
   }
 
@@ -157,53 +212,150 @@ class _KasFormState extends State<KasForm> {
     }
   }
 
-  Future<void> _addNewCategory() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
+  Future<void> _addNewCategory({String initialName = ''}) async {
+    _categoryFocusNode.unfocus();
+    final nameController = TextEditingController(text: initialName);
+
+    final newId = await showDialog<int?>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: CustomColors.cardColor,
-        title: const Text('Tambah Kategori Keuangan',
-            style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Nama kategori',
-            hintStyle: const TextStyle(color: CustomColors.fontSubColor),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: CustomColors.borderInputColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFF1379F0)),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal',
-                style: TextStyle(color: CustomColors.fontSubColor)),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1379F0),
-            ),
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: CustomColors.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: CustomColors.borderCardColor),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tambah Kategori Keuangan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nama Kategori',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: CustomColors.fontSubColor,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameController,
+                        autofocus: true,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Nama kategori',
+                          hintStyle: TextStyle(
+                            color: CustomColors.fontSubColor,
+                            fontSize: 13,
+                          ),
+                          filled: true,
+                          fillColor: CustomColors.inputColor,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                                color: CustomColors.borderInputColor),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF1379F0)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(),
+                            child: Text(
+                              'Batal',
+                              style: TextStyle(
+                                  color: CustomColors.fontSubColor),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final name = nameController.text.trim();
+                              if (name.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Nama kategori wajib diisi')),
+                                );
+                                return;
+                              }
+                              try {
+                                final id = await widget.kategoriRepository
+                                    .insertKeuanganKategori(name);
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop(id);
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          'Gagal menambah kategori: $e')),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1379F0),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Simpan',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
 
-    if (name != null && name.isNotEmpty && mounted) {
-      final id = await widget.kategoriRepository.insertKeuanganKategori(name);
+    if (newId != null && mounted) {
       await _loadCategories();
-      if (mounted) {
-        setState(() => _selectedCategoryId = id);
-      }
+      _applyCategorySelection(newId);
     }
   }
 
@@ -291,6 +443,7 @@ class _KasFormState extends State<KasForm> {
       'cash_date': _selectedDate!.toIso8601String().split('T')[0],
       'category_id': _selectedCategoryId,
       'created_by': userId,
+      if (_selectedType != 'transfer') 'variable': _selectedVariable ?? 'cash',
       if (_selectedType == 'transfer') 'from_variable': _selectedFrom,
       if (_selectedType == 'transfer') 'to_variable': _selectedTo,
     };
@@ -350,6 +503,14 @@ class _KasFormState extends State<KasForm> {
                           style: TextStyle(fontSize: 12, color: Colors.red),
                         ),
                       ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  if (_selectedType != 'transfer') ...[
+                    // Variabel Cash/Saldo (Admin)
+                    _buildFormLabel('Variabel'),
+                    const SizedBox(height: 8),
+                    _buildVariableDropdown(),
                     const SizedBox(height: 16),
                   ],
 
@@ -711,17 +872,114 @@ class _KasFormState extends State<KasForm> {
     );
   }
 
-  Widget _buildCategoryDropdown() {
+  Widget _buildVariableDropdown() {
+    final List<String> options = ['cash', 'saldo'];
+    final Map<String, String> labels = {'cash': 'Cash', 'saldo': 'Saldo'};
+
     return SizedBox(
       height: 34,
-      child: Row(
+      child: DropdownButtonFormField<String>(
+        value: _selectedVariable ?? 'cash',
+        decoration: InputDecoration(
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(
+                color: CustomColors.borderInputColor, width: 1.0),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+          ),
+          filled: true,
+          fillColor: CustomColors.inputColor,
+        ),
+        dropdownColor: CustomColors.inputColor,
+        elevation: 2,
+        icon: const Icon(Icons.keyboard_arrow_down,
+            color: CustomColors.fontSubColor),
+        iconSize: 20,
+        isExpanded: true,
+        items: options.map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(
+              labels[value] ?? value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: Colors.white,
+              ),
+            ),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          setState(() => _selectedVariable = newValue);
+        },
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    final suggestions = _categorySuggestions();
+    final categoryQuery = _categoryQueryController.text.trim();
+    final trimmedLower = categoryQuery.toLowerCase();
+    final hasExactMatch = trimmedLower.isNotEmpty &&
+        suggestions.any(
+          (category) => category.name.toLowerCase() == trimmedLower,
+        );
+    final showAddRow = trimmedLower.isNotEmpty && !hasExactMatch;
+    final showClearRow = trimmedLower.isEmpty && _selectedCategoryId != null;
+    final dropdownItems =
+        suggestions.length + (showAddRow ? 1 : 0) + (showClearRow ? 1 : 0);
+
+    return TapRegion(
+      onTapOutside: (_) {
+        _categoryFocusNode.unfocus();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: DropdownButtonFormField<int?>(
-              value: _selectedCategoryId,
+          SizedBox(
+            height: 34,
+            child: TextField(
+              controller: _categoryQueryController,
+              focusNode: _categoryFocusNode,
+              onTapOutside: (_) {},
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
               decoration: InputDecoration(
+                hintText: 'Pilih kategori (bisa dicari)',
+                hintStyle: const TextStyle(
+                  color: CustomColors.fontSubColor,
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: const Icon(Icons.search,
+                    size: 18, color: CustomColors.fontSubColor),
+                suffixIcon: Icon(
+                  _categoryFocused
+                      ? Icons.arrow_drop_up
+                      : Icons.arrow_drop_down,
+                  size: 20,
+                  color: CustomColors.fontSubColor,
+                ),
                 contentPadding:
-                    const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                filled: true,
+                fillColor: CustomColors.inputColor,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(
@@ -732,68 +990,135 @@ class _KasFormState extends State<KasForm> {
                   borderSide: const BorderSide(
                       color: Color(0xFF1379F0), width: 1.0),
                 ),
-                filled: true,
-                fillColor: CustomColors.inputColor,
-              ),
-              hint: const Text(
-                'Pilih kategori (opsional)',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: CustomColors.fontSubColor,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              dropdownColor: CustomColors.inputColor,
-              elevation: 2,
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  color: CustomColors.fontSubColor),
-              iconSize: 20,
-              isExpanded: true,
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text(
-                    'Tanpa Kategori',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: CustomColors.fontSubColor,
-                    ),
-                  ),
-                ),
-                ..._categories.map<DropdownMenuItem<int?>>((cat) {
-                  return DropdownMenuItem<int?>(
-                    value: cat.id,
-                    child: Text(
-                      cat.name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ],
-              onChanged: (newValue) {
-                setState(() => _selectedCategoryId = newValue);
-              },
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: Colors.white,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _addNewCategory,
-            icon: const Icon(Icons.add_circle_outline,
-                size: 20, color: Color(0xFF1379F0)),
-            tooltip: 'Tambah kategori baru',
-          ),
+          if (_categoryFocused && dropdownItems > 0) ...[
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(
+                color: CustomColors.inputColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: CustomColors.borderInputColor),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: dropdownItems,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    color: CustomColors.borderCardColor,
+                  ),
+                  itemBuilder: (context, index) {
+                    if (showClearRow && index == 0) {
+                      return InkWell(
+                        onTap: () {
+                          _applyCategorySelection(null);
+                          _categoryFocusNode.unfocus();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.block,
+                                  size: 16, color: CustomColors.fontSubColor),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Tanpa Kategori',
+                                  style: TextStyle(
+                                    color: CustomColors.fontSubColor,
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final addIndex = showClearRow ? 1 : 0;
+                    if (showAddRow && index == addIndex) {
+                      return InkWell(
+                        onTap: () {
+                          _addNewCategory(
+                              initialName: categoryQuery);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.add,
+                                  size: 16, color: Color(0xFF1379F0)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Tambahkan kategori '$categoryQuery'",
+                                  style: const TextStyle(
+                                    color: Color(0xFF1379F0),
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final category =
+                        suggestions[index - addIndex - (showAddRow ? 1 : 0)];
+                    final active = _selectedCategoryId == category.id;
+                    return InkWell(
+                      onTap: () {
+                        if (category.id == null) {
+                          return;
+                        }
+                        _applyCategorySelection(category.id);
+                        _categoryFocusNode.unfocus();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                category.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: active
+                                      ? const Color(0xFF1379F0)
+                                      : Colors.white,
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  fontWeight: active
+                                      ? FontWeight.w500
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            if (active)
+                              const Icon(Icons.check,
+                                  size: 16, color: Color(0xFF1379F0)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

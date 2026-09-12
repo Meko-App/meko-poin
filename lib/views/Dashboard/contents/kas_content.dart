@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meko_poin/models/kas.dart';
 import 'package:meko_poin/services/kas_repository.dart';
 import 'package:meko_poin/services/keuangan_kategori_repository.dart';
+import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/content_state.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_table/kas_table.dart';
 import 'package:meko_poin/views/Dashboard/components/table/kas_detail_table/kas_detail_table.dart';
@@ -14,6 +15,7 @@ class KasContent extends StatefulWidget {
   final Function(ContentState) onStateChanged;
   final KasRepository kasRepository;
   final KeuanganKategoriRepository kategoriRepository;
+  final TransactionRepository transactionRepository;
   final int? user;
 
   const KasContent(
@@ -21,6 +23,7 @@ class KasContent extends StatefulWidget {
       required this.onStateChanged,
       required this.kasRepository,
       required this.kategoriRepository,
+      required this.transactionRepository,
       this.user});
 
   @override
@@ -41,6 +44,7 @@ class _KasContentState extends State<KasContent> {
   int? _selectedMonth;
   int? _selectedYear;
   FormOrigin _formOrigin = FormOrigin.fromTable;
+  int _detailTableKey = 0;
 
   @override
   void initState() {
@@ -108,12 +112,12 @@ class _KasContentState extends State<KasContent> {
     setState(() => _isLoadingTotalSaldo = true);
     try {
       final totalCash = await widget.kasRepository.getTotalCash();
-      final totalSaldoVariable =
-          await widget.kasRepository.getTotalSaldoVariable();
 
       if (_currentState == ContentState.table) {
         final totalKeuangan =
             await widget.kasRepository.getTotalKeuangan();
+        final totalSaldoVariable =
+            await widget.kasRepository.getTotalSaldoVariable();
         setState(() {
           _totalCash = totalCash;
           _totalSaldoVariable = totalSaldoVariable;
@@ -122,6 +126,8 @@ class _KasContentState extends State<KasContent> {
       } else if (_currentState == ContentState.detailKas) {
         final totalKeuangan = await widget.kasRepository
             .getTotalSaldoBulanan(_selectedYear!, _selectedMonth!);
+        final totalSaldoVariable =
+            await widget.kasRepository.getTotalSaldoVariable();
         setState(() {
           _totalCash = totalCash;
           _totalSaldoVariable = totalSaldoVariable;
@@ -172,7 +178,7 @@ class _KasContentState extends State<KasContent> {
           description: kasData.description,
           amount: kasData.amount,
           type: kasData.type,
-          variable: _dataToEdit!['variable'] ?? kasData.variable,
+          variable: kasData.variable,
           categoryId: kasData.categoryId,
           updatedBy: userId,
         );
@@ -196,6 +202,84 @@ class _KasContentState extends State<KasContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal menyimpan data: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteKas(Kas kas) async {
+    final isTransaction = kas.transactionId != null;
+    final isTransfer = kas.fromVariable != null || kas.toVariable != null;
+
+    final message = isTransaction
+        ? 'Data keuangan ini terhubung ke transaksi. Hapus data ini akan '
+            'menghapus transaksi beserta item transaksinya dan '
+            'mengembalikan stok inventori.'
+        : isTransfer
+            ? 'Hapus baris transfer ini? Saldo Cash/Saldo akan disesuaikan '
+                'secara otomatis.'
+            : 'Hapus data keuangan ini?';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: CustomColors.cardColor,
+        title: const Text('Konfirmasi Hapus',
+            style: TextStyle(color: Colors.white)),
+        content: Text(message,
+            style: const TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal',
+                style: TextStyle(color: CustomColors.fontSubColor)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFED143B),
+            ),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId') ?? 0;
+
+      if (isTransaction) {
+        await widget.transactionRepository
+            .deleteTransaction(kas.transactionId!, actorUserId: userId);
+      } else {
+        await widget.kasRepository.softDeleteKas(kas.id!, deletedBy: userId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(isTransaction
+                  ? 'Transaksi dan data keuangan berhasil dihapus'
+                  : 'Data keuangan berhasil dihapus')),
+        );
+      }
+
+      _loadTotalSaldo();
+      if (_currentState == ContentState.detailKas && _selectedMonthForDetail != null) {
+        setState(() => _detailTableKey++);
+        _showDetail(_selectedMonthForDetail!);
+      } else {
+        _showTable();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus data: $e')),
         );
       }
     }
@@ -281,7 +365,7 @@ class _KasContentState extends State<KasContent> {
                 ],
               ),
 
-              // Total Keuangan - Hanya ditampilkan di state table
+              // Total Keuangan
               if (_currentState == ContentState.table ||
                   _currentState == ContentState.detailKas)
                 _isLoadingTotalSaldo
@@ -309,24 +393,26 @@ class _KasContentState extends State<KasContent> {
                               color: CustomColors.fontSubColor,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Saldo: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_totalSaldoVariable)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: CustomColors.fontSubColor,
+                          if (widget.user != 2) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Saldo: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_totalSaldoVariable)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: CustomColors.fontSubColor,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Total Keuangan: $formattedTotalSaldo',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                            const SizedBox(height: 2),
+                            Text(
+                              'Total Keuangan: $formattedTotalSaldo',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
             ],
@@ -358,12 +444,14 @@ class _KasContentState extends State<KasContent> {
                         kategoriRepository: widget.kategoriRepository,
                       )
                     : KasDetailTable(
+                        key: ValueKey(_detailTableKey),
                         kasRepository: widget.kasRepository,
                         selectedMonth: _selectedMonthForDetail!,
                         canEdit: widget.user != 2,
                         onBack: _showTable,
                         onEdit: (data) => _showForm(
                             data: data, origin: FormOrigin.fromDetail),
+                        onDelete: _handleDeleteKas,
                         onAddNew: () =>
                             _showForm(origin: FormOrigin.fromDetail),
                       )),

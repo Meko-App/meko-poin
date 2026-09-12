@@ -343,11 +343,14 @@ class KasRepository {
     );
   }
 
-  Future<int> softDeleteKas(int id) async {
+  Future<int> softDeleteKas(int id, {int? deletedBy}) async {
     final db = await dbHelper.database;
     return await db.update(
       'Data_Kas',
-      {'deleted_at': DateTime.now().toIso8601String()},
+      {
+        'deleted_at': DateTime.now().toIso8601String(),
+        'deleted_by': deletedBy,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );

@@ -539,6 +539,7 @@ class DashboardContent extends StatelessWidget {
           onStateChanged: onContentStateChanged!,
           kasRepository: kasRepository,
           kategoriRepository: kategoriRepository,
+          transactionRepository: transactionRepository,
           user: userId,
         );
       case 'Kategori Keuangan':

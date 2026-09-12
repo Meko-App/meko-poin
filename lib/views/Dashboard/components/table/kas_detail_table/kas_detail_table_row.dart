@@ -9,6 +9,7 @@ class KasDetailTableRow extends StatelessWidget {
   final bool canEdit;
   final Function(bool?) onSelectChanged;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const KasDetailTableRow({
     super.key,
@@ -17,6 +18,7 @@ class KasDetailTableRow extends StatelessWidget {
     this.canEdit = true,
     required this.onSelectChanged,
     required this.onEdit,
+    required this.onDelete,
   });
 
   String formatCurrency(int amount) {
@@ -214,13 +216,15 @@ class KasDetailTableRow extends StatelessWidget {
                 thickness: 1, width: 1, color: CustomColors.borderCardColor),
             SizedBox(
               width: 60,
-              child: isTransfer || !canEdit
+              child: !canEdit
                   ? const SizedBox.shrink()
                   : Center(
                       child: PopupMenuButton<String>(
                         onSelected: (value) {
                           if (value == 'edit') {
                             onEdit();
+                          } else if (value == 'delete') {
+                            onDelete();
                           }
                         },
                         offset: const Offset(0, 30),
@@ -233,24 +237,51 @@ class KasDetailTableRow extends StatelessWidget {
                         ),
                         color: CustomColors.cardColor, // tema gelap
                         itemBuilder: (context) => [
+                          if (!isTransfer)
+                            PopupMenuItem(
+                              value: 'edit',
+                              padding: EdgeInsets.zero,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                splashColor: Colors.transparent,
+                                hoverColor: CustomColors.borderCardColor,
+                                onTap: () => Navigator.pop(context, 'edit'),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  child: Row(
+                                    children: const [
+                                      Icon(Icons.edit,
+                                          color: Color(0xFF60A5FA), size: 16),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Edit',
+                                        style: TextStyle(
+                                            fontSize: 14, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           PopupMenuItem(
-                            value: 'edit',
+                            value: 'delete',
                             padding: EdgeInsets.zero,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
                               splashColor: Colors.transparent,
                               hoverColor: CustomColors.borderCardColor,
-                              onTap: () => Navigator.pop(context, 'edit'),
+                              onTap: () => Navigator.pop(context, 'delete'),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
                                 child: Row(
                                   children: const [
-                                    Icon(Icons.edit,
-                                        color: Color(0xFF60A5FA), size: 16),
+                                    Icon(Icons.delete_outline,
+                                        color: Color(0xFFED143B), size: 16),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Edit',
+                                      'Hapus',
                                       style: TextStyle(
                                           fontSize: 14, color: Colors.white),
                                     ),

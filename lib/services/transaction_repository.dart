@@ -690,6 +690,206 @@ class TransactionRepository {
     });
   }
 
+  /// Memperbarui pesanan transaksi yang sudah ada.
+  /// Strategi konsisten: (1) kembalikan stok untuk item lama (rollback),
+  /// (2) hapus item lama, (3) simpan item baru, (4) kurangi stok untuk item
+  /// baru, (5) perbarui transaksi (diskon/total/catatan), (6) selaraskan
+  /// entri keuangan agar amount = total baru.
+  Future<void> updateTransactionPesanan({
+    required int transactionId,
+    required int discountPrice,
+    required int finalPrice,
+    required List<Map<String, dynamic>> items,
+    String? notes,
+    int? actorUserId,
+  }) async {
+    final db = await dbHelper.database;
+
+    return db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+
+      // 1) Rollback inventory untuk item lama.
+      await _rollbackInventoryFromItems(
+        txn: txn,
+        transactionId: transactionId,
+        userId: actorUserId,
+        now: now,
+      );
+
+      // 1b) Hapus log decrement lama agar deleteTransaction nanti tidak
+      //     double-rollback (log lama sudah di-roll-back di atas, log baru
+      //     akan dibuat saat re-decrement di bawah).
+      await txn.delete(
+        'Data_Inventory_Log',
+        where: 'transaction_id = ? AND type = ?',
+        whereArgs: [transactionId, 'decrement'],
+      );
+
+      // 2) Hapus item lama.
+      await txn.delete(
+        'Data_Transaction_Item',
+        where: 'transaction_id = ?',
+        whereArgs: [transactionId],
+      );
+
+      // 3) Simpan item baru.
+      for (final item in items) {
+        await txn.insert('Data_Transaction_Item', {
+          'master_data_id': item['master_data_id'],
+          'qty': item['qty'],
+          'total_price': item['total_price'],
+          'bundle_snapshot': item['bundle_snapshot'],
+          'transaction_id': transactionId,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+
+      // 4) Kurangi stok untuk item baru.
+      await _decrementInventoryFromItems(
+        txn: txn,
+        items: items,
+        userId: actorUserId,
+        transactionId: transactionId,
+        now: now,
+      );
+
+      // 5) Perbarui transaksi.
+      await txn.update(
+        'Data_Transaction',
+        {
+          'discount_price': discountPrice,
+          'final_price': finalPrice,
+          if (notes != null) 'notes': notes,
+          'updated_at': now,
+        },
+        where: 'id = ?',
+        whereArgs: [transactionId],
+      );
+
+      // 6) Selaraskan entri keuangan aktif terkait transaksi.
+      await txn.update(
+        'Data_Kas',
+        {
+          'amount': finalPrice,
+          'updated_at': now,
+        },
+        where: 'deleted_at IS NULL AND transaction_id = ?',
+        whereArgs: [transactionId],
+      );
+    });
+  }
+
+  Future<void> _decrementInventoryFromItems({
+    required dynamic txn,
+    required List<Map<String, dynamic>> items,
+    required int? userId,
+    required int? transactionId,
+    required String now,
+  }) async {
+    for (final item in items) {
+      final masterDataId = item['master_data_id'] as int?;
+      final qty = item['qty'] as int? ?? 0;
+      final bundleSnapshot = item['bundle_snapshot'] as String?;
+
+      if (masterDataId == null || qty <= 0) {
+        continue;
+      }
+
+      var bundleComponents = _parseBundleSnapshot(bundleSnapshot);
+      if (bundleComponents.isEmpty) {
+        bundleComponents = await _getBundleComponents(txn, masterDataId);
+      }
+
+      if (bundleComponents.isNotEmpty) {
+        for (final component in bundleComponents) {
+          final componentInventoryId =
+              component['component_inventory_id'] as int?;
+          if (componentInventoryId == null) continue;
+
+          final componentQty = (component['qty'] as int? ?? 1) * qty;
+          if (componentQty <= 0) continue;
+
+          await _decrementInventoryByIdAndLog(
+            txn: txn,
+            userId: userId,
+            inventoryId: componentInventoryId,
+            qty: componentQty,
+            transactionId: transactionId,
+            now: now,
+            notes: 'Pengurangan dari edit pesanan transaksi',
+          );
+        }
+        continue;
+      }
+
+      final inventory = await txn.query(
+        'Data_Inventory',
+        where: 'master_data_id = ?',
+        whereArgs: [masterDataId],
+        limit: 1,
+      );
+      if (inventory.isEmpty) continue;
+
+      await _decrementInventoryByIdAndLog(
+        txn: txn,
+        userId: userId,
+        inventoryId: inventory.first['id'] as int,
+        qty: qty,
+        transactionId: transactionId,
+        now: now,
+        notes: 'Pengurangan dari edit pesanan transaksi',
+      );
+    }
+  }
+
+  Future<void> _decrementInventoryByIdAndLog({
+    required dynamic txn,
+    required int? userId,
+    required int inventoryId,
+    required int qty,
+    int? transactionId,
+    required String now,
+    String? notes,
+  }) async {
+    final inventory = await txn.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+      limit: 1,
+    );
+
+    if (inventory.isEmpty) {
+      return;
+    }
+
+    final initialStock = inventory.first['stock'] as int;
+    final currentStock = initialStock - qty;
+
+    await txn.update(
+      'Data_Inventory',
+      {
+        'stock': currentStock,
+        'updated_at': now,
+      },
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+    );
+
+    await txn.insert('Data_Inventory_Log', {
+      'inventory_id': inventoryId,
+      'user_id': userId,
+      'type': 'decrement',
+      'initial_stock': initialStock,
+      'current_stock': currentStock,
+      'difference': qty,
+      'transaction_id': transactionId,
+      'notes': notes ?? 'Pengurangan dari edit pesanan transaksi',
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
   Future<void> _incrementInventoryAndLog({
     required dynamic txn,
     required int? userId,
