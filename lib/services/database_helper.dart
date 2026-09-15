@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -39,7 +39,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 14,
+        version: 15,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -56,7 +56,7 @@ class DatabaseHelper {
     return databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 14,
+        version: 15,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -156,6 +156,15 @@ class DatabaseHelper {
 
     if (oldVersion < 14) {
       await _migrateKeuangan(db);
+    }
+
+    if (oldVersion < 15) {
+      await _addColumnIfNotExists(
+        db,
+        'Data_Transaction_Item',
+        'is_reused_paper',
+        'INTEGER DEFAULT 0',
+      );
     }
   }
 
@@ -369,6 +378,7 @@ class DatabaseHelper {
         created_at DATETIME,
         updated_at DATETIME,
         transaction_id INTEGER,
+        is_reused_paper INTEGER DEFAULT 0,
         FOREIGN KEY (master_data_id) REFERENCES Data_Master(id),
         FOREIGN KEY (transaction_id) REFERENCES Data_Transaction(id)
       )

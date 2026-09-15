@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/services/bundle_repository.dart';
@@ -35,6 +36,7 @@ class _CartEntry {
   final int price;
   int qty;
   final String? bundleSnapshot;
+  bool isReusedPaper;
 
   _CartEntry({
     required this.masterDataId,
@@ -43,6 +45,7 @@ class _CartEntry {
     required this.price,
     required this.qty,
     this.bundleSnapshot,
+    this.isReusedPaper = false,
   });
 
   int get totalPrice => price * qty;
@@ -62,6 +65,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
   List<String> _categories = [];
   String? _selectedCategory;
   String? _selectedItem;
+  bool _useRemainingPaper = false;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -100,6 +104,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
           price: unitPrice,
           qty: item.qty,
           bundleSnapshot: item.bundleSnapshot,
+          isReusedPaper: item.isReusedPaper == 1,
         ));
       }
 
@@ -249,10 +254,12 @@ class _EditPesananFormState extends State<EditPesananForm> {
           price: md.price ?? 0,
           qty: qty,
           bundleSnapshot: snapshot,
+          isReusedPaper: _useRemainingPaper,
         ));
       }
       _selectedItem = null;
       _qtyController.clear();
+      _useRemainingPaper = false;
     });
     _recalculate();
   }
@@ -283,6 +290,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
                 'qty': e.qty,
                 'total_price': e.totalPrice,
                 'bundle_snapshot': e.bundleSnapshot,
+                'is_reused_paper': e.isReusedPaper ? 1 : 0,
               })
           .toList();
 
@@ -321,105 +329,72 @@ class _EditPesananFormState extends State<EditPesananForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onCancel,
-          color: Colors.grey.shade700,
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildAddItemCard(),
+        const SizedBox(height: 16),
+        _buildCartCard(),
+        const SizedBox(height: 16),
+        _buildSummaryCard(),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            const Text(
-              'Edit Pesanan',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
+            InkWell(
+              onTap: widget.onCancel,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 8),
+                child: Text(
+                  'Batal',
+                  style: TextStyle(
+                    color: CustomColors.fontSubColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Ubah item, jumlah, dan diskon transaksi',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: CustomColors.fontSubColor,
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _isSaving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1379F0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 11),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Simpan',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12),
+                    ),
             ),
           ],
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAddItemCard(),
-                  const SizedBox(height: 16),
-                  _buildCartCard(),
-                  const SizedBox(height: 16),
-                  _buildSummaryCard(),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      InkWell(
-                        onTap: widget.onCancel,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                          child: Text(
-                            'Batal',
-                            style: TextStyle(
-                              color: CustomColors.fontSubColor,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: _isSaving ? null : _save,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1379F0),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 11),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Simpan',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12),
-                              ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+      ],
     );
   }
 
@@ -456,6 +431,14 @@ class _EditPesananFormState extends State<EditPesananForm> {
     );
   }
 
+  bool _showReusePaperCheckbox() {
+    print('DEBUG: _selectedCategory = $_selectedCategory');
+    if (_selectedCategory == null) return false;
+    final cat = _selectedCategory!.toLowerCase().trim();
+    print('DEBUG: trimmed cat = "$cat"');
+    return cat == 'paper' || cat == 'print' || cat.startsWith('bundle') || cat == 'bundling';
+  }
+
   Widget _buildAddItemCard() {
     return _buildSectionCard(
       'Tambah Item',
@@ -463,6 +446,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Column(
@@ -470,15 +454,18 @@ class _EditPesananFormState extends State<EditPesananForm> {
                   children: [
                     _label('Kategori'),
                     const SizedBox(height: 6),
-                    _dropdown<String>(
-                      value: _selectedCategory,
-                      hint: 'Pilih kategori',
-                      items: _categories,
-                      itemLabel: (v) => v,
-                      onChanged: (v) => setState(() {
-                        _selectedCategory = v;
-                        _selectedItem = null;
-                      }),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _dropdown<String>(
+                        value: _selectedCategory,
+                        hint: 'Pilih kategori',
+                        items: _categories,
+                        itemLabel: (v) => v,
+                        onChanged: (v) => setState(() {
+                          _selectedCategory = v;
+                          _selectedItem = null;
+                        }),
+                      ),
                     ),
                   ],
                 ),
@@ -490,57 +477,187 @@ class _EditPesananFormState extends State<EditPesananForm> {
                   children: [
                     _label('Item'),
                     const SizedBox(height: 6),
-                    _dropdown<String>(
-                      value: _selectedItem,
-                      hint: _selectedCategory == null
-                          ? 'Pilih kategori dulu'
-                          : 'Pilih item',
-                      items: _filteredItems.map((e) => e.name).toList(),
-                      itemLabel: (v) => v,
-                      onChanged: (v) => setState(() => _selectedItem = v),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _dropdown<String>(
+                        value: _selectedItem,
+                        hint: _selectedCategory == null
+                            ? 'Pilih kategori dulu'
+                            : 'Pilih item',
+                        items: _filteredItems.map((e) => e.name).toList(),
+                        itemLabel: (v) => v,
+                        onChanged: (v) => setState(() => _selectedItem = v),
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              SizedBox(
-                width: 90,
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _label('Jumlah'),
                     const SizedBox(height: 6),
-                    TextField(
-                      controller: _qtyController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: _inputDecoration('1'),
+                    SizedBox(
+                      height: 36,
+                      child: TextField(
+                        controller: _qtyController,
+                        keyboardType: TextInputType.number,
+                        textAlignVertical: TextAlignVertical.center,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white,
+                          height: 1.0,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '1',
+                          hintStyle: const TextStyle(
+                            fontSize: 14,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w400,
+                            color: CustomColors.fontSubColor,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: CustomColors.borderInputColor,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF1379F0),
+                              width: 1.0,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: CustomColors.inputColor,
+                          suffixIcon: SizedBox(
+                            width: 24,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 16,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(4),
+                                      ),
+                                      onTap: () {
+                                        final current = int.tryParse(
+                                                _qtyController.text) ??
+                                            1;
+                                        _qtyController.text =
+                                            (current + 1).toString();
+                                      },
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.keyboard_arrow_up,
+                                          size: 16,
+                                          color: CustomColors.fontSubColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  height: 1,
+                                  width: 16,
+                                  color: CustomColors.borderInputColor,
+                                ),
+                                SizedBox(
+                                  width: 24,
+                                  height: 16,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: const BorderRadius.vertical(
+                                        bottom: Radius.circular(4),
+                                      ),
+                                      onTap: () {
+                                        final current = int.tryParse(
+                                                _qtyController.text) ??
+                                            1;
+                                        if (current > 1) {
+                                          _qtyController.text =
+                                              (current - 1).toString();
+                                        }
+                                      },
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.keyboard_arrow_down,
+                                          size: 16,
+                                          color: CustomColors.fontSubColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: _addItem,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1379F0),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+              const SizedBox(width: 8),
+              Container(
+                height: 34,
+                width: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1379F0),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                  onPressed: _addItem,
                 ),
               ),
-              icon: const Icon(Icons.add, size: 16, color: Colors.white),
-              label: const Text(
-                'Tambah',
-                style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
+            ],
           ),
+          if (_showReusePaperCheckbox()) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Checkbox(
+                  value: _useRemainingPaper,
+                  onChanged: (value) {
+                    setState(() {
+                      _useRemainingPaper = value ?? false;
+                    });
+                  },
+                  activeColor: const Color(0xFF1379F0),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'Gunakan sisa kertas',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -600,15 +717,45 @@ class _EditPesananFormState extends State<EditPesananForm> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    item.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                if (item.isReusedPaper) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1379F0)
+                                          .withValues(alpha: 0.15),
+                                      borderRadius:
+                                          BorderRadius.circular(4),
+                                      border: Border.all(
+                                          color: const Color(0xFF1379F0)
+                                              .withValues(alpha: 0.3)),
+                                    ),
+                                    child: const Text(
+                                      'Pakai Kertas Sisa',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF1379F0),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             Text(
                               '${item.category} • ${_formatPrice(item.price)}',
@@ -695,67 +842,129 @@ class _EditPesananFormState extends State<EditPesananForm> {
     return _buildSectionCard(
       'Ringkasan',
       Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Subtotal',
-                style: TextStyle(color: CustomColors.fontSubColor, fontSize: 13),
-              ),
-              Text(
-                _formatPrice(_totalPrice),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
+          // Subtotal
+          const Text(
+            'Subtotal',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Diskon (Nominal)',
-                  style:
-                      TextStyle(color: CustomColors.fontSubColor, fontSize: 13),
-                ),
-              ),
-              SizedBox(
-                width: 160,
-                child: TextField(
-                  controller: _discountController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                  decoration: _inputDecoration('0'),
-                  onChanged: (_) => _recalculate(),
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            _formatPrice(_totalPrice),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+
+          // Diskon Nominal
+          const Text(
+            'Diskon (Nominal)',
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _discountController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              hintText: 'Masukkan diskon nominal',
+              hintStyle: const TextStyle(
+                fontSize: 14,
+                color: CustomColors.fontSubColor,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                    color: CustomColors.borderInputColor, width: 1.0),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+              ),
+              filled: true,
+              fillColor: CustomColors.inputColor,
+              isDense: true,
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white,
+            ),
+            onChanged: (value) {
+              String digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+              setState(() {
+                if (digitsOnly.isNotEmpty) {
+                  try {
+                    final number = int.parse(digitsOnly);
+                    final formatted = NumberFormat('#,###', 'id_ID')
+                        .format(number)
+                        .replaceAll(',', '.');
+                    _discountController.value = TextEditingValue(
+                      text: formatted,
+                      selection: TextSelection.collapsed(
+                          offset: formatted.length),
+                    );
+                  } catch (e) {
+                    _discountController.value = const TextEditingValue(
+                      text: '',
+                      selection: TextSelection.collapsed(offset: 0),
+                    );
+                  }
+                } else {
+                  _discountController.value = const TextEditingValue(
+                    text: '',
+                    selection: TextSelection.collapsed(offset: 0),
+                  );
+                }
+                _recalculate();
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
           Container(height: 1, color: CustomColors.borderCardColor),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
-              ),
-              Text(
-                _formatPrice(_finalPrice),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+
+          // Total Harga
+          const Text(
+            'Total Harga',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatPrice(_finalPrice),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 20,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ],
       ),
@@ -769,24 +978,6 @@ class _EditPesananFormState extends State<EditPesananForm> {
         fontSize: 12,
         color: CustomColors.fontSubColor,
         fontFamily: 'Inter',
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: CustomColors.fontSubColor, fontSize: 13),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      filled: true,
-      fillColor: CustomColors.inputColor,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: CustomColors.borderInputColor),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFF1379F0)),
       ),
     );
   }

@@ -791,6 +791,7 @@ class TransactionRepository {
       final masterDataId = item['master_data_id'] as int?;
       final qty = item['qty'] as int? ?? 0;
       final bundleSnapshot = item['bundle_snapshot'] as String?;
+      final isReusedPaper = item['is_reused_paper'] == 1;
 
       if (masterDataId == null || qty <= 0) {
         continue;
@@ -810,6 +811,10 @@ class TransactionRepository {
           final componentQty = (component['qty'] as int? ?? 1) * qty;
           if (componentQty <= 0) continue;
 
+          final componentType = component['component_type']?.toString().toLowerCase();
+          final componentCategoryName = component['component_category_name']?.toString().toLowerCase();
+          if (isReusedPaper && (componentType == 'paper' || componentType == 'print' || componentCategoryName == 'paper' || componentCategoryName == 'print')) continue;
+
           await _decrementInventoryByIdAndLog(
             txn: txn,
             userId: userId,
@@ -820,6 +825,10 @@ class TransactionRepository {
             notes: 'Pengurangan dari edit pesanan transaksi',
           );
         }
+        continue;
+      }
+
+      if (isReusedPaper) {
         continue;
       }
 
@@ -952,6 +961,7 @@ class TransactionRepository {
       final masterDataId = item['master_data_id'] as int?;
       final qty = item['qty'] as int? ?? 0;
       final bundleSnapshot = item['bundle_snapshot'] as String?;
+      final isReusedPaper = item['is_reused_paper'] == 1;
 
       if (masterDataId == null || qty <= 0) {
         continue;
@@ -972,6 +982,10 @@ class TransactionRepository {
           final componentQty = (component['qty'] as int? ?? 1) * qty;
           if (componentQty <= 0) continue;
 
+          final componentType = component['component_type']?.toString().toLowerCase();
+          final componentCategoryName = component['component_category_name']?.toString().toLowerCase();
+          if (isReusedPaper && (componentType == 'paper' || componentType == 'print' || componentCategoryName == 'paper' || componentCategoryName == 'print')) continue;
+
           await _incrementInventoryAndLog(
             txn: txn,
             userId: userId,
@@ -981,6 +995,10 @@ class TransactionRepository {
             transactionId: transactionId,
           );
         }
+        continue;
+      }
+
+      if (isReusedPaper) {
         continue;
       }
 
@@ -1028,9 +1046,11 @@ class TransactionRepository {
       SELECT
         bi.component_inventory_id,
         bi.component_type,
-        bi.qty
+        bi.qty,
+        COALESCE(c.name, '') AS component_category_name
       FROM Data_Bundle_Item bi
       INNER JOIN Data_Inventory inv ON bi.component_inventory_id = inv.id
+      LEFT JOIN Data_Category c ON inv.category_id = c.id
       WHERE bi.bundle_id = ?
         AND inv.deleted_at IS NULL
     ''', [bundleId]);

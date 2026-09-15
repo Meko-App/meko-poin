@@ -8,6 +8,7 @@ class TransactionItem {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? transactionId;
+  final int isReusedPaper;
 
   TransactionItem({
     this.id,
@@ -19,6 +20,7 @@ class TransactionItem {
     required this.createdAt,
     required this.updatedAt,
     this.transactionId,
+    this.isReusedPaper = 0,
   });
 
   factory TransactionItem.fromMap(Map<String, dynamic> map) {
@@ -32,6 +34,7 @@ class TransactionItem {
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: DateTime.parse(map['updated_at']),
       transactionId: map['transaction_id'],
+      isReusedPaper: map['is_reused_paper'] ?? 0,
     );
   }
 
@@ -46,6 +49,7 @@ class TransactionItem {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'transaction_id': transactionId,
+      'is_reused_paper': isReusedPaper,
     };
   }
 }

@@ -137,9 +137,13 @@ class _TransactionFormState extends State<TransactionForm> {
         );
     if (selectedMd?.id == null) return false;
     final details = _bundleDetailByBundleId[selectedMd!.id] ?? [];
-    return details.any((d) =>
-        (d['component_type'] as String?)?.toLowerCase() == 'paper' ||
-        (d['component_type'] as String?)?.toLowerCase() == 'print');
+    return details.any((d) {
+      final type = (d['component_type'] as String?)?.toLowerCase();
+      if (type == 'paper' || type == 'print') return true;
+      final categoryName =
+          (d['component_category_name'] as String?)?.toLowerCase();
+      return categoryName == 'paper' || categoryName == 'print';
+    });
   }
 
   Future<void> _ensureBundleDetailsLoadedForSelectedItem(
@@ -377,7 +381,7 @@ class _TransactionFormState extends State<TransactionForm> {
           }
 
           // Jika pakai sisa kertas, komponen paper tidak dikurangi.
-          if (_isPaperComponent(component) && _useRemainingPaper) {
+          if (_isPaperComponent(component) && item['is_reused_paper'] == 1) {
             continue;
           }
 
@@ -398,7 +402,8 @@ class _TransactionFormState extends State<TransactionForm> {
       }
 
       // Skip stock reduction untuk Paper jika "gunakan sisa kertas" aktif.
-      if (_isCategoryCode(masterData, 'paper') && _useRemainingPaper) {
+      if ((_isCategoryCode(masterData, 'paper') || _isCategoryCode(masterData, 'print')) &&
+          item['is_reused_paper'] == 1) {
         continue;
       }
 
@@ -750,8 +755,8 @@ class _TransactionFormState extends State<TransactionForm> {
       final isProduct = _isCategoryCode(selectedMasterData, 'product');
 
       // Lakukan pengecekan stok jika item memiliki stok di inventory.
-      final availableStock = await _masterDataRepo
-          .getStockByMasterDataId(selectedMasterData.id!);
+      final availableStock =
+          await _masterDataRepo.getStockByMasterDataId(selectedMasterData.id!);
       if (availableStock != null) {
         // Cek apakah stok cukup
         if (availableStock < qty) {
@@ -799,8 +804,7 @@ class _TransactionFormState extends State<TransactionForm> {
       final existingItem = await _transactionItemRepo
           .findExistingCartItem(selectedMasterData.id!);
       final bundleSnapshot = await _buildBundleSnapshot(selectedMasterData);
-      final bundleId =
-          bundleSnapshot != null ? selectedMasterData.id : null;
+      final bundleId = bundleSnapshot != null ? selectedMasterData.id : null;
 
       if (existingItem != null) {
         final int totalQty;
@@ -822,6 +826,7 @@ class _TransactionFormState extends State<TransactionForm> {
           totalPrice: totalPrice,
           createdAt: existingItem.createdAt,
           updatedAt: DateTime.now(),
+          isReusedPaper: _useRemainingPaper ? 1 : 0,
         );
 
         await _transactionItemRepo.updateTransactionItem(updatedItem);
@@ -836,6 +841,7 @@ class _TransactionFormState extends State<TransactionForm> {
           totalPrice: totalPrice,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          isReusedPaper: _useRemainingPaper ? 1 : 0,
         );
 
         await _transactionItemRepo.insertTransactionItem(newItem);
@@ -843,6 +849,10 @@ class _TransactionFormState extends State<TransactionForm> {
     } catch (e) {
       print('Error adding item to cart: $e');
       rethrow; // Kembalikan error untuk ditangani di level atas
+    } finally {
+      setState(() {
+        _useRemainingPaper = false;
+      });
     }
   }
 
@@ -1265,6 +1275,7 @@ class _TransactionFormState extends State<TransactionForm> {
         'bundle_components': item.bundleSnapshot != null
             ? _parseBundleSnapshot(item.bundleSnapshot!)
             : [],
+        'is_reused_paper': item.isReusedPaper,
       };
     }).toList();
 
@@ -2367,7 +2378,8 @@ class _TransactionFormState extends State<TransactionForm> {
                                     thickness: 1,
                                     width: 1,
                                     color: CustomColors.borderCardColor),
-                                _buildTableCell(masterData.name, 3),
+                                _buildTableCell(masterData.name, 3,
+                                    isReusedPaper: item.isReusedPaper == 1),
                                 VerticalDivider(
                                     thickness: 1,
                                     width: 1,
@@ -2421,20 +2433,47 @@ class _TransactionFormState extends State<TransactionForm> {
     );
   }
 
-  Widget _buildTableCell(String text, int flex) {
+  Widget _buildTableCell(String text, int flex, {bool isReusedPaper = false}) {
     return Expanded(
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 13,
-            height: 1.2,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-            fontFamily: 'Inter',
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.2,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ),
+            if (isReusedPaper) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1379F0).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                      color: const Color(0xFF1379F0).withValues(alpha: 0.3)),
+                ),
+                child: const Text(
+                  'Pakai Kertas Sisa',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF1379F0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
