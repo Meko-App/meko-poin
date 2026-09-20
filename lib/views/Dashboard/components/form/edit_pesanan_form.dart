@@ -58,7 +58,6 @@ class _EditPesananFormState extends State<EditPesananForm> {
       BundleRepository(DatabaseHelper.instance);
 
   final TextEditingController _qtyController = TextEditingController();
-  final TextEditingController _discountController = TextEditingController();
 
   List<_CartEntry> _cart = [];
   List<MasterData> _masterDataItems = [];
@@ -69,7 +68,6 @@ class _EditPesananFormState extends State<EditPesananForm> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  int _totalPrice = 0;
   int _finalPrice = 0;
 
   @override
@@ -81,7 +79,6 @@ class _EditPesananFormState extends State<EditPesananForm> {
   @override
   void dispose() {
     _qtyController.dispose();
-    _discountController.dispose();
     super.dispose();
   }
 
@@ -143,10 +140,8 @@ class _EditPesananFormState extends State<EditPesananForm> {
 
   void _recalculate() {
     final total = _cart.fold(0, (sum, e) => sum + e.totalPrice);
-    final discount = int.tryParse(_discountController.text.replaceAll('.', '')) ?? 0;
     setState(() {
-      _totalPrice = total;
-      _finalPrice = total - discount;
+      _finalPrice = total;
     });
   }
 
@@ -294,8 +289,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
               })
           .toList();
 
-      final discount =
-          int.tryParse(_discountController.text.replaceAll('.', '')) ?? 0;
+      final discount = 0; // Removed discount from edit mode
 
       await widget.transactionRepository.updateTransactionPesanan(
         transactionId: widget.transactionId,
@@ -342,8 +336,6 @@ class _EditPesananFormState extends State<EditPesananForm> {
         _buildAddItemCard(),
         const SizedBox(height: 16),
         _buildCartCard(),
-        const SizedBox(height: 16),
-        _buildSummaryCard(),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -838,138 +830,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
     );
   }
 
-  Widget _buildSummaryCard() {
-    return _buildSectionCard(
-      'Ringkasan',
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Subtotal
-          const Text(
-            'Subtotal',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 14,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _formatPrice(_totalPrice),
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontSize: 16,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
 
-          // Diskon Nominal
-          const Text(
-            'Diskon (Nominal)',
-            style: TextStyle(
-              fontSize: 14,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _discountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
-              hintText: 'Masukkan diskon nominal',
-              hintStyle: const TextStyle(
-                fontSize: 14,
-                color: CustomColors.fontSubColor,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                    color: CustomColors.borderInputColor, width: 1.0),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    const BorderSide(color: Color(0xFF1379F0), width: 1.0),
-              ),
-              filled: true,
-              fillColor: CustomColors.inputColor,
-              isDense: true,
-            ),
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.white,
-            ),
-            onChanged: (value) {
-              String digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
-              setState(() {
-                if (digitsOnly.isNotEmpty) {
-                  try {
-                    final number = int.parse(digitsOnly);
-                    final formatted = NumberFormat('#,###', 'id_ID')
-                        .format(number)
-                        .replaceAll(',', '.');
-                    _discountController.value = TextEditingValue(
-                      text: formatted,
-                      selection: TextSelection.collapsed(
-                          offset: formatted.length),
-                    );
-                  } catch (e) {
-                    _discountController.value = const TextEditingValue(
-                      text: '',
-                      selection: TextSelection.collapsed(offset: 0),
-                    );
-                  }
-                } else {
-                  _discountController.value = const TextEditingValue(
-                    text: '',
-                    selection: TextSelection.collapsed(offset: 0),
-                  );
-                }
-                _recalculate();
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-
-          Container(height: 1, color: CustomColors.borderCardColor),
-          const SizedBox(height: 16),
-
-          // Total Harga
-          const Text(
-            'Total Harga',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 16,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _formatPrice(_finalPrice),
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontSize: 20,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _label(String text) {
     return Text(
