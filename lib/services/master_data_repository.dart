@@ -104,11 +104,10 @@ class MasterDataRepository {
   Future<List<MasterData>> getAllMasterDataForSelectCategory(
       {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
-    final deletedClause = includeDeleted ? '' : 'AND m.deleted_at IS NULL';
+    final deletedClause = includeDeleted ? '' : 'WHERE m.deleted_at IS NULL';
 
     final result = await db.rawQuery('''
       $_masterDataJoinQuery
-      WHERE LOWER(COALESCE(c.name, m.category)) IN ('paper', 'product', 'additional', 'bundling', 'service', 'frame', 'property')
       $deletedClause
       ORDER BY m.name ASC
     ''');
@@ -269,8 +268,7 @@ class MasterDataRepository {
   }) async {
     final db = await dbHelper.database;
 
-    final whereBuffer =
-        StringBuffer('LOWER(name) = ? AND deleted_at IS NULL');
+    final whereBuffer = StringBuffer('LOWER(name) = ? AND deleted_at IS NULL');
     final args = <Object>[name.toLowerCase()];
 
     if (categoryId != null) {

@@ -7,6 +7,7 @@ import 'package:meko_poin/models/master_data.dart';
 import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/category_repository.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,6 +57,8 @@ class _EditPesananFormState extends State<EditPesananForm> {
       MasterDataRepository(DatabaseHelper.instance);
   final BundleRepository _bundleRepository =
       BundleRepository(DatabaseHelper.instance);
+  final CategoryRepository _categoryRepo =
+      CategoryRepository(DatabaseHelper.instance);
 
   final TextEditingController _qtyController = TextEditingController();
 
@@ -106,10 +109,9 @@ class _EditPesananFormState extends State<EditPesananForm> {
       }
 
       final masterData = await _masterDataRepo.getAllMasterDataForSelectCategory();
-      final categories = masterData
-          .map((m) => m.category)
-          .where((c) => c.isNotEmpty)
-          .toSet()
+      final allCategories = await _categoryRepo.getAllCategories();
+      final categories = allCategories
+          .map((c) => c.name)
           .toList()
         ..sort();
 
@@ -448,16 +450,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
                     const SizedBox(height: 6),
                     SizedBox(
                       width: double.infinity,
-                      child: _dropdown<String>(
-                        value: _selectedCategory,
-                        hint: 'Pilih kategori',
-                        items: _categories,
-                        itemLabel: (v) => v,
-                        onChanged: (v) => setState(() {
-                          _selectedCategory = v;
-                          _selectedItem = null;
-                        }),
-                      ),
+                      child: _buildCategoryDropdown(),
                     ),
                   ],
                 ),
@@ -843,6 +836,78 @@ class _EditPesananFormState extends State<EditPesananForm> {
     );
   }
 
+  Widget _buildCategoryDropdown() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SizedBox(
+          height: 42,
+          child: DropdownMenu<String>(
+            width: constraints.maxWidth,
+            initialSelection: _selectedCategory,
+            hintText: 'Pilih kategori',
+            textStyle: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+              height: 1.2,
+            ),
+            menuStyle: MenuStyle(
+              backgroundColor:
+                  WidgetStateProperty.all(CustomColors.inputColor),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              constraints: const BoxConstraints(maxHeight: 42),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                    color: CustomColors.borderInputColor, width: 1.0),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+              ),
+              filled: true,
+              fillColor: CustomColors.inputColor,
+              isDense: true,
+              hintStyle: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: CustomColors.fontSubColor,
+                height: 1.2,
+              ),
+            ),
+            dropdownMenuEntries: _categories.map((category) {
+              return DropdownMenuEntry<String>(
+                value: category,
+                label: category,
+                style: MenuItemButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              );
+            }).toList(),
+            onSelected: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedCategory = value;
+                  _selectedItem = null;
+                });
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
   Widget _dropdown<T>({
     required T? value,
     required String hint,
@@ -851,7 +916,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
     required ValueChanged<T?> onChanged,
   }) {
     return SizedBox(
-      height: 38,
+      height: 42,
       child: DropdownButtonFormField<T>(
         value: value,
         isExpanded: true,

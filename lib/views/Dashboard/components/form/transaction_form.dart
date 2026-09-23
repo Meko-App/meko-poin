@@ -9,6 +9,7 @@ import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/category_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
@@ -57,6 +58,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
   final MasterDataRepository _masterDataRepo =
       MasterDataRepository(DatabaseHelper.instance);
+  final CategoryRepository _categoryRepo =
+      CategoryRepository(DatabaseHelper.instance);
   final TransactionItemRepository _transactionItemRepo =
       TransactionItemRepository(DatabaseHelper.instance);
   final BundleRepository _bundleRepository =
@@ -65,6 +68,7 @@ class _TransactionFormState extends State<TransactionForm> {
   TransactionItem? _selectedCartItem;
   List<TransactionItem> _cartItems = [];
   List<MasterData> _masterDataItems = [];
+  List<String> _allCategoryNames = [];
   List<MasterData> _backgroundDataItems = [];
   List<MasterData> _filteredMasterDataItems = [];
   Map<int, List<Map<String, dynamic>>> _bundleDetailByBundleId = {};
@@ -402,7 +406,8 @@ class _TransactionFormState extends State<TransactionForm> {
       }
 
       // Skip stock reduction untuk Paper jika "gunakan sisa kertas" aktif.
-      if ((_isCategoryCode(masterData, 'paper') || _isCategoryCode(masterData, 'print')) &&
+      if ((_isCategoryCode(masterData, 'paper') ||
+              _isCategoryCode(masterData, 'print')) &&
           item['is_reused_paper'] == 1) {
         continue;
       }
@@ -588,8 +593,11 @@ class _TransactionFormState extends State<TransactionForm> {
   Future<void> _loadMasterData() async {
     try {
       final items = await _masterDataRepo.getAllMasterDataForSelectCategory();
+      final allCategories = await _categoryRepo.getAllCategories();
+      final categoryNames = allCategories.map((c) => c.name).toList();
       setState(() {
         _masterDataItems = items;
+        _allCategoryNames = categoryNames;
       });
       final items2 = await _masterDataRepo.getAllMasterData();
       setState(() {
@@ -1781,65 +1789,72 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Widget _buildCategoryDropdown() {
-    final categories = _masterDataItems.map((e) => e.category).toSet().toList();
-
-    return DropdownButtonFormField<String>(
-      value: _selectedOrderCategory,
-      isExpanded: true,
-      hint: const Text(
-        'Pilih kategori',
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: CustomColors.fontSubColor,
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-      items: categories.map((category) {
-        return DropdownMenuItem<String>(
-          value: category,
-          child: Text(
-            category,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return DropdownMenu<String>(
+          width: constraints.maxWidth,
+          initialSelection: _selectedOrderCategory,
+          hintText: 'Pilih kategori',
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Colors.white,
+            height: 1.2,
+          ),
+          menuStyle: MenuStyle(
+            backgroundColor: WidgetStateProperty.all(CustomColors.inputColor),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            constraints: const BoxConstraints(maxHeight: 42),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  BorderSide(color: CustomColors.borderInputColor, width: 1.0),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+            ),
+            filled: true,
+            fillColor: CustomColors.inputColor,
+            isDense: true,
+            hintStyle: const TextStyle(
+              fontFamily: 'Inter',
               fontSize: 14,
-              color: Colors.white,
+              fontWeight: FontWeight.w400,
+              color: CustomColors.fontSubColor,
+              height: 1.2,
             ),
           ),
+          dropdownMenuEntries: _allCategoryNames.map((category) {
+            return DropdownMenuEntry<String>(
+              value: category,
+              label: category,
+              style: MenuItemButton.styleFrom(
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            );
+          }).toList(),
+          onSelected: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedOrderCategory = value;
+                _filterMasterDataItems(value);
+                _useRemainingPaper = false;
+                _selectedOrderItem = null;
+              });
+            }
+          },
         );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedOrderCategory = value;
-          _filterMasterDataItems(value);
-          _useRemainingPaper = false;
-          _selectedOrderItem = null;
-        });
       },
-      decoration: InputDecoration(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide:
-              BorderSide(color: CustomColors.borderInputColor, width: 1.0),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
-        ),
-        filled: true,
-        fillColor: CustomColors.inputColor,
-        isDense: true,
-      ),
-      style: const TextStyle(
-        fontSize: 14,
-        color: Colors.white,
-      ),
-      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-      dropdownColor: CustomColors.inputColor,
-      borderRadius: BorderRadius.circular(8),
     );
   }
 
@@ -1926,6 +1941,7 @@ class _TransactionFormState extends State<TransactionForm> {
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
+                    height: 42,
                     child: _buildCategoryDropdown(),
                   ),
                 ],
@@ -1940,6 +1956,7 @@ class _TransactionFormState extends State<TransactionForm> {
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
+                    height: 42,
                     child: _buildItemDropdown(),
                   ),
                 ],
