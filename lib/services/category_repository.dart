@@ -6,15 +6,82 @@ class CategoryRepository {
 
   CategoryRepository(this.dbHelper);
 
-  Future<List<Category>> getAllCategories({bool includeDeleted = false}) async {
+  Future<List<Category>> getAllCategories({
+    bool includeDeleted = false,
+    String? type,
+  }) async {
     final db = await dbHelper.database;
-    final where = includeDeleted ? null : 'deleted_at IS NULL';
+    final whereConditions = <String>[];
+    final whereArgs = <Object>[];
+
+    if (!includeDeleted) {
+      whereConditions.add('deleted_at IS NULL');
+    }
+
+    if (type != null) {
+      whereConditions.add('type = ?');
+      whereArgs.add(type);
+    }
+
+    final where = whereConditions.isEmpty ? null : whereConditions.join(' AND ');
     final result = await db.query(
       'Data_Category',
       where: where,
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
       orderBy: 'name ASC',
     );
     return result.map((row) => Category.fromMap(row)).toList();
+  }
+
+  Future<Category?> getCategoryByName(String name, {String? type}) async {
+    final db = await dbHelper.database;
+    final whereBuffer = StringBuffer('LOWER(name) = ? AND deleted_at IS NULL');
+    final args = <Object>[name.toLowerCase()];
+
+    if (type != null) {
+      whereBuffer.write(' AND type = ?');
+      args.add(type);
+    }
+
+    final result = await db.query(
+      'Data_Category',
+      where: whereBuffer.toString(),
+      whereArgs: args,
+      limit: 1,
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    return Category.fromMap(result.first);
+  }
+
+  Future<bool> isCategoryNameUsed(
+    String name, {
+    String type = 'menu',
+    int? excludeId,
+  }) async {
+    final db = await dbHelper.database;
+    final whereBuffer = StringBuffer(
+      'LOWER(name) = ? AND type = ? AND deleted_at IS NULL',
+    );
+    final args = <Object>[name.toLowerCase(), type];
+
+    if (excludeId != null) {
+      whereBuffer.write(' AND id != ?');
+      args.add(excludeId);
+    }
+
+    final result = await db.query(
+      'Data_Category',
+      columns: ['id'],
+      where: whereBuffer.toString(),
+      whereArgs: args,
+      limit: 1,
+    );
+
+    return result.isNotEmpty;
   }
 
   Future<Category?> getCategoryById(int id) async {

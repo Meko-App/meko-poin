@@ -594,7 +594,7 @@ class _TransactionFormState extends State<TransactionForm> {
     try {
       final items = await _masterDataRepo.getAllMasterDataForSelectCategory();
       final allCategories = await _categoryRepo.getAllCategories();
-      final categoryNames = allCategories.map((c) => c.name).toList();
+      final categoryNames = allCategories.where((c) => c.type == 'menu').map((c) => c.name).toList();
       setState(() {
         _masterDataItems = items;
         _allCategoryNames = categoryNames;

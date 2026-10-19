@@ -37,7 +37,7 @@ void main() {
     final db = await DatabaseHelper.instance.openAtPathForTesting(copyPath);
 
     final version = await db.getVersion();
-    expect(version, 14, reason: 'should be upgraded to v14');
+    expect(version, 17, reason: 'should be upgraded to v17');
 
     final tables = (await db.rawQuery(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"))
@@ -57,6 +57,9 @@ void main() {
       final rows = await db.rawQuery('PRAGMA table_info($table)');
       return rows.map((r) => r['name'] as String).toList();
     }
+
+    final categoryCols = await cols('Data_Category');
+    expect(categoryCols.contains('type'), true);
 
     final masterCols = await cols('Data_Master');
     expect(masterCols.contains('category_id'), true);
@@ -97,6 +100,36 @@ void main() {
     final kasNoVariable = await db.rawQuery(
         "SELECT COUNT(*) AS c FROM Data_Kas WHERE variable IS NULL OR variable = ''");
     expect(kasNoVariable.first['c'], 0);
+
+    // Test category same name across different types vs same type.
+    final now = DateTime.now().toIso8601String();
+    final menuCatId = await db.insert('Data_Category', {
+      'name': 'DupeCategoryTest',
+      'type': 'menu',
+      'created_at': now,
+      'updated_at': now,
+    });
+    expect(menuCatId, greaterThan(0));
+
+    // Inserting same name with 'component' type MUST succeed.
+    final compCatId = await db.insert('Data_Category', {
+      'name': 'DupeCategoryTest',
+      'type': 'component',
+      'created_at': now,
+      'updated_at': now,
+    });
+    expect(compCatId, greaterThan(0));
+
+    // Inserting same name with 'menu' type again MUST fail due to unique constraint.
+    expect(
+      () => db.insert('Data_Category', {
+        'name': 'dupecategorytest',
+        'type': 'menu',
+        'created_at': now,
+        'updated_at': now,
+      }),
+      throwsA(isA<DatabaseException>()),
+    );
 
     await db.close();
     testDir.deleteSync(recursive: true);

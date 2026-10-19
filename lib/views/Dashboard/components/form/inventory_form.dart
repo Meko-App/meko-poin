@@ -107,6 +107,7 @@ class _InventoryFormState extends State<InventoryForm> {
   List<Category> _categorySuggestions() {
     final query = _categoryQueryController.text.trim().toLowerCase();
     final filtered = _categories.where((category) {
+      if (category.type != 'component') return false;
       if (query.isEmpty) {
         return true;
       }
@@ -142,7 +143,7 @@ class _InventoryFormState extends State<InventoryForm> {
     }
   }
 
-  Future<int?> _openAddCategoryDialog({String initialName = ''}) async {
+  Future<int?> _openAddCategoryDialog({String initialName = '', String type = 'component'}) async {
     final nameController = TextEditingController(text: initialName);
 
     final createdId = await showDialog<int?>(
@@ -239,11 +240,27 @@ class _InventoryFormState extends State<InventoryForm> {
                                 return;
                               }
 
+                              final isUsed = await _categoryRepository
+                                  .isCategoryNameUsed(name, type: type);
+                              if (isUsed) {
+                                if (dialogContext.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Kategori "$name" sudah ada pada tipe ${type == 'menu' ? 'Menu' : 'Component'}',
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+
                               try {
                                 final id = await _categoryRepository
                                     .insertCategory(
                                   Category(
                                     name: name,
+                                    type: type,
                                   ),
                                 );
                                 if (dialogContext.mounted) {

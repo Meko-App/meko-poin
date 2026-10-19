@@ -38,20 +38,32 @@ class MasterDataRepository {
     return result.first;
   }
 
-  Future<Map<String, dynamic>?> _getCategoryByName(String categoryName) async {
+  Future<Map<String, dynamic>?> _getCategoryByName(String categoryName,
+      {String type = 'menu'}) async {
     final db = await dbHelper.database;
     final result = await db.query(
+      'Data_Category',
+      where: 'LOWER(name) = ? AND type = ? AND deleted_at IS NULL',
+      whereArgs: [categoryName.toLowerCase(), type],
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      return result.first;
+    }
+
+    final fallback = await db.query(
       'Data_Category',
       where: 'LOWER(name) = ? AND deleted_at IS NULL',
       whereArgs: [categoryName.toLowerCase()],
       limit: 1,
     );
 
-    if (result.isEmpty) {
+    if (fallback.isEmpty) {
       return null;
     }
 
-    return result.first;
+    return fallback.first;
   }
 
   Future<Map<String, dynamic>> _resolveCategoryForWrite(
@@ -63,7 +75,8 @@ class MasterDataRepository {
     }
 
     if (category == null && masterData.category.isNotEmpty) {
-      category = await _getCategoryByName(masterData.category);
+      category =
+          await _getCategoryByName(masterData.category, type: 'menu');
     }
 
     if (category == null) {

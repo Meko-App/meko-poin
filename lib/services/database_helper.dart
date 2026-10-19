@@ -39,7 +39,7 @@ class DatabaseHelper {
     final db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 15,
+        version: 17,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -56,7 +56,7 @@ class DatabaseHelper {
     return databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 15,
+        version: 17,
         onCreate: _createDB,
         onUpgrade: _onUpgrade,
       ),
@@ -166,6 +166,19 @@ class DatabaseHelper {
         'INTEGER DEFAULT 0',
       );
     }
+
+    if (oldVersion < 16) {
+      await _addColumnIfNotExists(
+        db,
+        'Data_Category',
+        'type',
+        "TEXT DEFAULT 'menu'",
+      );
+    }
+
+    if (oldVersion < 17) {
+      await _migrateCategoryUniquePerType(db);
+    }
   }
 
   Future<void> _migrateKeuangan(Database db) async {
@@ -237,12 +250,17 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS Data_Category (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        type TEXT DEFAULT 'menu',
         created_at DATETIME,
         updated_at DATETIME,
         deleted_at TEXT
       )
     ''');
+
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_category_name_type ON Data_Category(LOWER(name), type) WHERE deleted_at IS NULL',
+    );
   }
 
   Future<void> _createMasterDataTable(Database db) async {
@@ -801,6 +819,34 @@ class DatabaseHelper {
       await txn.execute('DROP TABLE Data_Category');
       await txn.execute(
         'ALTER TABLE Data_Category_V10 RENAME TO Data_Category',
+      );
+    });
+  }
+
+  Future<void> _migrateCategoryUniquePerType(Database db) async {
+    await db.transaction((txn) async {
+      await txn.execute('''
+        CREATE TABLE Data_Category_V17 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          type TEXT DEFAULT 'menu',
+          created_at DATETIME,
+          updated_at DATETIME,
+          deleted_at TEXT
+        )
+      ''');
+
+      await txn.execute('''
+        INSERT INTO Data_Category_V17 (id, name, type, created_at, updated_at, deleted_at)
+        SELECT id, name, COALESCE(type, 'menu'), created_at, updated_at, deleted_at FROM Data_Category
+      ''');
+
+      await txn.execute('DROP TABLE Data_Category');
+      await txn.execute(
+        'ALTER TABLE Data_Category_V17 RENAME TO Data_Category',
+      );
+      await txn.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_category_name_type ON Data_Category(LOWER(name), type) WHERE deleted_at IS NULL',
       );
     });
   }

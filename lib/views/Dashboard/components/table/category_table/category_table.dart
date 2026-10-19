@@ -78,6 +78,9 @@ class _CategoryTableState extends State<CategoryTable> {
     List<Category> sorted = List.from(filteredCategories);
     sorted.sort((a, b) {
       int result = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      if (result == 0) {
+        result = a.type.compareTo(b.type);
+      }
       return isAscending ? result : -result;
     });
     return sorted;

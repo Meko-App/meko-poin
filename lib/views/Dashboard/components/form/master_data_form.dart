@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:meko_poin/models/category.dart';
 import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/category_repository.dart';
@@ -184,6 +184,12 @@ class _MasterDataFormState extends State<MasterDataForm> {
 
   Category? _findCategoryByName(String name) {
     for (final category in _categories) {
+      if (category.name.toLowerCase() == name.toLowerCase() &&
+          category.type == 'component') {
+        return category;
+      }
+    }
+    for (final category in _categories) {
       if (category.name.toLowerCase() == name.toLowerCase()) {
         return category;
       }
@@ -241,6 +247,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
   List<Category> _categorySuggestions() {
     final query = _categoryQueryController.text.trim().toLowerCase();
     final filtered = _categories.where((category) {
+      if (category.type != 'menu') return false;
       if (query.isEmpty) {
         return true;
       }
@@ -279,7 +286,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
     });
   }
 
-  Future<int?> _openAddCategoryDialog({String initialName = ''}) async {
+  Future<int?> _openAddCategoryDialog({String initialName = '', String type = 'menu'}) async {
     final nameController = TextEditingController(text: initialName);
 
     final createdId = await showDialog<int?>(
@@ -376,11 +383,27 @@ class _MasterDataFormState extends State<MasterDataForm> {
                                 return;
                               }
 
+                              final isUsed = await _categoryRepository
+                                  .isCategoryNameUsed(name, type: type);
+                              if (isUsed) {
+                                if (dialogContext.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Kategori "$name" sudah ada pada tipe ${type == 'menu' ? 'Menu' : 'Component'}',
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+
                               try {
                                 final id = await _categoryRepository
                                     .insertCategory(
                                   Category(
                                     name: name,
+                                    type: type,
                                   ),
                                 );
                                 if (dialogContext.mounted) {
@@ -418,7 +441,8 @@ class _MasterDataFormState extends State<MasterDataForm> {
     return createdId;
   }
 
-  List<Category> get _availableBundleSourceCategories => _categories;
+  List<Category> get _availableBundleSourceCategories => 
+      _categories.where((category) => category.type == 'component').toList();
 
   void _addBundleComponent() {
     final entry = _BundleComponentEntry();
@@ -1639,7 +1663,7 @@ class _MasterDataFormState extends State<MasterDataForm> {
     final entry = _bundleComponents[index];
     entry.categoryFocusNode.unfocus();
     final initialName = entry.categoryQueryController.text.trim();
-    final newCategoryId = await _openAddCategoryDialog(initialName: initialName);
+    final newCategoryId = await _openAddCategoryDialog(initialName: initialName, type: 'component');
     if (newCategoryId != null && mounted) {
       final categories = await _categoryRepository.getAllCategories();
       if (mounted) {

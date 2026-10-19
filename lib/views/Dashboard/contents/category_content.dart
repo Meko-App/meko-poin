@@ -24,6 +24,7 @@ class _CategoryContentState extends State<CategoryContent> {
   Category? _editingCategory;
 
   final TextEditingController _nameController = TextEditingController();
+  String _selectedType = 'menu';
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _CategoryContentState extends State<CategoryContent> {
       _currentState = ContentState.form;
       _editingCategory = category;
       _nameController.text = category?.name ?? '';
+      _selectedType = category?.type ?? 'menu';
       widget.onStateChanged(_currentState);
     });
   }
@@ -53,6 +55,7 @@ class _CategoryContentState extends State<CategoryContent> {
       _currentState = ContentState.table;
       _editingCategory = null;
       _nameController.clear();
+      _selectedType = 'menu';
       widget.onStateChanged(_currentState);
     });
   }
@@ -67,11 +70,30 @@ class _CategoryContentState extends State<CategoryContent> {
       return;
     }
 
+    final isUsed = await widget.categoryRepository.isCategoryNameUsed(
+      name,
+      type: _selectedType,
+      excludeId: _editingCategory?.id,
+    );
+    if (isUsed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Kategori "$name" sudah ada pada tipe ${_selectedType == 'menu' ? 'Menu' : 'Component'}',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       if (_editingCategory == null) {
         await widget.categoryRepository.insertCategory(
           Category(
             name: name,
+            type: _selectedType,
           ),
         );
       } else {
@@ -79,6 +101,7 @@ class _CategoryContentState extends State<CategoryContent> {
           Category(
             id: _editingCategory!.id,
             name: name,
+            type: _selectedType,
           ),
         );
       }
@@ -312,6 +335,10 @@ class _CategoryContentState extends State<CategoryContent> {
             style: const TextStyle(color: Colors.white, fontSize: 13),
             decoration: _inputDecoration('Masukkan nama kategori'),
           ),
+          const SizedBox(height: 16),
+          _buildLabel('Tipe Kategori'),
+          const SizedBox(height: 8),
+          _buildDropdown(),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -393,6 +420,32 @@ class _CategoryContentState extends State<CategoryContent> {
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: Color(0xFF1379F0)),
       ),
+    );
+  }
+
+  Widget _buildDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedType,
+      dropdownColor: CustomColors.cardColor,
+      style: const TextStyle(color: Colors.white, fontSize: 13),
+      decoration: _inputDecoration('Pilih Tipe'),
+      items: const [
+        DropdownMenuItem(
+          value: 'menu',
+          child: Text('Menu'),
+        ),
+        DropdownMenuItem(
+          value: 'component',
+          child: Text('Component'),
+        ),
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          setState(() {
+            _selectedType = value;
+          });
+        }
+      },
     );
   }
 }

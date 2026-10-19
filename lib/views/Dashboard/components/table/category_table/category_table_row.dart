@@ -48,6 +48,26 @@ class CategoryTableRow extends StatelessWidget {
             VerticalDivider(
                 thickness: 1, width: 1, color: CustomColors.borderCardColor),
             SizedBox(
+              width: 120,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  category.type == 'menu' ? 'Menu' : 'Component',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.2,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white70,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            SizedBox(
               width: 100,
               child: Center(
                 child: PopupMenuButton<String>(

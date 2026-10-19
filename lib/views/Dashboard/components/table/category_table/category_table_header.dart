@@ -62,6 +62,28 @@ class CategoryTableHeader extends StatelessWidget {
               ),
             ),
             SizedBox(
+              width: 120,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: CustomColors.borderCardColor),
+                  ),
+                ),
+                alignment: Alignment.centerLeft,
+                child: const Text(
+                  'Tipe',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                    color: CustomColors.fontSubColor,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
               width: 100,
               child: Container(
                 padding:

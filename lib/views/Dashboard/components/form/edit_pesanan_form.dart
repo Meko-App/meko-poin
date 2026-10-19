@@ -111,6 +111,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
       final masterData = await _masterDataRepo.getAllMasterDataForSelectCategory();
       final allCategories = await _categoryRepo.getAllCategories();
       final categories = allCategories
+          .where((c) => c.type == 'menu')
           .map((c) => c.name)
           .toList()
         ..sort();
