@@ -811,9 +811,9 @@ class TransactionRepository {
           final componentQty = (component['qty'] as int? ?? 1) * qty;
           if (componentQty <= 0) continue;
 
-          final componentType = component['component_type']?.toString().toLowerCase();
-          final componentCategoryName = component['component_category_name']?.toString().toLowerCase();
-          if (isReusedPaper && (componentType == 'paper' || componentType == 'print' || componentCategoryName == 'paper' || componentCategoryName == 'print')) continue;
+          final componentType = component['component_type']?.toString().toLowerCase().trim();
+          final componentCategoryName = component['component_category_name']?.toString().toLowerCase().trim();
+          if (isReusedPaper && (componentType == 'paper' || componentCategoryName == 'paper')) continue;
 
           await _decrementInventoryByIdAndLog(
             txn: txn,
@@ -982,9 +982,9 @@ class TransactionRepository {
           final componentQty = (component['qty'] as int? ?? 1) * qty;
           if (componentQty <= 0) continue;
 
-          final componentType = component['component_type']?.toString().toLowerCase();
-          final componentCategoryName = component['component_category_name']?.toString().toLowerCase();
-          if (isReusedPaper && (componentType == 'paper' || componentType == 'print' || componentCategoryName == 'paper' || componentCategoryName == 'print')) continue;
+          final componentType = component['component_type']?.toString().toLowerCase().trim();
+          final componentCategoryName = component['component_category_name']?.toString().toLowerCase().trim();
+          if (isReusedPaper && (componentType == 'paper' || componentCategoryName == 'paper')) continue;
 
           await _incrementInventoryAndLog(
             txn: txn,

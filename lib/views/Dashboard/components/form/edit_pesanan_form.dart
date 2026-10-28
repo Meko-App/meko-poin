@@ -68,6 +68,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
   String? _selectedCategory;
   String? _selectedItem;
   bool _useRemainingPaper = false;
+  final Map<int, List<Map<String, dynamic>>> _bundleDetails = {};
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -426,12 +427,53 @@ class _EditPesananFormState extends State<EditPesananForm> {
     );
   }
 
+  MasterData? _findSelectedMasterData([String? name]) {
+    final targetName = name ?? _selectedItem;
+    if (targetName == null) return null;
+    for (final item in _filteredItems) {
+      if (item.name == targetName) return item;
+    }
+    for (final item in _masterDataItems) {
+      if (item.name == targetName) return item;
+    }
+    return null;
+  }
+
+  bool _isPaperComponent(Map<String, dynamic> component) {
+    final categoryName =
+        (component['component_category_name'] as String?)?.toLowerCase().trim();
+    if (categoryName == 'paper') {
+      return true;
+    }
+    final type =
+        (component['component_type'] as String?)?.toLowerCase().trim();
+    return type == 'paper';
+  }
+
+  bool _selectedBundleHasPaperComponent() {
+    final selectedMd = _findSelectedMasterData();
+    if (selectedMd == null || selectedMd.id == null) return false;
+    final details = _bundleDetails[selectedMd.id!] ?? [];
+    return details.any(_isPaperComponent);
+  }
+
+  Future<void> _ensureBundleDetailsLoaded(String? itemName) async {
+    if (itemName == null) return;
+    final selectedMd = _findSelectedMasterData(itemName);
+    if (selectedMd == null || selectedMd.id == null) return;
+    if (_bundleDetails.containsKey(selectedMd.id!)) return;
+
+    final bundleItems =
+        await _bundleRepository.getBundleItemsWithMasterData(selectedMd.id!);
+    if (!mounted) return;
+    setState(() {
+      _bundleDetails[selectedMd.id!] = bundleItems;
+    });
+  }
+
   bool _showReusePaperCheckbox() {
-    print('DEBUG: _selectedCategory = $_selectedCategory');
-    if (_selectedCategory == null) return false;
-    final cat = _selectedCategory!.toLowerCase().trim();
-    print('DEBUG: trimmed cat = "$cat"');
-    return cat == 'paper' || cat == 'print' || cat.startsWith('bundle') || cat == 'bundling';
+    if (_selectedCategory?.toLowerCase().trim() == 'paper') return true;
+    return _selectedBundleHasPaperComponent();
   }
 
   Widget _buildAddItemCard() {
@@ -472,7 +514,13 @@ class _EditPesananFormState extends State<EditPesananForm> {
                             : 'Pilih item',
                         items: _filteredItems.map((e) => e.name).toList(),
                         itemLabel: (v) => v,
-                        onChanged: (v) => setState(() => _selectedItem = v),
+                        onChanged: (v) async {
+                          setState(() {
+                            _selectedItem = v;
+                            _useRemainingPaper = false;
+                          });
+                          await _ensureBundleDetailsLoaded(v);
+                        },
                       ),
                     ),
                   ],
@@ -900,6 +948,7 @@ class _EditPesananFormState extends State<EditPesananForm> {
                 setState(() {
                   _selectedCategory = value;
                   _selectedItem = null;
+                  _useRemainingPaper = false;
                 });
               }
             },

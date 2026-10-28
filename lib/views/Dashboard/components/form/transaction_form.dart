@@ -112,17 +112,18 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   bool _isCategoryCode(MasterData data, String code) {
-    return data.category.toLowerCase() == code.toLowerCase();
+    return data.category.toLowerCase().trim() == code.toLowerCase().trim();
   }
 
   bool _isPaperComponent(Map<String, dynamic> component) {
-    final type = (component['component_type'] as String?)?.toLowerCase();
-    if (type == 'paper' || type == 'print') {
+    final categoryName =
+        (component['component_category_name'] as String?)?.toLowerCase().trim();
+    if (categoryName == 'paper') {
       return true;
     }
-    final categoryName =
-        (component['component_category_name'] as String?)?.toLowerCase();
-    return categoryName == 'paper' || categoryName == 'print';
+    final type =
+        (component['component_type'] as String?)?.toLowerCase().trim();
+    return type == 'paper';
   }
 
   String? _selectedCategoryCode() {
@@ -130,24 +131,29 @@ class _TransactionFormState extends State<TransactionForm> {
       return null;
     }
 
-    return _selectedOrderCategory!.toLowerCase();
+    return _selectedOrderCategory!.toLowerCase().trim();
+  }
+
+  MasterData? _findSelectedMasterData([String? name]) {
+    final targetName = name ?? _selectedOrderItem;
+    if (targetName == null) return null;
+    for (final item in _filteredMasterDataItems) {
+      if (item.name == targetName) return item;
+    }
+    for (final item in _masterDataItems) {
+      if (item.name == targetName) return item;
+    }
+    for (final item in _backgroundDataItems) {
+      if (item.name == targetName) return item;
+    }
+    return null;
   }
 
   bool _selectedBundleHasPaperComponent() {
-    if (_selectedOrderItem == null) return false;
-    final selectedMd = _filteredMasterDataItems.cast<MasterData?>().firstWhere(
-          (item) => item?.name == _selectedOrderItem,
-          orElse: () => null,
-        );
-    if (selectedMd?.id == null) return false;
-    final details = _bundleDetailByBundleId[selectedMd!.id] ?? [];
-    return details.any((d) {
-      final type = (d['component_type'] as String?)?.toLowerCase();
-      if (type == 'paper' || type == 'print') return true;
-      final categoryName =
-          (d['component_category_name'] as String?)?.toLowerCase();
-      return categoryName == 'paper' || categoryName == 'print';
-    });
+    final selectedMd = _findSelectedMasterData();
+    if (selectedMd == null || selectedMd.id == null) return false;
+    final details = _bundleDetailByBundleId[selectedMd.id!] ?? [];
+    return details.any(_isPaperComponent);
   }
 
   Future<void> _ensureBundleDetailsLoadedForSelectedItem(
@@ -156,19 +162,12 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
-    MasterData? selectedMd;
-    for (final item in _filteredMasterDataItems) {
-      if (item.name == itemName) {
-        selectedMd = item;
-        break;
-      }
-    }
-
+    final selectedMd = _findSelectedMasterData(itemName);
     if (selectedMd == null || selectedMd.id == null) {
       return;
     }
 
-    if ((_bundleDetailByBundleId[selectedMd.id!] ?? []).isNotEmpty) {
+    if (_bundleDetailByBundleId.containsKey(selectedMd.id!)) {
       return;
     }
 
@@ -180,7 +179,7 @@ class _TransactionFormState extends State<TransactionForm> {
     }
 
     setState(() {
-      _bundleDetailByBundleId[selectedMd!.id!] = bundleItems;
+      _bundleDetailByBundleId[selectedMd.id!] = bundleItems;
     });
   }
 
@@ -406,8 +405,7 @@ class _TransactionFormState extends State<TransactionForm> {
       }
 
       // Skip stock reduction untuk Paper jika "gunakan sisa kertas" aktif.
-      if ((_isCategoryCode(masterData, 'paper') ||
-              _isCategoryCode(masterData, 'print')) &&
+      if (_isCategoryCode(masterData, 'paper') &&
           item['is_reused_paper'] == 1) {
         continue;
       }
@@ -617,7 +615,7 @@ class _TransactionFormState extends State<TransactionForm> {
     if (mounted) {
       setState(() {
         _cartItems = items;
-        _bundleDetailByBundleId = bundleDetails;
+        _bundleDetailByBundleId.addAll(bundleDetails);
       });
       _calculateTotalPrice();
     }
@@ -874,6 +872,7 @@ class _TransactionFormState extends State<TransactionForm> {
       _filterMasterDataItems(masterData?.category);
       _selectedOrderItem = masterData?.name;
       _orderQuantityController.text = item.qty.toString();
+      _useRemainingPaper = item.isReusedPaper == 1;
     });
 
     await _ensureBundleDetailsLoadedForSelectedItem(masterData?.name);
@@ -2138,9 +2137,7 @@ class _TransactionFormState extends State<TransactionForm> {
         ),
 
         if (_selectedCategoryCode() == 'paper' ||
-            ((_selectedCategoryCode()?.startsWith('bundle') == true ||
-                    _selectedCategoryCode() == 'bundling') &&
-                _selectedBundleHasPaperComponent())) ...[
+            _selectedBundleHasPaperComponent()) ...[
           const SizedBox(height: 8),
           Row(
             children: [
