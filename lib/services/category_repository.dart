@@ -6,33 +6,47 @@ class CategoryRepository {
 
   CategoryRepository(this.dbHelper);
 
-  Future<List<Category>> getAllCategories({bool includeDeleted = false}) async {
+  Future<List<Category>> getAllCategories({
+    bool includeDeleted = false,
+    String? type,
+  }) async {
     final db = await dbHelper.database;
-    final where = includeDeleted ? null : 'deleted_at IS NULL';
+    final whereConditions = <String>[];
+    final whereArgs = <Object>[];
+
+    if (!includeDeleted) {
+      whereConditions.add('deleted_at IS NULL');
+    }
+
+    if (type != null) {
+      whereConditions.add('type = ?');
+      whereArgs.add(type);
+    }
+
+    final where = whereConditions.isEmpty ? null : whereConditions.join(' AND ');
     final result = await db.query(
       'Data_Category',
       where: where,
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
       orderBy: 'name ASC',
     );
     return result.map((row) => Category.fromMap(row)).toList();
   }
 
-  Future<List<Category>> getCountableCategories() async {
+  Future<Category?> getCategoryByName(String name, {String? type}) async {
     final db = await dbHelper.database;
-    final result = await db.query(
-      'Data_Category',
-      where: 'deleted_at IS NULL AND is_countable = 1',
-      orderBy: 'name ASC',
-    );
-    return result.map((row) => Category.fromMap(row)).toList();
-  }
+    final whereBuffer = StringBuffer('LOWER(name) = ? AND deleted_at IS NULL');
+    final args = <Object>[name.toLowerCase()];
 
-  Future<Category?> getCategoryById(int id) async {
-    final db = await dbHelper.database;
+    if (type != null) {
+      whereBuffer.write(' AND type = ?');
+      args.add(type);
+    }
+
     final result = await db.query(
       'Data_Category',
-      where: 'id = ?',
-      whereArgs: [id],
+      where: whereBuffer.toString(),
+      whereArgs: args,
       limit: 1,
     );
 
@@ -43,12 +57,39 @@ class CategoryRepository {
     return Category.fromMap(result.first);
   }
 
-  Future<Category?> getCategoryByCode(String code) async {
+  Future<bool> isCategoryNameUsed(
+    String name, {
+    String type = 'menu',
+    int? excludeId,
+  }) async {
+    final db = await dbHelper.database;
+    final whereBuffer = StringBuffer(
+      'LOWER(name) = ? AND type = ? AND deleted_at IS NULL',
+    );
+    final args = <Object>[name.toLowerCase(), type];
+
+    if (excludeId != null) {
+      whereBuffer.write(' AND id != ?');
+      args.add(excludeId);
+    }
+
+    final result = await db.query(
+      'Data_Category',
+      columns: ['id'],
+      where: whereBuffer.toString(),
+      whereArgs: args,
+      limit: 1,
+    );
+
+    return result.isNotEmpty;
+  }
+
+  Future<Category?> getCategoryById(int id) async {
     final db = await dbHelper.database;
     final result = await db.query(
       'Data_Category',
-      where: 'LOWER(code) = ?',
-      whereArgs: [code.toLowerCase()],
+      where: 'id = ?',
+      whereArgs: [id],
       limit: 1,
     );
 
@@ -98,15 +139,15 @@ class CategoryRepository {
 
   Future<int> softDeleteAndReassignMasterData({
     required int categoryId,
-    String defaultCategoryCode = 'additional',
+    String defaultCategoryName = 'Additional',
   }) async {
     final db = await dbHelper.database;
 
     return db.transaction((txn) async {
       final target = await txn.query(
         'Data_Category',
-        where: 'LOWER(code) = ? AND deleted_at IS NULL',
-        whereArgs: [defaultCategoryCode.toLowerCase()],
+        where: 'LOWER(name) = ? AND deleted_at IS NULL',
+        whereArgs: [defaultCategoryName.toLowerCase()],
         limit: 1,
       );
 
@@ -125,6 +166,16 @@ class CategoryRepository {
         {
           'category_id': targetId,
           'category': target.first['name'] as String,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'category_id = ? AND deleted_at IS NULL',
+        whereArgs: [categoryId],
+      );
+
+      await txn.update(
+        'Data_Inventory',
+        {
+          'category_id': targetId,
           'updated_at': DateTime.now().toIso8601String(),
         },
         where: 'category_id = ? AND deleted_at IS NULL',

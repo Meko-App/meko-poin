@@ -3,37 +3,50 @@ import 'package:intl/intl.dart';
 import 'package:meko_poin/models/additional/daily_report.dart';
 import 'package:meko_poin/services/transaction_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
+import 'package:meko_poin/views/Dashboard/components/date_range_filter.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/daily_report_service.dart';
 
 class CardPenjualanHarian extends StatefulWidget {
   final TransactionRepository transactionRepository;
 
-  const CardPenjualanHarian({super.key, required this.transactionRepository});
+  const CardPenjualanHarian({
+    super.key,
+    required this.transactionRepository,
+  });
 
   @override
   State<CardPenjualanHarian> createState() => _CardPenjualanHarianState();
 }
 
 class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
-  List<Map<String, dynamic>> _availableMonths = [];
-  Map<String, dynamic>? _selectedMonth;
   List<DailyReport> _allDailyReports = [];
   List<DailyReport> _sortedDailyReports = [];
   bool _isLoading = false;
+  DateTimeRange _selectedDateRange = _defaultDateRange();
+
+  static DateTimeRange _defaultDateRange() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return DateTimeRange(
+      start: today.subtract(const Duration(days: 30)),
+      end: today,
+    );
+  }
 
   // Sorting state
   String _sortBy = 'date';
   bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
-    _loadAvailableMonths();
+    _loadDailyReports();
   }
 
   void _exportToExcel() async {
-    if (_selectedMonth == null || _sortedDailyReports.isEmpty) return;
+    if (_sortedDailyReports.isEmpty) return;
 
-    final monthYear = _formatMonthYear(_selectedMonth!);
+    final monthYear = _formatDateRange(_selectedDateRange);
 
     await DailyReportExportService.exportDailyReportsToExcel(
       dailyReports: _sortedDailyReports,
@@ -42,32 +55,15 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
     );
   }
 
-  Future<void> _loadAvailableMonths() async {
-    try {
-      final months = await widget.transactionRepository.getAvailableMonths();
-      setState(() {
-        _availableMonths = months;
-        if (_availableMonths.isNotEmpty) {
-          // Pastikan selectedMonth ada dalam availableMonths
-          _selectedMonth = _availableMonths.first;
-          _loadDailyReports();
-        }
-      });
-    } catch (e) {
-      debugPrint('Error loading available months: $e');
-    }
-  }
-
   Future<void> _loadDailyReports() async {
-    if (_selectedMonth == null) return;
-
     setState(() => _isLoading = true);
     try {
-      final year = int.parse(_selectedMonth!['year'] as String);
-      final month = int.parse(_selectedMonth!['month'] as String);
-
-      final reports = await widget.transactionRepository
-          .getDailyReportsByMonth(year, month);
+      final reports =
+          await widget.transactionRepository.getDailyReportsByDateRange(
+        _selectedDateRange.start,
+        _selectedDateRange.end,
+      );
+      if (!mounted) return;
       setState(() {
         _allDailyReports = reports;
         _applySorting();
@@ -75,17 +71,10 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
     } catch (e) {
       debugPrint('Error loading daily reports: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-  }
-
-  void _onMonthChanged(Map<String, dynamic>? newValue) {
-    if (newValue == null) return;
-
-    setState(() {
-      _selectedMonth = newValue;
-    });
-    _loadDailyReports();
   }
 
   void _applySorting() {
@@ -140,7 +129,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
           : valueB.toString().compareTo(valueA.toString());
     });
 
-    setState(() => _sortedDailyReports = sorted);
+    _sortedDailyReports = sorted;
   }
 
   void _onSort(String column) {
@@ -174,11 +163,9 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
     return _sortedDailyReports.take(35).toList();
   }
 
-  String _formatMonthYear(Map<String, dynamic> monthData) {
-    final year = monthData['year'] as String;
-    final month = monthData['month'] as String;
-    final date = DateTime(int.parse(year), int.parse(month), 1);
-    return DateFormat('MMMM yyyy').format(date);
+  String _formatDateRange(DateTimeRange range) {
+    final formatter = DateFormat('d MMM yyyy');
+    return '${formatter.format(range.start)} - ${formatter.format(range.end)}';
   }
 
   // Calculate summary values
@@ -232,7 +219,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
               children: [
                 // Title di sebelah kiri
                 const Text(
-                  'Catatan Penjualan Bulanan',
+                  'Penjualan',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -245,7 +232,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
                 Row(
                   children: [
                     const Text(
-                      'Pilih Bulan:',
+                      'Rentang:',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white,
@@ -253,42 +240,25 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 12),
                     Container(
-                      width: 200,
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: CustomColors.inputColor,
-                        border:
-                            Border.all(color: CustomColors.borderInputColor),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<Map<String, dynamic>>(
-                          value: _selectedMonth,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontFamily: 'Inter',
-                          ),
-                          dropdownColor: CustomColors.inputColor,
-                          icon: const Icon(Icons.keyboard_arrow_down,
-                              color: CustomColors.fontSubColor),
-                          onChanged: _onMonthChanged,
-                          items: _availableMonths.map((month) {
-                            return DropdownMenuItem<Map<String, dynamic>>(
-                              value: month,
-                              child: Text(
-                                _formatMonthYear(month),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
+                      margin: const EdgeInsets.only(left: 12),
+                      child: DateRangeFilter(
+                        initialStartDate: _selectedDateRange.start,
+                        initialEndDate: _selectedDateRange.end,
+                        width: 260,
+                        onDateRangeSelected: (start, end) {
+                          final now = DateTime.now();
+                          final today =
+                              DateTime(now.year, now.month, now.day);
+                          setState(() {
+                            _selectedDateRange = DateTimeRange(
+                              start: start ??
+                                  today.subtract(const Duration(days: 30)),
+                              end: end ?? today,
                             );
-                          }).toList(),
-                        ),
+                          });
+                          _loadDailyReports();
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -342,7 +312,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
                       height: 200,
                       child: Center(
                         child: Text(
-                          'Tidak ada data untuk bulan ini',
+                          'Tidak ada data untuk rentang tanggal ini',
                           style: TextStyle(
                             color: CustomColors.fontSubColor,
                             fontFamily: 'Inter',
@@ -359,7 +329,7 @@ class _CardPenjualanHarianState extends State<CardPenjualanHarian> {
                         // Summary row
                         Container(
                           decoration: BoxDecoration(
-                            color: CustomColors.cardColor.withOpacity(0.8),
+                            color: CustomColors.cardColor.withValues(alpha: 0.8),
                             border: Border(
                               top: BorderSide(
                                   color: CustomColors.borderCardColor,

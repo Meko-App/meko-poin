@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReceiptService {
   static Future<Uint8List> generateReceiptPdf(
@@ -288,13 +289,71 @@ class ReceiptService {
     final file = File('${directory.path}/${transactionData['invoice']}.pdf');
     await file.writeAsBytes(pdf);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Struk pembelian dari MEKO POIN',
-      subject: 'Struk ${transactionData['invoice']}',
-      sharePositionOrigin: Rect.zero,
-    );
+    final strukText = _buildStrukText(transactionData);
+
+    if (phone.isNotEmpty) {
+      String cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62${cleanPhone.substring(1)}';
+      }
+
+      final whatsappUrl = Uri.parse(
+          'whatsapp://send?phone=$cleanPhone&text=${Uri.encodeComponent(strukText)}');
+      final webUrl = Uri.parse(
+          'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(strukText)}');
+
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl);
+      } else if (await canLaunchUrl(webUrl)) {
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+      } else {
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: strukText,
+          subject: 'Struk ${transactionData['invoice']}',
+          sharePositionOrigin: Rect.zero,
+        );
+      }
+    } else {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: strukText,
+        subject: 'Struk ${transactionData['invoice']}',
+        sharePositionOrigin: Rect.zero,
+      );
+    }
   }
+}
+
+String _buildStrukText(Map<String, dynamic> transactionData) {
+  final buffer = StringBuffer();
+
+  buffer.writeln('Struk Photorism Studio');
+  buffer.writeln();
+  buffer.writeln('*Invoice:* ${transactionData['invoice']}');
+  buffer.writeln('*Tanggal:* ${transactionData['date']}');
+  buffer.writeln('*Pelanggan:* ${transactionData['name']}');
+  buffer.writeln();
+  buffer.writeln('*Detail Pesanan:*');
+
+  for (final item in (transactionData['cart_items'] as List? ?? [])) {
+    final name = item['name'];
+    final qty = item['qty'];
+    final totalPrice = item['total_price'] ?? 0;
+    buffer.writeln('* $name (Qty: $qty) - ${_formatPrice(totalPrice)}');
+  }
+
+  buffer.writeln();
+  buffer.writeln('*Subtotal:* ${_formatPrice(transactionData['total_price'])}');
+  buffer.writeln('*Diskon:* ${_formatPrice(transactionData['discount_price'])}');
+  buffer.writeln('*Total:* ${_formatPrice(transactionData['final_price'])}');
+  buffer.writeln();
+  buffer.writeln(
+      '*Metode Pembayaran:* ${transactionData['payment_method'] == 'cash' ? 'Cash' : transactionData['payment_method'] == 'qris' ? 'QRIS' : transactionData['payment_method']}');
+  buffer.writeln();
+  buffer.writeln('Terima kasih telah berkunjung di Photorism Studio!');
+
+  return buffer.toString();
 }
 
 String _formatPrice(int price) {

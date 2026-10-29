@@ -49,7 +49,8 @@ class _InventoryContentState extends State<InventoryContent> {
           ? {
               'id': data.id,
               'id_user': data.userId,
-              'master_data_id': data.masterDataId,
+              'name': data.name,
+              'category_id': data.categoryId,
               'stock_reject': data.stockReject,
               'stock': data.stock,
               'notes': data.notes,
@@ -82,12 +83,11 @@ class _InventoryContentState extends State<InventoryContent> {
       if (_dataToEdit == null) {
         final newData = Inventory(
             id: null,
+            name: (data['name'] ?? '').toString().trim(),
+            categoryId: data['category_id'] as int?,
             stock: data['stock'],
-            notes: (data['notes'] == null || data['notes'].toString().isEmpty)
-                ? '-'
-                : data['notes'],
-            userId: userId,
-            masterDataId: data['master_data_id']);
+            notes: '-',
+            userId: userId);
         await inventoryRepository.insertInventory(newData);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -98,12 +98,15 @@ class _InventoryContentState extends State<InventoryContent> {
         // Edit existing data
         final updatedData = Inventory(
             id: _dataToEdit!['id'],
+            name: (data['name'] ?? '').toString().trim(),
+            categoryId: data['category_id'] as int?,
             stock: data['stock'],
-            notes: (data['notes'] == null || data['notes'].toString().isEmpty)
+            notes: (_dataToEdit!['notes'] == null ||
+                    _dataToEdit!['notes'].toString().isEmpty)
                 ? '-'
-                : data['notes'],
+                : _dataToEdit!['notes'],
             userId: _dataToEdit!['id_user'],
-            masterDataId: data['master_data_id']);
+            masterDataId: _dataToEdit!['master_data_id'] as int?);
         await inventoryRepository.updateInventory(updatedData);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
+import 'package:meko_poin/views/Dashboard/components/card/card_table_pagination.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 
 class CardProdukTerjual extends StatefulWidget {
   final MasterDataRepository masterDataRepo;
   final TransactionItemRepository transactionItemRepo;
+  final DateTimeRange dateRange;
 
   const CardProdukTerjual(
       {super.key,
       required this.masterDataRepo,
-      required this.transactionItemRepo});
+      required this.transactionItemRepo,
+      required this.dateRange});
 
   @override
   State<CardProdukTerjual> createState() => _CardProdukTerjualState();
@@ -18,7 +21,7 @@ class CardProdukTerjual extends StatefulWidget {
 
 class _CardProdukTerjualState extends State<CardProdukTerjual> {
   int currentPage = 1;
-  final int itemsPerPage = 5;
+  int itemsPerPage = 5;
   List<Map<String, dynamic>> summaryData = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -31,6 +34,15 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
     _loadSummaryData();
   }
 
+  @override
+  void didUpdateWidget(covariant CardProdukTerjual oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dateRange.start != widget.dateRange.start ||
+        oldWidget.dateRange.end != widget.dateRange.end) {
+      _loadSummaryData();
+    }
+  }
+
   Future<void> _loadSummaryData() async {
     try {
       setState(() {
@@ -38,26 +50,14 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
         errorMessage = '';
       });
 
-      // Get current month and year
-      final now = DateTime.now();
-      final firstDayOfMonth = DateTime(now.year, now.month, 1);
-      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-
-      // Get master data with category 'Product' and 'Background'
+      // Get all sold menus (no category restriction)
       final masterDataList = await widget.masterDataRepo.getAllMasterData();
-      final filteredMasterData = masterDataList.where((data) {
-        final code = (data.categoryCode ?? '').toLowerCase();
-        return code == 'product' ||
-            code == 'background' ||
-            code == 'additional' ||
-            data.category == 'Product' ||
-            data.category == 'Background' ||
-            data.category == 'Additional';
-      }).toList();
+      final filteredMasterData = masterDataList.toList();
 
       // Get transaction items for this month
       final transactionItems = await widget.transactionItemRepo
-          .getTransactionItemsByDateRange(firstDayOfMonth, lastDayOfMonth);
+          .getTransactionItemsByDateRange(
+              widget.dateRange.start, widget.dateRange.end);
 
       // Create summary data
       final List<Map<String, dynamic>> tempSummaryData = [];
@@ -80,6 +80,7 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
 
       setState(() {
         summaryData = tempSummaryData;
+        currentPage = 1;
         isLoading = false;
       });
     } catch (e) {
@@ -173,7 +174,7 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
         children: [
           const SizedBox(height: 16),
           const Text(
-            'Produk Terjual Bulan ini',
+            'Produk Terjual',
             style: TextStyle(
               fontSize: 16,
               height: 1.0,
@@ -338,84 +339,21 @@ class _CardProdukTerjualState extends State<CardProdukTerjual> {
                 )),
 
           // Pagination
-          if (summaryData.length > 4)
-            Container(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    '$startItem-$endItem of ${summaryData.length}',
-                    style: const TextStyle(
-                        fontSize: 13,
-                        height: 14 / 13,
-                        color: CustomColors.fontSubColor,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w400),
-                  ),
-                  const SizedBox(width: 20),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: currentPage > 1
-                            ? () => setState(() => currentPage--)
-                            : null,
-                        icon: Transform.rotate(
-                          angle: 3.1416,
-                          child: Icon(Icons.arrow_right_alt,
-                              size: 18,
-                              color: currentPage > 1
-                                  ? Colors.white
-                                  : CustomColors.fontSubColor),
-                        ),
-                      ),
-                      ...List.generate(totalPages, (index) {
-                        final page = index + 1;
-                        final isActive = currentPage == page;
-                        return MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () => setState(() => currentPage = page),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? CustomColors.borderCardColor
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '$page',
-                                style: TextStyle(
-                                  fontWeight: isActive
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                  color: isActive
-                                      ? Colors.white
-                                      : CustomColors.fontSubColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                      IconButton(
-                        onPressed: currentPage < totalPages
-                            ? () => setState(() => currentPage++)
-                            : null,
-                        icon: Icon(Icons.arrow_right_alt,
-                            size: 18,
-                            color: currentPage < totalPages
-                                ? Colors.white
-                                : CustomColors.fontSubColor),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          if (summaryData.length > itemsPerPage)
+            CardTablePagination(
+              currentPage: currentPage,
+              totalPages: totalPages,
+              startItem: startItem,
+              endItem: endItem,
+              totalItems: summaryData.length,
+              itemsPerPage: itemsPerPage,
+              onItemsPerPageChanged: (value) {
+                setState(() {
+                  itemsPerPage = value;
+                  currentPage = 1;
+                });
+              },
+              onPageChanged: (page) => setState(() => currentPage = page),
             ),
         ],
       ),

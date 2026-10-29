@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:meko_poin/services/category_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/kas_repository.dart';
+import 'package:meko_poin/services/keuangan_kategori_repository.dart';
 import 'package:meko_poin/views/Dashboard/contents/kas_content.dart';
+import 'package:meko_poin/views/Dashboard/contents/keuangan_kategori_content.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -36,6 +38,7 @@ class DashboardPage extends StatefulWidget {
   final InventoryLogRepository inventoryLogRepository;
   final CustomerRepository customerRepository;
   final KasRepository kasRepository;
+  final KeuanganKategoriRepository kategoriRepository;
   final String? initialMenu;
 
   const DashboardPage(
@@ -48,6 +51,7 @@ class DashboardPage extends StatefulWidget {
       required this.inventoryLogRepository,
       required this.customerRepository,
       required this.kasRepository,
+      required this.kategoriRepository,
       this.initialMenu});
 
   @override
@@ -269,13 +273,14 @@ class _DashboardPageState extends State<DashboardPage> {
     String getModulPage(String menu) {
       if (menu == 'Ringkasan' || menu == 'Pelanggan') {
         return 'Dashboards';
-      } else if (menu == 'Master Data' ||
+      } else if (menu == 'Menu' ||
           menu == 'Category' ||
           menu == 'Inventori' ||
           menu == 'Transaksi' ||
           menu == 'Tambah Transaksi' ||
           menu == 'Pengguna' ||
-          menu == 'Kas Tunai') {
+          menu == 'Keuangan' ||
+          menu == 'Kategori Keuangan') {
         return 'Managements';
       } else if (menu == 'Database') {
         return 'Settings';
@@ -289,11 +294,12 @@ class _DashboardPageState extends State<DashboardPage> {
     String? headerSubPage;
 
     if (_selectedMenu == 'Pengguna' ||
-        _selectedMenu == 'Master Data' ||
+        _selectedMenu == 'Menu' ||
         _selectedMenu == 'Category' ||
         _selectedMenu == 'Inventori' ||
         _selectedMenu == 'Transaksi' ||
-        _selectedMenu == 'Kas Tunai') {
+        _selectedMenu == 'Keuangan' ||
+        _selectedMenu == 'Kategori Keuangan') {
       if (_contentCurrentState == ContentState.form) {
         headerSubPage = 'Buat Baru';
       } else if (_contentCurrentState == ContentState.log) {
@@ -301,7 +307,7 @@ class _DashboardPageState extends State<DashboardPage> {
       } else if (_contentCurrentState == ContentState.detail) {
         headerSubPage = 'Detail Transaksi';
       } else if (_contentCurrentState == ContentState.detailKas) {
-        headerSubPage = 'Detail Kas Bulanan';
+        headerSubPage = 'Detail Keuangan Bulanan';
       } else if (_contentCurrentState == ContentState.attendance) {
         headerSubPage = 'Riwayat Kehadiran';
       } else {
@@ -353,11 +359,12 @@ class _DashboardPageState extends State<DashboardPage> {
                             userId: widget.user.roleId,
                             onContentStateChanged: (state) {
                               if (_selectedMenu == 'Pengguna' ||
-                                  _selectedMenu == 'Master Data' ||
+                                  _selectedMenu == 'Menu' ||
                                   _selectedMenu == 'Category' ||
                                   _selectedMenu == 'Inventori' ||
                                   _selectedMenu == 'Transaksi' ||
-                                  _selectedMenu == 'Kas Tunai') {
+                                  _selectedMenu == 'Keuangan' ||
+                                  _selectedMenu == 'Kategori Keuangan') {
                                 _updateContentState(state);
                               }
                             },
@@ -369,6 +376,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 widget.inventoryLogRepository,
                             customerRepository: widget.customerRepository,
                             kasRepository: widget.kasRepository,
+                            kategoriRepository: widget.kategoriRepository,
                             contentKey: _ContentKey),
                       ),
                     ],
@@ -446,6 +454,7 @@ class DashboardContent extends StatelessWidget {
   final InventoryLogRepository inventoryLogRepository;
   final CustomerRepository customerRepository;
   final KasRepository kasRepository;
+  final KeuanganKategoriRepository kategoriRepository;
   final int contentKey;
 
   const DashboardContent({
@@ -460,6 +469,7 @@ class DashboardContent extends StatelessWidget {
     required this.inventoryLogRepository,
     required this.customerRepository,
     required this.kasRepository,
+    required this.kategoriRepository,
     this.contentKey = 0,
   });
 
@@ -482,7 +492,7 @@ class DashboardContent extends StatelessWidget {
           customerRepository: customerRepository,
           onStateChanged: onContentStateChanged!,
         );
-      case 'Master Data':
+      case 'Menu':
         return MasterdataContent(
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
@@ -523,11 +533,20 @@ class DashboardContent extends StatelessWidget {
           transactionRepository: transactionRepository, // Teruskan repository
         );
       case 'Kas Tunai':
+      case 'Keuangan':
         return KasContent(
           key: ValueKey(contentKey),
           onStateChanged: onContentStateChanged!,
           kasRepository: kasRepository,
+          kategoriRepository: kategoriRepository,
+          transactionRepository: transactionRepository,
           user: userId,
+        );
+      case 'Kategori Keuangan':
+        return KeuanganKategoriContent(
+          key: ValueKey(contentKey),
+          onStateChanged: onContentStateChanged!,
+          kategoriRepository: kategoriRepository,
         );
       case 'Database':
         return const DatabaseContent();

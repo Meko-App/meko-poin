@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/components/table/inventory_table/add_reject_dialog.dart';
+import 'package:meko_poin/views/Dashboard/components/table/inventory_table/add_stock_dialog.dart';
 
 class InventoryTableRow extends StatelessWidget {
   final String name;
+  final String categoryName;
   final int stock;
   final int stockReject;
   final String notes;
@@ -12,12 +14,14 @@ class InventoryTableRow extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onViewLog;
   final Function(int) onAddReject;
+  final Future<void> Function(int quantity, String? note) onAddStock;
   final bool isSelected;
   final Function(bool?) onSelectChanged;
 
   const InventoryTableRow({
     super.key,
     required this.name,
+    this.categoryName = '',
     required this.stock,
     required this.stockReject,
     required this.notes,
@@ -26,6 +30,7 @@ class InventoryTableRow extends StatelessWidget {
     required this.onDelete,
     required this.onViewLog,
     required this.onAddReject,
+    required this.onAddStock,
     required this.isSelected,
     required this.onSelectChanged,
   });
@@ -68,6 +73,24 @@ class InventoryTableRow extends StatelessWidget {
                     fontSize: 14,
                     height: 1.2,
                     fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+            VerticalDivider(
+                thickness: 1, width: 1, color: CustomColors.borderCardColor),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18.0, vertical: 20.0),
+                child: Text(
+                  categoryName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.2,
+                    fontWeight: FontWeight.w400,
                     color: Colors.white,
                     fontFamily: 'Inter',
                   ),
@@ -145,6 +168,33 @@ class InventoryTableRow extends StatelessWidget {
                   ),
                   color: CustomColors.cardColor, // tema gelap
                   itemBuilder: (context) => [
+                    // Tambah Stock
+                    PopupMenuItem(
+                      value: 'add_stock',
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        splashColor: Colors.transparent,
+                        hoverColor: CustomColors.borderCardColor,
+                        onTap: () => Navigator.pop(context, 'add_stock'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.add,
+                                  color: Colors.lightGreen, size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'Tambah Stock',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                     // Tambah Reject
                     PopupMenuItem(
                       value: 'reject',
@@ -279,6 +329,9 @@ class InventoryTableRow extends StatelessWidget {
       case 'reject':
         _showAddRejectDialog(context);
         break;
+      case 'add_stock':
+        _showAddStockDialog(context);
+        break;
     }
   }
 
@@ -290,6 +343,19 @@ class InventoryTableRow extends StatelessWidget {
         currentRejectStock: stockReject,
         onRejectAdded: (rejectAmount) {
           onAddReject(rejectAmount);
+        },
+      ),
+    );
+  }
+
+  void _showAddStockDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AddStockDialog(
+        itemName: name,
+        currentStock: stock,
+        onStockAdded: (quantity, note) async {
+          await onAddStock(quantity, note);
         },
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meko_poin/models/additional/kas_with_balance.dart';
+import 'package:meko_poin/models/kas.dart';
 import 'package:meko_poin/services/kas_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +16,8 @@ class KasDetailTable extends StatefulWidget {
   final VoidCallback onBack;
   final Function(Map<String, dynamic>) onEdit;
   final VoidCallback onAddNew;
+  final Function(Kas) onDelete;
+  final bool canEdit;
 
   const KasDetailTable({
     super.key,
@@ -23,6 +26,8 @@ class KasDetailTable extends StatefulWidget {
     required this.onBack,
     required this.onEdit,
     required this.onAddNew,
+    required this.onDelete,
+    this.canEdit = true,
   });
 
   @override
@@ -283,10 +288,13 @@ class _KasDetailTableState extends State<KasDetailTable> {
                                       kasWithBalance: kas,
                                       isSelected: selectedTransactionIds
                                           .contains(kas.kas.id),
+                                      canEdit: widget.canEdit,
                                       onSelectChanged: (value) =>
                                           toggleSelectOne(kas.kas.id!, value),
                                       onEdit: () =>
                                           widget.onEdit(kas.kas.toMap()),
+                                      onDelete: () =>
+                                          widget.onDelete(kas.kas),
                                     ))
                                 .toList(),
                           ),

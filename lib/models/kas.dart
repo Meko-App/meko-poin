@@ -4,12 +4,17 @@ class Kas {
   final String description;
   final String type;
   final DateTime cashDate;
+  final int? transactionId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
   final int? createdBy;
   final int? updatedBy;
   final int? deletedBy;
+  final String? variable;
+  final int? categoryId;
+  final String? fromVariable;
+  final String? toVariable;
 
   Kas({
     this.id,
@@ -17,12 +22,17 @@ class Kas {
     required this.description,
     required this.type,
     required this.cashDate,
+    this.transactionId,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
     this.createdBy,
     this.updatedBy,
     this.deletedBy,
+    this.variable,
+    this.categoryId,
+    this.fromVariable,
+    this.toVariable,
   });
 
   factory Kas.fromMap(Map<String, dynamic> map) {
@@ -32,6 +42,7 @@ class Kas {
       description: map['description'],
       type: map['type'],
       cashDate: DateTime.parse(map['cash_date']),
+      transactionId: map['transaction_id'],
       createdAt:
           map['created_at'] != null ? DateTime.parse(map['created_at']) : null,
       updatedAt:
@@ -41,6 +52,10 @@ class Kas {
       createdBy: map['created_by'],
       updatedBy: map['updated_by'],
       deletedBy: map['deleted_by'],
+      variable: map['variable'] ?? 'cash',
+      categoryId: map['category_id'],
+      fromVariable: map['from_variable'],
+      toVariable: map['to_variable'],
     );
   }
 
@@ -51,12 +66,17 @@ class Kas {
       'description': description,
       'type': type,
       'cash_date': cashDate.toIso8601String().split('T')[0],
+      'transaction_id': transactionId,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
       'created_by': createdBy,
       'updated_by': updatedBy,
       'deleted_by': deletedBy,
+      'variable': variable ?? 'cash',
+      'category_id': categoryId,
+      'from_variable': fromVariable,
+      'to_variable': toVariable,
     };
   }
 
@@ -66,12 +86,17 @@ class Kas {
     String? description,
     String? type,
     DateTime? cashDate,
+    int? transactionId,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
     int? createdBy,
     int? updatedBy,
     int? deletedBy,
+    String? variable,
+    int? categoryId,
+    String? fromVariable,
+    String? toVariable,
   }) {
     return Kas(
       id: id ?? this.id,
@@ -79,12 +104,17 @@ class Kas {
       description: description ?? this.description,
       type: type ?? this.type,
       cashDate: cashDate ?? this.cashDate,
+      transactionId: transactionId ?? this.transactionId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
       createdBy: createdBy ?? this.createdBy,
       updatedBy: updatedBy ?? this.updatedBy,
       deletedBy: deletedBy ?? this.deletedBy,
+      variable: variable ?? this.variable,
+      categoryId: categoryId ?? this.categoryId,
+      fromVariable: fromVariable ?? this.fromVariable,
+      toVariable: toVariable ?? this.toVariable,
     );
   }
 

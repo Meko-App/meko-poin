@@ -12,12 +12,8 @@ class MasterDataRepository {
       m.id,
       m.user_id,
       m.category_id,
-      m.packaging_id,
       m.name,
       COALESCE(c.name, m.category) AS category_name,
-      c.code AS category_code,
-      COALESCE(c.is_bundle, 0) AS is_bundle,
-      COALESCE(c.is_countable, 0) AS is_countable,
       m.price,
       m.created_at,
       m.updated_at,
@@ -42,20 +38,32 @@ class MasterDataRepository {
     return result.first;
   }
 
-  Future<Map<String, dynamic>?> _getCategoryByName(String categoryName) async {
+  Future<Map<String, dynamic>?> _getCategoryByName(String categoryName,
+      {String type = 'menu'}) async {
     final db = await dbHelper.database;
     final result = await db.query(
+      'Data_Category',
+      where: 'LOWER(name) = ? AND type = ? AND deleted_at IS NULL',
+      whereArgs: [categoryName.toLowerCase(), type],
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      return result.first;
+    }
+
+    final fallback = await db.query(
       'Data_Category',
       where: 'LOWER(name) = ? AND deleted_at IS NULL',
       whereArgs: [categoryName.toLowerCase()],
       limit: 1,
     );
 
-    if (result.isEmpty) {
+    if (fallback.isEmpty) {
       return null;
     }
 
-    return result.first;
+    return fallback.first;
   }
 
   Future<Map<String, dynamic>> _resolveCategoryForWrite(
@@ -67,7 +75,8 @@ class MasterDataRepository {
     }
 
     if (category == null && masterData.category.isNotEmpty) {
-      category = await _getCategoryByName(masterData.category);
+      category =
+          await _getCategoryByName(masterData.category, type: 'menu');
     }
 
     if (category == null) {
@@ -92,33 +101,6 @@ class MasterDataRepository {
     return db.insert('Data_Master', dataToInsert);
   }
 
-  Future<List<MasterData>> getPackagingMasterData(
-      {bool includeDeleted = false}) async {
-    final db = await dbHelper.database;
-    final deletedClause = includeDeleted ? '' : 'AND m.deleted_at IS NULL';
-    final result = await db.rawQuery('''
-      $_masterDataJoinQuery
-      WHERE (LOWER(c.code) = 'packaging' OR LOWER(COALESCE(c.name, m.category)) = 'packaging')
-      $deletedClause
-      ORDER BY m.name ASC
-    ''');
-
-    return result.map((map) => MasterData.fromMap(map)).toList();
-  }
-
-  Future<int> updatePackagingId(int masterDataId, int packagingId) async {
-    final db = await dbHelper.database;
-    return db.update(
-      'Data_Master',
-      {
-        'packaging_id': packagingId,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [masterDataId],
-    );
-  }
-
   Future<List<MasterData>> getAllMasterData(
       {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
@@ -135,11 +117,10 @@ class MasterDataRepository {
   Future<List<MasterData>> getAllMasterDataForSelectCategory(
       {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
-    final deletedClause = includeDeleted ? '' : 'AND m.deleted_at IS NULL';
+    final deletedClause = includeDeleted ? '' : 'WHERE m.deleted_at IS NULL';
 
     final result = await db.rawQuery('''
       $_masterDataJoinQuery
-      WHERE LOWER(c.code) IN ('paper', 'product', 'additional', 'bundle')
       $deletedClause
       ORDER BY m.name ASC
     ''');
@@ -150,11 +131,10 @@ class MasterDataRepository {
   Future<List<MasterData>> getAllMasterDataForSelect(
       {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
-    final deletedClause = includeDeleted ? '' : 'AND m.deleted_at IS NULL';
+    final deletedClause = includeDeleted ? '' : 'WHERE m.deleted_at IS NULL';
 
     final result = await db.rawQuery('''
       $_masterDataJoinQuery
-      WHERE c.is_countable = 1
       $deletedClause
       ORDER BY m.name ASC
     ''');
@@ -169,12 +149,8 @@ class MasterDataRepository {
         m.id,
         m.user_id,
         m.category_id,
-        m.packaging_id,
         m.name,
         COALESCE(c.name, m.category) AS category_name,
-        c.code AS category_code,
-        COALESCE(c.is_bundle, 0) AS is_bundle,
-        COALESCE(c.is_countable, 0) AS is_countable,
         m.price,
         m.created_at,
         m.updated_at,
@@ -300,12 +276,18 @@ class MasterDataRepository {
 
   Future<bool> isNameAlreadyUsed(
     String name, {
+    int? categoryId,
     int? excludeId,
   }) async {
     final db = await dbHelper.database;
 
     final whereBuffer = StringBuffer('LOWER(name) = ? AND deleted_at IS NULL');
     final args = <Object>[name.toLowerCase()];
+
+    if (categoryId != null) {
+      whereBuffer.write(' AND category_id = ?');
+      args.add(categoryId);
+    }
 
     if (excludeId != null) {
       whereBuffer.write(' AND id != ?');
@@ -341,8 +323,9 @@ class MasterDataRepository {
     final result = await db.rawQuery('''
       SELECT COUNT(*) AS total
       FROM Data_Bundle_Item bi
+      INNER JOIN Data_Inventory inv ON inv.id = bi.component_inventory_id
       INNER JOIN Data_Master b ON b.id = bi.bundle_id
-      WHERE bi.component_master_data_id = ?
+      WHERE inv.master_data_id = ?
         AND b.deleted_at IS NULL
     ''', [id]);
 
@@ -356,7 +339,8 @@ class MasterDataRepository {
       return false;
     }
 
-    if (masterData.isBundle) {
+    final hasBundleItems = await isMasterDataBundle(id);
+    if (hasBundleItems) {
       final usedInTransactions = await isMasterDataUsedInTransactions(id);
       if (usedInTransactions) {
         return false;
@@ -371,17 +355,29 @@ class MasterDataRepository {
     return true;
   }
 
-  Future<List<MasterData>> getMasterDataByCategoryCode(String categoryCode,
+  Future<bool> isMasterDataBundle(int id) async {
+    final db = await dbHelper.database;
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) AS total
+      FROM Data_Bundle_Item
+      WHERE bundle_id = ?
+    ''', [id]);
+
+    final total = result.first['total'] as int? ?? 0;
+    return total > 0;
+  }
+
+  Future<List<MasterData>> getMasterDataByCategoryId(int categoryId,
       {bool includeDeleted = false}) async {
     final db = await dbHelper.database;
     final deletedClause = includeDeleted ? '' : 'AND m.deleted_at IS NULL';
 
     final result = await db.rawQuery('''
       $_masterDataJoinQuery
-      WHERE LOWER(c.code) = ?
+      WHERE m.category_id = ?
       $deletedClause
       ORDER BY m.name ASC
-    ''', [categoryCode.toLowerCase()]);
+    ''', [categoryId]);
 
     return result.map((map) => MasterData.fromMap(map)).toList();
   }

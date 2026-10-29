@@ -48,12 +48,32 @@ class CustomerRepository {
 
   Future<List<Customer>> searchCustomers(String query) async {
     final db = await dbHelper.database;
+    final lowerQuery = query.toLowerCase();
     final result = await db.query(
       'Data_Customer',
-      where: 'name LIKE ? OR phone LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
+      where: 'LOWER(name) LIKE ? OR LOWER(phone) LIKE ?',
+      whereArgs: ['%$lowerQuery%', '%$lowerQuery%'],
     );
-    return result.map((map) => Customer.fromMap(map)).toList();
+    final customers = result.map((map) => Customer.fromMap(map)).toList();
+
+    customers.sort((a, b) {
+      int scoreA = _matchScore(a, lowerQuery);
+      int scoreB = _matchScore(b, lowerQuery);
+      if (scoreA != scoreB) return scoreA.compareTo(scoreB);
+      // Secondary sort: most recently updated
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+
+    return customers;
+  }
+
+  int _matchScore(Customer c, String lowerQuery) {
+    final name = c.name.toLowerCase();
+    final phone = c.phone.toLowerCase();
+    if (name == lowerQuery || phone == lowerQuery) return 0; // exact match
+    if (name.startsWith(lowerQuery) || phone.startsWith(lowerQuery))
+      return 1; // prefix match
+    return 2; // partial match
   }
 
   Future<Customer?> findCustomerByPhone(String phone) async {

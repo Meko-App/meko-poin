@@ -15,13 +15,21 @@ class _ChartData {
 
 class CardProduk extends StatelessWidget {
   final TransactionRepository transactionRepo;
+  final DateTimeRange dateRange;
 
-  const CardProduk({super.key, required this.transactionRepo});
+  const CardProduk({
+    super.key,
+    required this.transactionRepo,
+    required this.dateRange,
+  });
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: transactionRepo.getFavoriteProducts(),
+      future: transactionRepo.getFavoriteProductsByDateRange(
+        dateRange.start,
+        dateRange.end,
+      ),
       builder: (context, snapshot) {
         // Tampilkan loading indicator saat data dimuat
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -164,7 +172,7 @@ class CardProduk extends StatelessWidget {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              'Tidak ada transaksi hari ini',
+              'Tidak ada transaksi pada rentang tanggal ini',
               style: TextStyle(color: CustomColors.fontSubColor),
             ),
           ),

@@ -9,6 +9,7 @@ import 'package:meko_poin/services/bundle_repository.dart';
 import 'package:meko_poin/services/customer_repository.dart';
 import 'package:meko_poin/services/database_helper.dart';
 import 'package:meko_poin/services/master_data_repository.dart';
+import 'package:meko_poin/services/category_repository.dart';
 import 'package:meko_poin/services/transaction_item_repository.dart';
 import 'package:meko_poin/utils/custom_colors.dart';
 import 'package:meko_poin/views/Dashboard/contents/utils/receipt_service.dart';
@@ -33,12 +34,13 @@ class TransactionForm extends StatefulWidget {
 class _TransactionFormState extends State<TransactionForm> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  bool _isNameEnabled = false;
   List<Customer> _searchResults = [];
   OverlayEntry? _overlayEntry;
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _nameFocusNode = FocusNode();
   final GlobalKey _phoneFieldKey = GlobalKey();
+  final GlobalKey _nameFieldKey = GlobalKey();
+  String _overlaySource = 'phone';
 
   final TextEditingController _orderQuantityController =
       TextEditingController();
@@ -56,6 +58,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
   final MasterDataRepository _masterDataRepo =
       MasterDataRepository(DatabaseHelper.instance);
+  final CategoryRepository _categoryRepo =
+      CategoryRepository(DatabaseHelper.instance);
   final TransactionItemRepository _transactionItemRepo =
       TransactionItemRepository(DatabaseHelper.instance);
   final BundleRepository _bundleRepository =
@@ -64,6 +68,7 @@ class _TransactionFormState extends State<TransactionForm> {
   TransactionItem? _selectedCartItem;
   List<TransactionItem> _cartItems = [];
   List<MasterData> _masterDataItems = [];
+  List<String> _allCategoryNames = [];
   List<MasterData> _backgroundDataItems = [];
   List<MasterData> _filteredMasterDataItems = [];
   Map<int, List<Map<String, dynamic>>> _bundleDetailByBundleId = {};
@@ -81,6 +86,7 @@ class _TransactionFormState extends State<TransactionForm> {
     _loadCartItems();
     _clearCartItem();
     _phoneController.addListener(_onPhoneChanged);
+    _nameController.addListener(_onNameChanged);
     _phoneFocusNode.addListener(_onPhoneFocusChanged);
     _nameFocusNode.addListener(_onNameFocusChanged);
     _selectedBackground = null;
@@ -89,6 +95,7 @@ class _TransactionFormState extends State<TransactionForm> {
   @override
   void dispose() {
     _phoneController.removeListener(_onPhoneChanged);
+    _nameController.removeListener(_onNameChanged);
     _phoneFocusNode.removeListener(_onPhoneFocusChanged);
     _nameFocusNode.removeListener(_onNameFocusChanged);
     _phoneController.dispose();
@@ -105,8 +112,18 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   bool _isCategoryCode(MasterData data, String code) {
-    return (data.categoryCode ?? '').toLowerCase() == code.toLowerCase() ||
-        data.category.toLowerCase() == code.toLowerCase();
+    return data.category.toLowerCase().trim() == code.toLowerCase().trim();
+  }
+
+  bool _isPaperComponent(Map<String, dynamic> component) {
+    final categoryName =
+        (component['component_category_name'] as String?)?.toLowerCase().trim();
+    if (categoryName == 'paper') {
+      return true;
+    }
+    final type =
+        (component['component_type'] as String?)?.toLowerCase().trim();
+    return type == 'paper';
   }
 
   String? _selectedCategoryCode() {
@@ -114,26 +131,29 @@ class _TransactionFormState extends State<TransactionForm> {
       return null;
     }
 
-    for (final item in _masterDataItems) {
-      if (item.category == _selectedOrderCategory) {
-        return (item.categoryCode ?? '').toLowerCase();
-      }
-    }
+    return _selectedOrderCategory!.toLowerCase().trim();
+  }
 
+  MasterData? _findSelectedMasterData([String? name]) {
+    final targetName = name ?? _selectedOrderItem;
+    if (targetName == null) return null;
+    for (final item in _filteredMasterDataItems) {
+      if (item.name == targetName) return item;
+    }
+    for (final item in _masterDataItems) {
+      if (item.name == targetName) return item;
+    }
+    for (final item in _backgroundDataItems) {
+      if (item.name == targetName) return item;
+    }
     return null;
   }
 
   bool _selectedBundleHasPaperComponent() {
-    if (_selectedOrderItem == null) return false;
-    final selectedMd = _filteredMasterDataItems.cast<MasterData?>().firstWhere(
-          (item) => item?.name == _selectedOrderItem,
-          orElse: () => null,
-        );
-    if (selectedMd?.id == null) return false;
-    final details = _bundleDetailByBundleId[selectedMd!.id] ?? [];
-    return details.any((d) =>
-        (d['component_type'] as String?)?.toLowerCase() == 'paper' ||
-        (d['component_type'] as String?)?.toLowerCase() == 'print');
+    final selectedMd = _findSelectedMasterData();
+    if (selectedMd == null || selectedMd.id == null) return false;
+    final details = _bundleDetailByBundleId[selectedMd.id!] ?? [];
+    return details.any(_isPaperComponent);
   }
 
   Future<void> _ensureBundleDetailsLoadedForSelectedItem(
@@ -142,19 +162,12 @@ class _TransactionFormState extends State<TransactionForm> {
       return;
     }
 
-    MasterData? selectedMd;
-    for (final item in _filteredMasterDataItems) {
-      if (item.name == itemName) {
-        selectedMd = item;
-        break;
-      }
-    }
-
-    if (selectedMd == null || !selectedMd.isBundle || selectedMd.id == null) {
+    final selectedMd = _findSelectedMasterData(itemName);
+    if (selectedMd == null || selectedMd.id == null) {
       return;
     }
 
-    if ((_bundleDetailByBundleId[selectedMd.id!] ?? []).isNotEmpty) {
+    if (_bundleDetailByBundleId.containsKey(selectedMd.id!)) {
       return;
     }
 
@@ -166,7 +179,7 @@ class _TransactionFormState extends State<TransactionForm> {
     }
 
     setState(() {
-      _bundleDetailByBundleId[selectedMd!.id!] = bundleItems;
+      _bundleDetailByBundleId[selectedMd.id!] = bundleItems;
     });
   }
 
@@ -283,7 +296,8 @@ class _TransactionFormState extends State<TransactionForm> {
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      if (data['payment_method']?.toLowerCase() == 'cash') {
+      if (data['payment_method']?.toLowerCase() == 'cash' ||
+          data['payment_method']?.toLowerCase() == 'qris') {
         final customerName = data['name'];
         final invoiceNumber = data['invoice'];
         final finalPrice = data['final_price'];
@@ -294,6 +308,10 @@ class _TransactionFormState extends State<TransactionForm> {
               'Pemasukan dari transaksi atas nama $customerName Invoice $invoiceNumber',
           'type': 'income',
           'cash_date': DateTime.now().toIso8601String(),
+          'transaction_id': transactionId,
+          'variable': data['payment_method']?.toLowerCase() == 'cash'
+              ? 'cash'
+              : 'saldo',
           'created_by': userId,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
@@ -346,44 +364,38 @@ class _TransactionFormState extends State<TransactionForm> {
       if (masterData == null) continue;
 
       // Untuk bundle, stok dikurangi berdasarkan komponen bundle.
-      if (masterData.isBundle) {
-        var bundleComponents = <Map<String, dynamic>>[];
+      var bundleComponents = <Map<String, dynamic>>[];
 
-        if (bundleSnapshot != null && bundleSnapshot.isNotEmpty) {
-          bundleComponents = _parseBundleSnapshot(bundleSnapshot);
-        }
+      if (bundleSnapshot != null && bundleSnapshot.isNotEmpty) {
+        bundleComponents = _parseBundleSnapshot(bundleSnapshot);
+      }
 
-        if (bundleComponents.isEmpty && masterData.id != null) {
-          bundleComponents = await _bundleRepository
-              .getBundleItemsWithMasterData(masterData.id!);
-        }
+      if (bundleComponents.isEmpty && masterData.id != null) {
+        bundleComponents = await _bundleRepository
+            .getBundleItemsWithMasterData(masterData.id!);
+      }
 
+      if (bundleComponents.isNotEmpty) {
         for (final component in bundleComponents) {
-          final componentMasterDataId =
-              component['component_master_data_id'] as int?;
-          if (componentMasterDataId == null) {
-            continue;
-          }
-
-          final componentMasterData =
-              await _masterDataRepo.getMasterDataById(componentMasterDataId);
-          if (componentMasterData == null || !componentMasterData.isCountable) {
+          final componentInventoryId =
+              component['component_inventory_id'] as int?;
+          if (componentInventoryId == null) {
             continue;
           }
 
           // Jika pakai sisa kertas, komponen paper tidak dikurangi.
-          if (_isCategoryCode(componentMasterData, 'paper') &&
-              _useRemainingPaper) {
+          if (_isPaperComponent(component) && item['is_reused_paper'] == 1) {
             continue;
           }
 
           final componentQty = (component['qty'] as int? ?? 1) * qty;
 
-          await _decrementInventoryAndLog(
+          await _decrementInventoryByIdAndLog(
             db: db,
             userId: userId,
-            masterDataId: componentMasterDataId,
+            inventoryId: componentInventoryId,
             qty: componentQty,
+            transactionId: transactionId,
             notes:
                 'Transaksi bundle ${masterData.name} dengan pengurangan sebesar $componentQty',
           );
@@ -392,13 +404,9 @@ class _TransactionFormState extends State<TransactionForm> {
         continue;
       }
 
-      // Lewati update stok untuk kategori yang tidak countable.
-      if (!masterData.isCountable) {
-        continue;
-      }
-
       // Skip stock reduction untuk Paper jika "gunakan sisa kertas" aktif.
-      if (_isCategoryCode(masterData, 'paper') && _useRemainingPaper) {
+      if (_isCategoryCode(masterData, 'paper') &&
+          item['is_reused_paper'] == 1) {
         continue;
       }
 
@@ -407,6 +415,7 @@ class _TransactionFormState extends State<TransactionForm> {
         userId: userId,
         masterDataId: masterDataId,
         qty: qty,
+        transactionId: transactionId,
       );
     }
   }
@@ -416,6 +425,7 @@ class _TransactionFormState extends State<TransactionForm> {
     required int userId,
     required int masterDataId,
     required int qty,
+    int? transactionId,
     String? notes,
   }) async {
     final inventory = await db.query(
@@ -452,6 +462,57 @@ class _TransactionFormState extends State<TransactionForm> {
       'initial_stock': initialStock,
       'current_stock': currentStock,
       'difference': qty,
+      'transaction_id': transactionId,
+      'notes': notes ??
+          'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
+      'created_at': now.toIso8601String(),
+      'updated_at': now.toIso8601String(),
+    });
+  }
+
+  Future<void> _decrementInventoryByIdAndLog({
+    required dynamic db,
+    required int userId,
+    required int inventoryId,
+    required int qty,
+    int? transactionId,
+    String? notes,
+  }) async {
+    final inventory = await db.query(
+      'Data_Inventory',
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+      limit: 1,
+    );
+
+    if (inventory.isEmpty) {
+      return;
+    }
+
+    final initialStock = inventory.first['stock'] as int;
+    final currentStock = initialStock - qty;
+
+    await db.update(
+      'Data_Inventory',
+      {
+        'stock': currentStock,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [inventoryId],
+    );
+
+    final now = DateTime.now();
+    final formattedDate = DateFormat('d MMM y, HH:mm:ss').format(now);
+
+    await db.insert('Data_Inventory_Log', {
+      'inventory_id': inventoryId,
+      'user_id': userId,
+      'type': 'decrement',
+      'initial_stock': initialStock,
+      'current_stock': currentStock,
+      'difference': qty,
+      'transaction_id': transactionId,
       'notes': notes ??
           'Transaksi pada $formattedDate dengan pengurangan sebesar $qty',
       'created_at': now.toIso8601String(),
@@ -530,8 +591,11 @@ class _TransactionFormState extends State<TransactionForm> {
   Future<void> _loadMasterData() async {
     try {
       final items = await _masterDataRepo.getAllMasterDataForSelectCategory();
+      final allCategories = await _categoryRepo.getAllCategories();
+      final categoryNames = allCategories.where((c) => c.type == 'menu').map((c) => c.name).toList();
       setState(() {
         _masterDataItems = items;
+        _allCategoryNames = categoryNames;
       });
       final items2 = await _masterDataRepo.getAllMasterData();
       setState(() {
@@ -551,7 +615,7 @@ class _TransactionFormState extends State<TransactionForm> {
     if (mounted) {
       setState(() {
         _cartItems = items;
-        _bundleDetailByBundleId = bundleDetails;
+        _bundleDetailByBundleId.addAll(bundleDetails);
       });
       _calculateTotalPrice();
     }
@@ -571,13 +635,15 @@ class _TransactionFormState extends State<TransactionForm> {
       }
 
       final master = await _masterDataRepo.getMasterDataById(item.masterDataId);
-      if (master == null || !master.isBundle || master.id == null) {
+      if (master == null || master.id == null) {
         continue;
       }
 
       final bundleItems =
           await _bundleRepository.getBundleItemsWithMasterData(master.id!);
-      details[master.id!] = bundleItems;
+      if (bundleItems.isNotEmpty) {
+        details[master.id!] = bundleItems;
+      }
     }
 
     return details;
@@ -604,21 +670,26 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Future<String?> _buildBundleSnapshot(MasterData selectedMasterData) async {
-    if (!selectedMasterData.isBundle || selectedMasterData.id == null) {
+    if (selectedMasterData.id == null) {
       return null;
     }
 
     final bundleItems = await _bundleRepository
         .getBundleItemsWithMasterData(selectedMasterData.id!);
 
+    if (bundleItems.isEmpty) {
+      return null;
+    }
+
     final snapshot = bundleItems
         .map(
           (item) => {
+            'component_inventory_id': item['component_inventory_id'],
             'component_master_data_id': item['component_master_data_id'],
             'component_type': item['component_type'],
             'component_name': item['component_name'],
+            'component_category_name': item['component_category_name'],
             'qty': item['qty'],
-            'component_price': item['component_price'],
           },
         )
         .toList();
@@ -687,36 +758,12 @@ class _TransactionFormState extends State<TransactionForm> {
         orElse: () => throw Exception('Item tidak ditemukan'),
       );
 
-      final isPaper = _isCategoryCode(selectedMasterData, 'paper');
       final isProduct = _isCategoryCode(selectedMasterData, 'product');
 
-      // 2. Validasi khusus untuk Paper: harus memiliki packaging
-      if (isPaper) {
-        if (selectedMasterData.packagingId == 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Paper ini belum memiliki packaging. Harap hubungi admin untuk mengatur packaging terlebih dahulu.')),
-          );
-          return;
-        }
-      }
-
-      // 3. Lakukan pengecekan stok berdasarkan flag is_countable.
-      final needStockCheck = selectedMasterData.isCountable;
-
-      int? availableStock;
-      if (needStockCheck) {
-        availableStock = await _masterDataRepo
-            .getStockByMasterDataId(selectedMasterData.id!);
-        if (availableStock == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Stok belum tersedia, harap hubungi admin')),
-          );
-          return;
-        }
-
+      // Lakukan pengecekan stok jika item memiliki stok di inventory.
+      final availableStock =
+          await _masterDataRepo.getStockByMasterDataId(selectedMasterData.id!);
+      if (availableStock != null) {
         // Cek apakah stok cukup
         if (availableStock < qty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -728,26 +775,12 @@ class _TransactionFormState extends State<TransactionForm> {
         }
       }
 
-      // 4. Jika kategori Paper, lakukan pengecekan stok packaging terlebih dahulu
-      if (isPaper) {
-        final packagingStockValid =
-            await _checkPackagingStock(selectedMasterData, qty);
-        if (!packagingStockValid) {
-          return; // Stop jika stok packaging tidak cukup
-        }
-      }
-
-      // 5. Tambahkan produk utama ke keranjang
+      // Tambahkan produk utama ke keranjang
       await _addItemToCart(_selectedOrderItem!, qty, isNewItem);
 
-      // 6. Jika kategori Product, tambahkan background juga
+      // Jika kategori Product, tambahkan background juga
       if (isProduct && _selectedBackground != null) {
         await _addItemToCart(_selectedBackground!, qty, isNewItem);
-      }
-
-      // 7. Jika kategori Paper, tambahkan packaging secara otomatis
-      if (isPaper) {
-        await _addPackagingForPaper(_selectedOrderItem!, qty, isNewItem);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -766,132 +799,6 @@ class _TransactionFormState extends State<TransactionForm> {
     await _loadCartItems();
   }
 
-  Future<bool> _checkPackagingStock(MasterData paperData, int qty) async {
-    try {
-      // Validasi bahwa paper harus memiliki packaging
-      if (paperData.packagingId == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Paper ini belum memiliki packaging. Tidak dapat ditambahkan ke keranjang.')),
-        );
-        return false;
-      }
-
-      // Cari data packaging berdasarkan packagingId
-      final packagingData =
-          await _masterDataRepo.getMasterDataById(paperData.packagingId);
-
-      if (packagingData != null &&
-          _isCategoryCode(packagingData, 'packaging')) {
-        if (!packagingData.isCountable) {
-          return true;
-        }
-
-        // Cek stok packaging
-        final packagingStock =
-            await _masterDataRepo.getStockByMasterDataId(packagingData.id!);
-
-        if (packagingStock == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content:
-                    Text('Stok packaging belum tersedia, harap hubungi admin')),
-          );
-          return false;
-        }
-
-        // Cek apakah stok packaging cukup
-        if (packagingStock < qty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'Stok packaging ${packagingData.name} tidak cukup. Stok tersedia: $packagingStock')),
-          );
-          return false;
-        }
-
-        return true; // Stok packaging cukup
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Packaging tidak ditemukan untuk paper ini')),
-        );
-        return false;
-      }
-    } catch (e) {
-      print('Error checking packaging stock: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error checking packaging stock: $e')),
-      );
-      return false;
-    }
-  }
-
-  Future<void> _addPackagingForPaper(
-      String paperName, int qty, bool isNewItem) async {
-    try {
-      // Cari data paper yang dipilih
-      final selectedPaper = _backgroundDataItems.firstWhere(
-        (item) => item.name == paperName && _isCategoryCode(item, 'paper'),
-        orElse: () => throw Exception('Paper $paperName tidak ditemukan'),
-      );
-
-      // Jika paper memiliki packagingId yang valid (bukan 0)
-      if (selectedPaper.packagingId != 0 && selectedPaper.packagingId > 0) {
-        // Cari data packaging berdasarkan packagingId
-        final packagingData =
-            await _masterDataRepo.getMasterDataById(selectedPaper.packagingId);
-
-        if (packagingData != null &&
-            _isCategoryCode(packagingData, 'packaging')) {
-          // Cek apakah packaging sudah ada di keranjang
-          final existingPackagingItem = await _transactionItemRepo
-              .findExistingCartItem(packagingData.id!);
-
-          if (existingPackagingItem != null) {
-            // Jika sudah ada, update quantity-nya
-            final updatedQty =
-                isNewItem ? existingPackagingItem.qty + qty : qty;
-            final updatedTotalPrice = (packagingData.price ?? 0) * updatedQty;
-
-            final updatedItem = TransactionItem(
-              id: existingPackagingItem.id,
-              masterDataId: existingPackagingItem.masterDataId,
-              qty: updatedQty,
-              totalPrice: updatedTotalPrice,
-              createdAt: existingPackagingItem.createdAt,
-              updatedAt: DateTime.now(),
-            );
-
-            await _transactionItemRepo.updateTransactionItem(updatedItem);
-          } else {
-            // Jika belum ada, tambahkan baru
-            final totalPrice = (packagingData.price ?? 0) * qty;
-
-            final newItem = TransactionItem(
-              masterDataId: packagingData.id!,
-              qty: qty,
-              totalPrice: totalPrice,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
-
-            await _transactionItemRepo.insertTransactionItem(newItem);
-          }
-        } else {
-          print(
-              'Packaging dengan ID ${selectedPaper.packagingId} tidak ditemukan atau bukan kategori Packaging');
-        }
-      } else {
-        print('Paper $paperName tidak memiliki packaging yang terkait');
-      }
-    } catch (e) {
-      print('Error menambahkan packaging untuk paper: $e');
-      // Jangan tampilkan error ke user karena ini opsional
-    }
-  }
-
   Future<void> _addItemToCart(String itemName, int qty, bool isNewItem) async {
     try {
       // Cari master data yang dipilih
@@ -903,8 +810,7 @@ class _TransactionFormState extends State<TransactionForm> {
       final existingItem = await _transactionItemRepo
           .findExistingCartItem(selectedMasterData.id!);
       final bundleSnapshot = await _buildBundleSnapshot(selectedMasterData);
-      final bundleId =
-          selectedMasterData.isBundle ? selectedMasterData.id : null;
+      final bundleId = bundleSnapshot != null ? selectedMasterData.id : null;
 
       if (existingItem != null) {
         final int totalQty;
@@ -926,6 +832,7 @@ class _TransactionFormState extends State<TransactionForm> {
           totalPrice: totalPrice,
           createdAt: existingItem.createdAt,
           updatedAt: DateTime.now(),
+          isReusedPaper: _useRemainingPaper ? 1 : 0,
         );
 
         await _transactionItemRepo.updateTransactionItem(updatedItem);
@@ -940,6 +847,7 @@ class _TransactionFormState extends State<TransactionForm> {
           totalPrice: totalPrice,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          isReusedPaper: _useRemainingPaper ? 1 : 0,
         );
 
         await _transactionItemRepo.insertTransactionItem(newItem);
@@ -947,6 +855,10 @@ class _TransactionFormState extends State<TransactionForm> {
     } catch (e) {
       print('Error adding item to cart: $e');
       rethrow; // Kembalikan error untuk ditangani di level atas
+    } finally {
+      setState(() {
+        _useRemainingPaper = false;
+      });
     }
   }
 
@@ -960,6 +872,7 @@ class _TransactionFormState extends State<TransactionForm> {
       _filterMasterDataItems(masterData?.category);
       _selectedOrderItem = masterData?.name;
       _orderQuantityController.text = item.qty.toString();
+      _useRemainingPaper = item.isReusedPaper == 1;
     });
 
     await _ensureBundleDetailsLoadedForSelectedItem(masterData?.name);
@@ -1014,30 +927,46 @@ class _TransactionFormState extends State<TransactionForm> {
           .searchCustomers(text);
       setState(() {
         _searchResults = results;
+        _overlaySource = 'phone';
       });
       if (_phoneFocusNode.hasFocus) {
         _showOverlay();
       }
     } else {
       _removeOverlay();
-      if (_nameController.text.isNotEmpty) {
-        _nameController.clear();
-      }
+    }
+  }
+
+  Future<void> _onNameChanged() async {
+    final text = _nameController.text;
+
+    if (text.length >= 3) {
+      final results = await CustomerRepository(DatabaseHelper.instance)
+          .searchCustomers(text);
       setState(() {
-        _isNameEnabled = false;
+        _searchResults = results;
+        _overlaySource = 'name';
       });
+      if (_nameFocusNode.hasFocus) {
+        _showOverlay();
+      }
+    } else {
+      _removeOverlay();
     }
   }
 
   void _showOverlay() {
     _removeOverlay();
 
+    final activeKey = _overlaySource == 'name' ? _nameFieldKey : _phoneFieldKey;
     final renderBox =
-        _phoneFieldKey.currentContext?.findRenderObject() as RenderBox?;
+        activeKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
+    final searchText =
+        _overlaySource == 'name' ? _nameController.text : _phoneController.text;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Stack(
@@ -1047,6 +976,7 @@ class _TransactionFormState extends State<TransactionForm> {
               onTap: () {
                 _removeOverlay();
                 _phoneFocusNode.unfocus();
+                _nameFocusNode.unfocus();
               },
               behavior: HitTestBehavior.translucent,
             ),
@@ -1086,7 +1016,7 @@ class _TransactionFormState extends State<TransactionForm> {
                       if (_searchResults.isEmpty)
                         _buildDropdownItem(
                           title: 'Tambahkan pelanggan baru',
-                          subtitle: _phoneController.text,
+                          subtitle: searchText,
                           onTap: _selectAddNewOption,
                         )
                       else
@@ -1169,21 +1099,21 @@ class _TransactionFormState extends State<TransactionForm> {
     setState(() {
       _phoneController.text = customer.phone;
       _nameController.text = customer.name;
-      _isNameEnabled = false;
     });
     _phoneFocusNode.unfocus();
+    _nameFocusNode.unfocus();
     _removeOverlay();
   }
 
   void _selectAddNewOption() {
-    setState(() {
-      _isNameEnabled = true;
-      _nameController.clear();
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(_nameFocusNode);
-    });
     _removeOverlay();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_overlaySource == 'name') {
+        FocusScope.of(context).requestFocus(_phoneFocusNode);
+      } else {
+        FocusScope.of(context).requestFocus(_nameFocusNode);
+      }
+    });
   }
 
   Widget _buildPhoneField() {
@@ -1250,51 +1180,57 @@ class _TransactionFormState extends State<TransactionForm> {
       children: [
         _buildFormLabel('Nama'),
         const SizedBox(height: 8),
-        TextField(
-          controller: _nameController,
-          focusNode: _nameFocusNode,
-          enabled: _isNameEnabled,
-          decoration: InputDecoration(
-            hintText: 'Masukkan nama',
-            hintStyle: TextStyle(
+        SizedBox(
+          key: _nameFieldKey,
+          child: TextField(
+            controller: _nameController,
+            focusNode: _nameFocusNode,
+            onTap: () {
+              if (_nameController.text.length >= 3) {
+                setState(() => _overlaySource = 'name');
+                _showOverlay();
+              }
+            },
+            decoration: InputDecoration(
+              hintText: 'Masukkan nama',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                fontFamily: 'Inter',
+                color: CustomColors.fontSubColor,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: CustomColors.borderInputColor,
+                  width: 1.0,
+                ),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: CustomColors.borderInputColor,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1379F0),
+                  width: 1.0,
+                ),
+              ),
+              filled: true,
+              fillColor: CustomColors.inputColor,
+              isDense: true,
+            ),
+            style: const TextStyle(
               fontSize: 14,
-              fontFamily: 'Inter',
-              color: CustomColors.fontSubColor,
+              color: Colors.white,
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: CustomColors.borderInputColor,
-                width: 1.0,
-              ),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: CustomColors.borderInputColor,
-                width: 1.0,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color(0xFF1379F0),
-                width: 1.0,
-              ),
-            ),
-            filled: true,
-            fillColor: _isNameEnabled
-                ? CustomColors.inputColor
-                : CustomColors.borderCardColor,
-            isDense: true,
-          ),
-          style: TextStyle(
-            fontSize: 14,
-            color: _isNameEnabled ? Colors.white : CustomColors.fontSubColor,
           ),
         ),
       ],
@@ -1346,6 +1282,7 @@ class _TransactionFormState extends State<TransactionForm> {
         'bundle_components': item.bundleSnapshot != null
             ? _parseBundleSnapshot(item.bundleSnapshot!)
             : [],
+        'is_reused_paper': item.isReusedPaper,
       };
     }).toList();
 
@@ -1851,65 +1788,72 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Widget _buildCategoryDropdown() {
-    final categories = _masterDataItems.map((e) => e.category).toSet().toList();
-
-    return DropdownButtonFormField<String>(
-      value: _selectedOrderCategory,
-      isExpanded: true,
-      hint: const Text(
-        'Pilih kategori',
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: CustomColors.fontSubColor,
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-      items: categories.map((category) {
-        return DropdownMenuItem<String>(
-          value: category,
-          child: Text(
-            category,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return DropdownMenu<String>(
+          width: constraints.maxWidth,
+          initialSelection: _selectedOrderCategory,
+          hintText: 'Pilih kategori',
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Colors.white,
+            height: 1.2,
+          ),
+          menuStyle: MenuStyle(
+            backgroundColor: WidgetStateProperty.all(CustomColors.inputColor),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            constraints: const BoxConstraints(maxHeight: 42),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  BorderSide(color: CustomColors.borderInputColor, width: 1.0),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  const BorderSide(color: Color(0xFF1379F0), width: 1.0),
+            ),
+            filled: true,
+            fillColor: CustomColors.inputColor,
+            isDense: true,
+            hintStyle: const TextStyle(
+              fontFamily: 'Inter',
               fontSize: 14,
-              color: Colors.white,
+              fontWeight: FontWeight.w400,
+              color: CustomColors.fontSubColor,
+              height: 1.2,
             ),
           ),
+          dropdownMenuEntries: _allCategoryNames.map((category) {
+            return DropdownMenuEntry<String>(
+              value: category,
+              label: category,
+              style: MenuItemButton.styleFrom(
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            );
+          }).toList(),
+          onSelected: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedOrderCategory = value;
+                _filterMasterDataItems(value);
+                _useRemainingPaper = false;
+                _selectedOrderItem = null;
+              });
+            }
+          },
         );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedOrderCategory = value;
-          _filterMasterDataItems(value);
-          _useRemainingPaper = false;
-          _selectedOrderItem = null;
-        });
       },
-      decoration: InputDecoration(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide:
-              BorderSide(color: CustomColors.borderInputColor, width: 1.0),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF1379F0), width: 1.0),
-        ),
-        filled: true,
-        fillColor: CustomColors.inputColor,
-        isDense: true,
-      ),
-      style: const TextStyle(
-        fontSize: 14,
-        color: Colors.white,
-      ),
-      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-      dropdownColor: CustomColors.inputColor,
-      borderRadius: BorderRadius.circular(8),
     );
   }
 
@@ -1996,6 +1940,7 @@ class _TransactionFormState extends State<TransactionForm> {
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
+                    height: 42,
                     child: _buildCategoryDropdown(),
                   ),
                 ],
@@ -2010,6 +1955,7 @@ class _TransactionFormState extends State<TransactionForm> {
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
+                    height: 42,
                     child: _buildItemDropdown(),
                   ),
                 ],
@@ -2190,57 +2136,8 @@ class _TransactionFormState extends State<TransactionForm> {
           ],
         ),
 
-        // Tampilkan info packaging jika paper dipilih dan memiliki packaging
-        if (_selectedCategoryCode() == 'paper' && _selectedOrderItem != null)
-          FutureBuilder<MasterData?>(
-            future: () async {
-              try {
-                final paper = _backgroundDataItems.firstWhere((item) =>
-                    item.name == _selectedOrderItem &&
-                    _isCategoryCode(item, 'paper'));
-
-                if (paper.packagingId > 0) {
-                  return await _masterDataRepo
-                      .getMasterDataById(paper.packagingId);
-                }
-              } catch (e) {
-                print('Error getting packaging info: $e');
-              }
-              return null;
-            }(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done &&
-                  snapshot.hasData &&
-                  snapshot.data != null) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Packaging: ${snapshot.data!.name} akan ditambahkan otomatis',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                );
-              }
-              return SizedBox.shrink();
-            },
-          ),
-        // if (_selectedOrderCategory == "Product" && _selectedBackground == null)
-        //   Padding(
-        //     padding: const EdgeInsets.only(top: 8.0),
-        //     child: Text(
-        //       'Harap pilih background',
-        //       style: TextStyle(
-        //         color: Colors.red,
-        //         fontSize: 12,
-        //       ),
-        //     ),
-        //   ),
         if (_selectedCategoryCode() == 'paper' ||
-            (_selectedCategoryCode() == 'bundle' &&
-                _selectedBundleHasPaperComponent())) ...[
+            _selectedBundleHasPaperComponent()) ...[
           const SizedBox(height: 8),
           Row(
             children: [
@@ -2463,7 +2360,6 @@ class _TransactionFormState extends State<TransactionForm> {
                 (m) => m.id == item.masterDataId,
                 orElse: () => MasterData(
                   userId: 0,
-                  packagingId: 0,
                   name: 'Item tidak ditemukan',
                   category: 'Unknown',
                 ),
@@ -2496,7 +2392,8 @@ class _TransactionFormState extends State<TransactionForm> {
                                     thickness: 1,
                                     width: 1,
                                     color: CustomColors.borderCardColor),
-                                _buildTableCell(masterData.name, 3),
+                                _buildTableCell(masterData.name, 3,
+                                    isReusedPaper: item.isReusedPaper == 1),
                                 VerticalDivider(
                                     thickness: 1,
                                     width: 1,
@@ -2511,7 +2408,7 @@ class _TransactionFormState extends State<TransactionForm> {
                               ],
                             ),
                           ),
-                          if (masterData.isBundle && masterData.id != null)
+                          if (item.bundleId != null && masterData.id != null)
                             _buildBundleDetailCell(masterData.id!, item.qty),
                         ],
                       ),
@@ -2550,20 +2447,47 @@ class _TransactionFormState extends State<TransactionForm> {
     );
   }
 
-  Widget _buildTableCell(String text, int flex) {
+  Widget _buildTableCell(String text, int flex, {bool isReusedPaper = false}) {
     return Expanded(
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 13,
-            height: 1.2,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-            fontFamily: 'Inter',
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.2,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ),
+            if (isReusedPaper) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1379F0).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                      color: const Color(0xFF1379F0).withValues(alpha: 0.3)),
+                ),
+                child: const Text(
+                  'Pakai Kertas Sisa',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF1379F0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

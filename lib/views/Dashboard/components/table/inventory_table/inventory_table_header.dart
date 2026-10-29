@@ -88,6 +88,39 @@ class InventoryTableHeader extends StatelessWidget {
             ),
             Expanded(
               child: InkWell(
+                onTap: () => onSort('category'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(color: CustomColors.borderCardColor),
+                    ),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Kategori',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            fontWeight: FontWeight.w400,
+                            color: CustomColors.fontSubColor,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        sortIcon('category'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: InkWell(
                 onTap: () => onSort('stock'),
                 child: Container(
                   padding:

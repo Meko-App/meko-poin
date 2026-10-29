@@ -1,7 +1,7 @@
 class BundleItem {
   final int? id;
   final int bundleId;
-  final int componentMasterDataId;
+  final int componentInventoryId;
   final String componentType;
   final int qty;
   final DateTime? createdAt;
@@ -10,7 +10,7 @@ class BundleItem {
   const BundleItem({
     this.id,
     required this.bundleId,
-    required this.componentMasterDataId,
+    required this.componentInventoryId,
     required this.componentType,
     this.qty = 1,
     this.createdAt,
@@ -21,7 +21,7 @@ class BundleItem {
     return BundleItem(
       id: map['id'] as int?,
       bundleId: map['bundle_id'] as int,
-      componentMasterDataId: map['component_master_data_id'] as int,
+      componentInventoryId: map['component_inventory_id'] as int,
       componentType: (map['component_type'] ?? '') as String,
       qty: (map['qty'] ?? 1) as int,
       createdAt: map['created_at'] != null
@@ -37,7 +37,7 @@ class BundleItem {
     return {
       'id': id,
       'bundle_id': bundleId,
-      'component_master_data_id': componentMasterDataId,
+      'component_inventory_id': componentInventoryId,
       'component_type': componentType,
       'qty': qty,
       'created_at': createdAt?.toIso8601String(),

@@ -53,7 +53,6 @@ class _MasterdataContentState extends State<MasterdataContent> {
               'category_name': data.category,
               'price': data.price,
               'id_user': data.userId,
-              'id_packaging': data.packagingId,
             }
           : null;
       widget.onStateChanged(_currentState);
@@ -81,15 +80,15 @@ class _MasterdataContentState extends State<MasterdataContent> {
         throw Exception('Kategori tidak ditemukan');
       }
 
-      final selectedCategoryData = selectedCategory.first;
       final name = (data['name'] ?? '').toString().trim();
       final isNameUsed = await masterDataRepository.isNameAlreadyUsed(
         name,
+        categoryId: data['category_id'] as int?,
         excludeId: _dataToEdit?['id'] as int?,
       );
 
       if (isNameUsed) {
-        throw Exception('Nama bundle/menu sudah digunakan');
+        throw Exception('Nama menu sudah digunakan pada kategori ini');
       }
 
       final priceString = data['price']?.toString() ?? '';
@@ -99,22 +98,22 @@ class _MasterdataContentState extends State<MasterdataContent> {
           (data['bundle_items'] as List<Map<String, dynamic>>?) ?? [];
 
       Future<void> saveBundleItems(int masterDataId) async {
-        if (!selectedCategoryData.isBundle) {
-          await _bundleRepository.deleteBundleItems(masterDataId);
-          return;
-        }
-
         final bundleItems = bundleItemsRaw
-            .where((item) => (item['component_master_data_id'] as int?) != null)
+            .where((item) => (item['component_inventory_id'] as int?) != null)
             .map(
               (item) => BundleItem(
                 bundleId: masterDataId,
-                componentMasterDataId: item['component_master_data_id'] as int,
+                componentInventoryId: item['component_inventory_id'] as int,
                 componentType: (item['component_type'] as String).toLowerCase(),
                 qty: (item['qty'] as int?) ?? 1,
               ),
             )
             .toList();
+
+        if (bundleItems.isEmpty) {
+          await _bundleRepository.deleteBundleItems(masterDataId);
+          return;
+        }
 
         await _bundleRepository.replaceBundleItems(masterDataId, bundleItems);
       }
@@ -127,13 +126,12 @@ class _MasterdataContentState extends State<MasterdataContent> {
           category: data['category_name'] ?? '',
           price: priceValue,
           userId: userId,
-          packagingId: 0,
         );
         final createdId = await masterDataRepository.insertMasterData(newData);
         await saveBundleItems(createdId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data baru berhasil ditambahkan')),
+            const SnackBar(content: Text('Menu baru berhasil ditambahkan')),
           );
         }
       } else {
@@ -145,13 +143,12 @@ class _MasterdataContentState extends State<MasterdataContent> {
           category: data['category_name'] ?? '',
           price: priceValue,
           userId: _dataToEdit!['id_user'],
-          packagingId: _dataToEdit!['id_packaging'] ?? 0,
         );
         await masterDataRepository.updateMasterData(updatedData);
         await saveBundleItems(_dataToEdit!['id'] as int);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data berhasil diperbarui')),
+            const SnackBar(content: Text('Menu berhasil diperbarui')),
           );
         }
       }
@@ -190,10 +187,10 @@ class _MasterdataContentState extends State<MasterdataContent> {
                 children: [
                   Text(
                     _currentState == ContentState.table
-                        ? "Data Master"
+                        ? "Menu"
                         : (_dataToEdit != null
-                            ? "Edit Data Master"
-                            : "Buat Data Master Baru"),
+                            ? "Edit Menu"
+                            : "Buat Menu Baru"),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
@@ -202,7 +199,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Data master untuk inventory dan produk",
+                    "Kelola menu dan daftar komponennya",
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -269,7 +266,7 @@ class _MasterdataContentState extends State<MasterdataContent> {
                                     const SizedBox(height: 10),
                                     // Content text
                                     Text(
-                                      'Hapus data ${data.category} ${data.name} ini?',
+                                      'Hapus menu ${data.category} ${data.name} ini?',
                                       style: TextStyle(
                                         color: Colors.grey[300],
                                       ),

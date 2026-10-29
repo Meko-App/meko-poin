@@ -97,14 +97,50 @@ class _InventoryTableState extends State<InventoryTable> {
           .addReject(updatedInventory, rejectAmount);
 
       if (rowsAffected > 0) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Stock reject berhasil ditambahkan')),
         );
         _loadInventoryData();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menambahkan stock reject: $e')),
+      );
+    }
+  }
+
+  Future<void> _addStock(
+    InventoryWithUserMasterData inventory,
+    int addAmount,
+    String? note,
+  ) async {
+    if (addAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jumlah stok harus lebih dari 0')),
+      );
+      return;
+    }
+
+    try {
+      final rowsAffected = await widget.inventoryRepository.addStock(
+        inventory.inventoryData,
+        addAmount,
+        note: note,
+      );
+
+      if (rowsAffected > 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Stok berhasil ditambahkan')),
+        );
+        await _loadInventoryData();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menambahkan stok: $e')),
       );
     }
   }
@@ -140,6 +176,10 @@ class _InventoryTableState extends State<InventoryTable> {
         case 'name':
           valueA = a.name;
           valueB = b.name;
+          break;
+        case 'category':
+          valueA = a.categoryName;
+          valueB = b.categoryName;
           break;
         case 'stock':
           valueA = a.inventoryData.stock;
@@ -253,6 +293,7 @@ class _InventoryTableState extends State<InventoryTable> {
                             children: currentPageData
                                 .map((data) => InventoryTableRow(
                                       name: data.name,
+                                      categoryName: data.categoryName,
                                       stock: data.inventoryData.stock,
                                       stockReject:
                                           data.inventoryData.stockReject!,
@@ -272,6 +313,8 @@ class _InventoryTableState extends State<InventoryTable> {
                                           .onViewLog(data.inventoryData.id!),
                                       onAddReject: (rejectAmount) =>
                                           _addRejectStock(data, rejectAmount),
+                                      onAddStock: (quantity, note) =>
+                                          _addStock(data, quantity, note),
                                     ))
                                 .toList(),
                           ),
